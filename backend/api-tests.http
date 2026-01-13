@@ -1,0 +1,52 @@
+# Pruebas de API - Autenticación
+
+## 1. Login (Admin)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@importservices.com",
+  "password": "password123"
+}
+
+###
+
+## 2. Login (Ventas)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ventas@importservices.com",
+  "password": "password123"
+}
+
+###
+
+## 3. Obtener usuario autenticado (requiere token)
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer TU_TOKEN_AQUI
+
+###
+
+## 4. Registrar nuevo usuario (requiere ser Admin)
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+Authorization: Bearer TOKEN_DE_ADMIN
+
+{
+  "email": "nuevo@importservices.com",
+  "password": "password123",
+  "name": "Nuevo Usuario",
+  "role": "SALES"
+}
+
+###
+
+## 5. Logout
+POST http://localhost:3000/api/auth/logout
+Authorization: Bearer TU_TOKEN_AQUI
+
+###
+
+## 6. Health Check
+GET http://localhost:3000/api/health

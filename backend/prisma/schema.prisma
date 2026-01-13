@@ -1,0 +1,370 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  SALES
+}
+
+enum ServiceType {
+  DOOR_TO_DOOR
+  FCL_20
+  FCL_40
+  FCL_40HC
+  LCL
+  AIR
+  WAREHOUSE
+  CUSTOMS
+  OTHER
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+  CONVERTED // Convertida a Aviso de Cobro
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+enum ShipmentStatus {
+  PENDING
+  AT_ORIGIN_WAREHOUSE
+  ON_VESSEL
+  AT_DESTINATION_PORT
+  CUSTOMS_CLEARANCE
+  DELIVERED
+}
+
+// -----------------------------------------------------------------------------
+// USER MANAGEMENT
+// -----------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed
+  name      String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  clients     Client[]      @relation("UserClients") // Portfolio of clients for Sales reps
+  quotes      Quote[]
+  shipments   Shipment[]    @relation("ShipmentHandler") // Internal user tracking
+}
+
+// -----------------------------------------------------------------------------
+// CORE BUSINESS ENTITIES
+// -----------------------------------------------------------------------------
+
+model Client {
+  id             String   @id @default(uuid())
+  internalCode   String   @unique // Generated auto
+  name           String
+  rifOrId        String   @unique // RIF o Cédula
+  email          String
+  phone          String
+  address        String
+  deliveryAddress String
+  contactPerson  String
+  referencePoint String
+  
+  assignedToId   String?
+  assignedTo     User?    @relation("UserClients", fields: [assignedToId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  quotes         Quote[]
+  paymentNotices PaymentNotice[]
+  receivables    Receivable[]
+  deliveryNotes  DeliveryNote[]
+}
+
+model Ally {
+  id          String   @id @default(uuid())
+  name        String
+  contactInfo String
+  address     String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  serviceRates ServiceRate[]
+  payables     Payable[]
+}
+
+// -----------------------------------------------------------------------------
+// LOGISTICS CATALOG & PRICING
+// -----------------------------------------------------------------------------
+
+model Service {
+  id          String      @id @default(uuid())
+  code        String      @unique // Codigo internacional o interno
+  name        String
+  type        ServiceType
+  notes       String?     // Notas adicionales del servicio
+
+  // Relations
+  rates       ServiceRate[]
+  items       QuoteItem[]
+}
+
+model Zone {
+  id          String   @id @default(uuid())
+  name        String   // e.g., "Zona 1 - Centro", "Zona 2 - Periferia"
+  description String?
+
+  // Relations
+  rates       ServiceRate[]
+}
+
+// The "Tarifario": Intersection of Ally, Service, and Zone
+model ServiceRate {
+  id        String   @id @default(uuid())
+  
+  allyId    String
+  ally      Ally     @relation(fields: [allyId], references: [id])
+
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id])
+
+  zoneId    String?  // Optional: some services might not be zone-dependent
+  zone      Zone?    @relation(fields: [zoneId], references: [id])
+
+  price     Decimal  @db.Decimal(10, 2)
+  
+  // Validity Period (prices change frequently)
+  validFrom DateTime @default(now())
+  validUntil DateTime?
+  currency  String   @default("USD")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([allyId, serviceId, zoneId]) // Prevent duplicates
+}
+
+// -----------------------------------------------------------------------------
+// OPERATIONS (QUOTES & ORDERS)
+// -----------------------------------------------------------------------------
+
+model Quote {
+  id          String      @id @default(uuid())
+  number      Int         @unique @default(autoincrement()) // Human readable ID
+  date        DateTime    @default(now())
+  validUntil  DateTime?
+  status      QuoteStatus @default(DRAFT)
+  
+  clientId    String
+  client      Client      @relation(fields: [clientId], references: [id])
+  
+  userId      String      // Sales rep who created it
+  user        User        @relation(fields: [userId], references: [id])
+
+  totalAmount Decimal     @db.Decimal(10, 2)
+  notes       String?
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  items           QuoteItem[]
+  paymentNotice   PaymentNotice? // Convert to order
+}
+
+model QuoteItem {
+  id            String   @id @default(uuid())
+  quoteId       String
+  quote         Quote    @relation(fields: [quoteId], references: [id])
+  
+  serviceId     String
+  service       Service  @relation(fields: [serviceId], references: [id])
+  
+  // Snapshot of price calculation at the moment of quote
+  quantity      Int      @default(1)
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  totalPrice    Decimal  @db.Decimal(10, 2)
+  
+  // Metadata for the item
+  description   String?
+}
+
+model DeliveryNote {
+  id              String   @id @default(uuid())
+  number          Int      @unique @default(autoincrement())
+  
+  date            DateTime @default(now())
+  
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id])
+  
+  // Delivery info (NO internal pricing/ally info visible to client)
+  deliveredTo     String?
+  deliveryAddress String?
+  
+  isClosed        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  paymentNotice   PaymentNotice? // DeliveryNote generates PaymentNotice
+}
+
+model PaymentNotice {
+  id              String   @id @default(uuid())
+  number          Int      @unique @default(autoincrement())
+  issueDate       DateTime @default(now())
+  
+  deliveryNoteId  String?  @unique
+  deliveryNote    DeliveryNote? @relation(fields: [deliveryNoteId], references: [id])
+  
+  quoteId         String?  @unique
+  quote           Quote?   @relation(fields: [quoteId], references: [id])
+  
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id])
+
+  // General
+  totalAmount     Decimal  @db.Decimal(10, 2)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  tracking        Shipment?
+  receivable      Receivable?
+}
+
+model Shipment {
+  id              String   @id @default(uuid())
+  
+  paymentNoticeId String   @unique
+  paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id])
+  
+  // Common fields
+  blNumber        String?  // BL Number (not container)
+  shippingLine    String?
+  status          ShipmentStatus @default(PENDING)
+  currentLocation String?
+  clientName      String?  // Cliente asociado
+  
+  // FCL Specific
+  containerType   String?  // Tipo de contenedor
+  containerQty    Int?     // Cantidad de contenedores
+  originPort      String?
+  destPort        String?
+  etd             DateTime? // Estimated Time Departure
+  eta             DateTime? // Estimated Time Arrival
+  
+  // Door to Door Specific
+  weight          Decimal?  @db.Decimal(10, 2) // Peso
+  quantity        Int?      // Cantidad
+  cbm             Decimal?  @db.Decimal(10, 2) // Metros cúbicos
+  
+  updatedById     String
+  updatedBy       User     @relation("ShipmentHandler", fields: [updatedById], references: [id])
+
+  updatedAt       DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// FINANCE
+// -----------------------------------------------------------------------------
+
+model Receivable {
+  id              String        @id @default(uuid())
+  
+  paymentNoticeId String        @unique
+  paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id])
+  
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id])
+  
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  balance         Decimal       @db.Decimal(10, 2) // Calculated field ideally, but stored for ease
+  status          PaymentStatus @default(PENDING)
+
+  payments        PaymentTransaction[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Payable {
+  id              String        @id @default(uuid())
+  
+  allyId          String
+  ally            Ally          @relation(fields: [allyId], references: [id])
+  
+  description     String
+  amount          Decimal       @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  
+  relatedOperationId String? // Optional link to PaymentNotice or Service
+  
+  dueDate         DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model PaymentTransaction {
+  id            String      @id @default(uuid())
+  receivableId  String
+  receivable    Receivable  @relation(fields: [receivableId], references: [id])
+  
+  amount        Decimal     @db.Decimal(10, 2)
+  date          DateTime    @default(now())
+  method        String?     // Transfer, Zelle, Cash
+  reference     String?
+  
+  createdAt     DateTime    @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// SYSTEM CONFIGURATION (WHITE LABEL)
+// -----------------------------------------------------------------------------
+
+model CompanySettings {
+  id          String   @id @default(uuid())
+  
+  // Branding
+  companyName String   @default("Import Services")
+  rif         String?  // RIF de la empresa propia
+  logoUrl     String?  // URL del logo cargado
+  
+  // Theme Customization
+  primaryColor String  @default("#0000FF") // Azul base
+  secondaryColor String @default("#FFA500") // Naranja base
+  
+  // Document Info (Used for automated PDF Headers/Footers)
+  headerText  String?
+  footerText  String?
+  
+  updatedAt   DateTime @updatedAt
+}
