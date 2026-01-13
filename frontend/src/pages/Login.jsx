@@ -26,13 +26,13 @@ export default function Login() {
             <div 
                 className="absolute inset-0 z-0 bg-cover bg-center"
                 style={{ 
-                    backgroundImage: 'url("https://images.unsplash.com/photo-1494412574643-35d32468817e?q=80&w=2075&auto=format&fit=crop")', // Imagen de puerto/contenedores
+                    backgroundImage: 'url("/fondo_login.jpeg")',
                     filter: 'brightness(0.6)' // Oscurecer para mejor contraste
                 }}
             />
 
             {/* Glassmorphism Card */}
-            <div className="relative z-10 w-full max-w-md p-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl mx-4">
+            <div className="relative z-10 w-full max-w-md p-8 bg-primary-dark/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl mx-4">
                 
                 {/* Logo & Header */}
                 <div className="flex flex-col items-center mb-8">

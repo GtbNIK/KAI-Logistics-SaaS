@@ -8,10 +8,10 @@ export default {
         extend: {
             colors: {
                 primary: {
-                    dark: '#003366',  // Azul oscuro
+                    dark: '#1F3042',  // Azul oscuro
                     light: '#4A90E2', // Azul claro
                 },
-                secondary: '#FFA500', // Naranja
+                secondary: '#F58927', // Naranja
             },
         },
     },
