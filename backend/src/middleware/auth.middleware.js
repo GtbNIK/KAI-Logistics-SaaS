@@ -1,51 +1,45 @@
-import { verifyToken } from '../utils/jwt.js';
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
 
-/**
- * Middleware de autenticación
- * Verifica que el usuario tenga un token válido
- */
-export const authenticate = (req, res, next) => {
+const prisma = global.prisma || new PrismaClient();
+if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
+
+export const verifyToken = async (req, res, next) => {
     try {
-        // Buscar token en header Authorization o en cookies
-        const token = req.headers.authorization?.split(' ')[1] || req.cookies.token;
-        
+        const token = req.cookies.token;
+
         if (!token) {
-            return res.status(401).json({
-                error: 'No autorizado',
-                message: 'Token no proporcionado'
-            });
+            return res.status(401).json({ message: 'No autenticado' });
         }
 
-        // Verificar y decodificar token
-        const decoded = verifyToken(token);
-        req.user = decoded; // Adjuntar info del usuario al request
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.id },
+            select: { id: true, email: true, name: true, role: true }
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: 'Usuario no encontrado' });
+        }
+
+        req.user = user;
         next();
     } catch (error) {
-        return res.status(401).json({
-            error: 'No autorizado',
-            message: error.message
-        });
+        console.error('Error verifying token:', error);
+        return res.status(401).json({ message: 'Token inválido' });
     }
 };
 
-/**
- * Middleware para verificar roles específicos
- * @param  {...string} allowedRoles - Roles permitidos (ej: 'ADMIN', 'SALES')
- */
-export const authorize = (...allowedRoles) => {
+export const authorize = (...roles) => {
     return (req, res, next) => {
         if (!req.user) {
-            return res.status(401).json({
-                error: 'No autorizado',
-                message: 'Usuario no autenticado'
-            });
+            return res.status(401).json({ message: 'No autenticado' });
         }
 
-        if (!allowedRoles.includes(req.user.role)) {
-            return res.status(403).json({
-                error: 'Prohibido',
-                message: 'No tienes permisos para acceder a este recurso'
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ 
+                message: 'No tienes permisos para acceder a este recurso' 
             });
         }
 

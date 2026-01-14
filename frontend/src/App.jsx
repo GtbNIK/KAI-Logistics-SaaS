@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import Clients from './pages/clients/Clients';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -12,32 +13,7 @@ const ProtectedRoute = ({ children }) => {
     return children;
 };
 
-// Layout básico del Dashboard (Placeholder)
-const DashboardLayout = () => {
-    const { user, logout } = useAuth();
-    return (
-        <div className="min-h-screen bg-slate-50">
-            <nav className="bg-primary-dark text-white p-4 flex justify-between items-center shadow-lg">
-                <h1 className="font-bold text-xl">ERP Import Services</h1>
-                <div className="flex items-center gap-4">
-                    <span>Hola, {user?.name}</span>
-                    <button 
-                        onClick={logout}
-                        className="bg-red-500/20 hover:bg-red-500/40 text-red-100 px-3 py-1 rounded transition-colors text-sm border border-red-500/50"
-                    >
-                        Salir
-                    </button>
-                </div>
-            </nav>
-            <main className="p-8">
-                <h2 className="text-2xl font-bold text-slate-800">Panel Principal</h2>
-                <div className="mt-4 p-6 bg-white rounded-xl shadow-sm border border-slate-100">
-                    <p className="text-slate-600">Bienvenido al sistema ERP.</p>
-                </div>
-            </main>
-        </div>
-    );
-};
+import MainLayout from './layouts/MainLayout';
 
 function App() {
     return (
@@ -46,9 +22,32 @@ function App() {
                 <Routes>
                     <Route path="/login" element={<Login />} />
                     
+                    {/* Rutas Protegidas con MainLayout */}
                     <Route path="/dashboard" element={
                         <ProtectedRoute>
-                            <DashboardLayout />
+                            <MainLayout>
+                                {/* Placeholder para el Home del Dashboard */}
+                                <h1 className="text-2xl font-bold text-primary-dark">Bienvenido al Dashboard</h1>
+                                <p className="text-slate-600 mt-2">Selecciona un módulo del menú lateral para comenzar.</p>
+                            </MainLayout>
+                        </ProtectedRoute>
+                    } />
+
+                    {/* Rutas de Módulos */}
+                    <Route path="/dashboard/clientes" element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Clients />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    } />
+                    
+                    {/* Placeholder para otros módulos */}
+                    <Route path="/dashboard/*" element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <h1 className="text-2xl font-bold text-gray-400">Módulo en construcción</h1>
+                            </MainLayout>
                         </ProtectedRoute>
                     } />
                     

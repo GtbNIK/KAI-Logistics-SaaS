@@ -106,7 +106,7 @@ export const login = async (req, res) => {
 
         // Generar token JWT
         const token = generateToken({
-            userId: user.id,
+            id: user.id,
             email: user.email,
             role: user.role
         });
@@ -171,7 +171,7 @@ export const logout = async (req, res) => {
 export const getMe = async (req, res) => {
     try {
         const user = await prisma.user.findUnique({
-            where: { id: req.user.userId },
+            where: { id: req.user.id },
             select: {
                 id: true,
                 email: true,

@@ -1,6 +1,6 @@
 import express from 'express';
 import { register, login, logout, getMe } from '../controllers/auth.controller.js';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
  * @desc    Registrar nuevo usuario
  * @access  Private (Solo Admin)
  */
-router.post('/register', authenticate, authorize('ADMIN'), register);
+router.post('/register', verifyToken, authorize('ADMIN'), register);
 
 /**
  * @route   POST /api/auth/login
@@ -23,13 +23,13 @@ router.post('/login', login);
  * @desc    Cerrar sesión
  * @access  Private
  */
-router.post('/logout', authenticate, logout);
+router.post('/logout', verifyToken, logout);
 
 /**
  * @route   GET /api/auth/me
  * @desc    Obtener usuario autenticado
  * @access  Private
  */
-router.get('/me', authenticate, getMe);
+router.get('/me', verifyToken, getMe);
 
 export default router;

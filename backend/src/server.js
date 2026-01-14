@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
+import clientRoutes from './routes/client.routes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -29,6 +30,8 @@ app.get('/api/health', (req, res) => {
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
+// Rutas de clientes
+app.use('/api/clients', clientRoutes); // Montar clientRoutes
 
 // Manejo de errores global
 app.use((err, req, res, next) => {
