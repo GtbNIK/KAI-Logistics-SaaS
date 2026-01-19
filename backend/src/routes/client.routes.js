@@ -10,6 +10,7 @@ router.post('/', authorize('ADMIN', 'SALES'), clientController.createClient);
 router.get('/', authorize('ADMIN', 'SALES'), clientController.getClients);
 router.get('/:id', authorize('ADMIN', 'SALES'), clientController.getClient);
 router.put('/:id', authorize('ADMIN', 'SALES'), clientController.updateClient);
+router.patch('/:id/toggle-status', authorize('ADMIN', 'SALES'), clientController.toggleClientStatus);
 router.delete('/:id', authorize('ADMIN'), clientController.deleteClient); // Solo Admin borra
 
 export default router;

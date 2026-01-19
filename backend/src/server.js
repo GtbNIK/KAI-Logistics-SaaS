@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
 import clientRoutes from './routes/client.routes.js';
+import allyRoutes from './routes/ally.routes.js';
+import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -30,8 +32,10 @@ app.get('/api/health', (req, res) => {
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
-// Rutas de clientes
-app.use('/api/clients', clientRoutes); // Montar clientRoutes
+// Rutas de clientes (requiere autenticación)
+app.use('/api/clients', verifyToken, clientRoutes);
+// Rutas de aliados (requiere autenticación)
+app.use('/api/allies', verifyToken, allyRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

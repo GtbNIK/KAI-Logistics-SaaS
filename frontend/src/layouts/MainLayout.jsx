@@ -28,7 +28,7 @@ const MainLayout = ({ children }) => {
                     {/* Background Pattern muy sutil */}
                     <div className="absolute inset-0 opacity-[0.4] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
                     
-                    <div className="relative z-10 max-w-[1600px] mx-auto">
+                    <div className="relative z-21 max-w-[1600px] mx-auto">
                         {children}
                     </div>
                 </main>

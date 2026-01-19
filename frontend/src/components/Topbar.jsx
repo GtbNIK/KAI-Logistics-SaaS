@@ -26,7 +26,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     };
 
     return (
-        <header className="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 sticky top-0 z-30">
+        <header className="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 sticky top-0 z-10">
             {/* Left: Page Title */}
             <div className="flex items-center gap-4">
                 <h1 className="text-xl font-semibold text-slate-800 tracking-tight">
@@ -76,7 +76,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                 className="fixed inset-0 z-10" 
                                 onClick={() => setShowProfileMenu(false)}
                             ></div>
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1 z-20 overflow-hidden text-sm">
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1 z-200 overflow-hidden text-sm">
                                 <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 md:hidden">
                                      <p className="font-medium text-slate-700">{user?.name}</p>
                                      <p className="text-xs text-slate-400 capitalize">{user?.role?.toLowerCase()}</p>

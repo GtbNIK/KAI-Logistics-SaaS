@@ -91,21 +91,27 @@ async function main() {
     const aliados = await Promise.all([
         prisma.ally.create({
             data: {
+                internalCode: 'ALL-0001',
                 name: 'Naviera Global Express',
-                contactInfo: 'contacto@navieraplobal.com | +58 212-555-0001',
+                rifOrId: 'J-12345678-1',
+                contactInfo: 'contacto@navieraglobal.com | +58 212-555-0001',
                 address: 'Puerto de La Guaira, Venezuela'
             }
         }),
         prisma.ally.create({
             data: {
+                internalCode: 'ALL-0002',
                 name: 'China Shipping Logistics',
+                rifOrId: 'E-88888888-0',
                 contactInfo: 'info@chinashipping.cn | +86 21-5555-0001',
                 address: 'Shanghai, China'
             }
         }),
         prisma.ally.create({
             data: {
+                internalCode: 'ALL-0003',
                 name: 'Transporte Terrestre VE',
+                rifOrId: 'J-98765432-1',
                 contactInfo: 'ventas@transporteve.com | +58 414-555-0001',
                 address: 'Caracas, Venezuela'
             }

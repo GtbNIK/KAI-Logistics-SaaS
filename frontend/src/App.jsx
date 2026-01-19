@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Clients from './pages/clients/Clients';
+import Allies from './pages/allies/Allies';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -38,6 +39,14 @@ function App() {
                         <ProtectedRoute>
                             <MainLayout>
                                 <Clients />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/dashboard/aliados" element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Allies />
                             </MainLayout>
                         </ProtectedRoute>
                     } />

@@ -83,11 +83,14 @@ model Client {
   name           String
   rifOrId        String   @unique // RIF o Cédula
   email          String
-  phone          String
+  phone          String   @unique // Teléfono único por cliente
   address        String
   deliveryAddress String
   contactPerson  String
   referencePoint String
+  
+  isActive       Boolean  @default(true) // Para inactivar clientes
+  deletedAt      DateTime? // Soft delete
   
   assignedToId   String?
   assignedTo     User?    @relation("UserClients", fields: [assignedToId], references: [id])
@@ -103,17 +106,22 @@ model Client {
 }
 
 model Ally {
-  id          String   @id @default(uuid())
-  name        String
-  contactInfo String
-  address     String
+  id             String    @id @default(uuid())
+  internalCode   String    @unique // ALL-0001
+  name           String
+  rifOrId        String    @unique // RIF o Cédula (normalizado)
+  contactInfo    String
+  address        String
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive       Boolean   @default(true)
+  deletedAt      DateTime?
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
-  serviceRates ServiceRate[]
-  payables     Payable[]
+  serviceRates   ServiceRate[]
+  payables       Payable[]
 }
 
 // -----------------------------------------------------------------------------

@@ -198,3 +198,31 @@ export const getMe = async (req, res) => {
         });
     }
 };
+
+/**
+ * @route   GET /api/auth/users
+ * @desc    Obtener lista de usuarios (para filtros y asignaciones)
+ * @access  Private (Admin, Sales)
+ */
+export const getUsers = async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+            },
+            orderBy: { name: 'asc' }
+        });
+
+        res.json({ users });
+    } catch (error) {
+        console.error('Error en getUsers:', error);
+        res.status(500).json({
+            error: 'Error del servidor',
+            message: 'No se pudo obtener la lista de usuarios'
+        });
+    }
+};
+

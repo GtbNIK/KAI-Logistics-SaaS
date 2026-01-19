@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Save, User, FileText, Mail, Phone, MapPin, Building } from 'lucide-react';
 import clientService from '../../services/client.service';
-import { useAuth } from '../../context/AuthContext';
 
-const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
-    const { user } = useAuth();
+const ClientFormModal = ({ isOpen, onClose, onSuccess, editMode = false, clientData = null }) => {
     const [formData, setFormData] = useState({
         name: '',
         rifOrId: '',
@@ -18,26 +16,50 @@ const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Reset form when modal opens
+    // Reset form when modal opens or clientData changes
     useEffect(() => {
         if (isOpen) {
-            setFormData({
-                name: '',
-                rifOrId: '',
-                email: '',
-                phone: '',
-                contactPerson: '',
-                address: '',
-                deliveryAddress: '',
-                referencePoint: ''
-            });
+            if (editMode && clientData) {
+                // Populate form with existing client data
+                setFormData({
+                    name: clientData.name || '',
+                    rifOrId: clientData.rifOrId || '',
+                    email: clientData.email || '',
+                    phone: clientData.phone || '',
+                    contactPerson: clientData.contactPerson || '',
+                    address: clientData.address || '',
+                    deliveryAddress: clientData.deliveryAddress || '',
+                    referencePoint: clientData.referencePoint || ''
+                });
+            } else {
+                // Reset to empty form
+                setFormData({
+                    name: '',
+                    rifOrId: '',
+                    email: '',
+                    phone: '',
+                    contactPerson: '',
+                    address: '',
+                    deliveryAddress: '',
+                    referencePoint: ''
+                });
+            }
             setError('');
         }
-    }, [isOpen]);
+    }, [isOpen, editMode, clientData]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handlePhoneChange = (e) => {
+        const { value } = e.target;
+        // Solo permitir números, +, -, (, ), espacios
+        const phoneRegex = /^[0-9+\-() ]*$/;
+        if (phoneRegex.test(value)) {
+            setFormData(prev => ({ ...prev, phone: value }));
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -46,12 +68,16 @@ const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
         setError('');
 
         try {
-            await clientService.createClient(formData);
+            if (editMode && clientData) {
+                await clientService.updateClient(clientData.id, formData);
+            } else {
+                await clientService.createClient(formData);
+            }
             onSuccess(); // Refresh list via parent
             onClose();
         } catch (err) {
-            console.error("Error creating client:", err);
-            setError(err.response?.data?.message || 'Error al crear el cliente');
+            console.error("Error saving client:", err);
+            setError(err.response?.data?.message || `Error al ${editMode ? 'actualizar' : 'crear'} el cliente`);
         } finally {
             setLoading(false);
         }
@@ -60,14 +86,14 @@ const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
+        <div className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200">
                 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 backdrop-blur-md z-10">
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800">Nuevo Cliente</h3>
-                        <p className="text-sm text-slate-500">Registrar un nuevo cliente o prospecto</p>
+                        <h3 className="text-xl font-bold text-slate-800">{editMode ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
+                        <p className="text-sm text-slate-500">{editMode ? 'Actualizar información del cliente' : 'Registrar un nuevo cliente'}</p>
                     </div>
                     <button 
                         onClick={onClose}
@@ -79,11 +105,6 @@ const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
 
                 {/* Body */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {error && (
-                        <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100 flex items-center gap-2">
-                            <X size={16} /> {error}
-                        </div>
-                    )}
 
                     {/* Section: Identificación */}
                     <div className="space-y-4">
@@ -154,7 +175,7 @@ const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
                                         name="phone"
                                         required
                                         value={formData.phone}
-                                        onChange={handleChange}
+                                        onChange={handlePhoneChange}
                                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
                                         placeholder="+58 412 1234567"
                                     />
@@ -219,6 +240,13 @@ const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
                                     placeholder="Ej. Detrás del centro comercial..."
                                 ></textarea>
                             </div>
+
+                            {/* Mensaje de error */}
+                            {error && (
+                                <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100 flex items-center gap-2 relative z-50">
+                                    <X size={16} /> {error}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -239,12 +267,12 @@ const ClientFormModal = ({ isOpen, onClose, onSuccess }) => {
                             {loading ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    Guardando...
+                                    {editMode ? 'Actualizando...' : 'Guardando...'}
                                 </>
                             ) : (
                                 <>
                                     <Save size={20} />
-                                    Guardar Cliente
+                                    {editMode ? 'Actualizar Cliente' : 'Guardar Cliente'}
                                 </>
                             )}
                         </button>
