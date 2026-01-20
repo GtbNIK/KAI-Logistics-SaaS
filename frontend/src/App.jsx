@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Clients from './pages/clients/Clients';
 import Allies from './pages/allies/Allies';
+import Services from './pages/services/Services';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -47,6 +48,14 @@ function App() {
                         <ProtectedRoute>
                             <MainLayout>
                                 <Allies />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/dashboard/servicios" element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Services />
                             </MainLayout>
                         </ProtectedRoute>
                     } />

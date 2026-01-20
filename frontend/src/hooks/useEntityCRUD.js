@@ -12,6 +12,7 @@ const useEntityCRUD = ({
     service, 
     entityName = 'elemento',
     limit = 10,
+    hasStatusField = true, // Si la entidad tiene campo isActive
     onError
 }) => {
     // Estado de datos
@@ -49,7 +50,9 @@ const useEntityCRUD = ({
                 page, 
                 search, 
                 limit,
-                includeInactive: filterStatus === 'all' || filterStatus === 'inactive' ? 'true' : 'false',
+                ...(hasStatusField && {
+                    includeInactive: filterStatus === 'all' || filterStatus === 'inactive' ? 'true' : 'false'
+                }),
                 ...customFilters
             };
             
@@ -59,11 +62,13 @@ const useEntityCRUD = ({
             
             let filteredData = response.data || response;
             
-            // Filtrar por estado en frontend si es necesario
-            if (filterStatus === 'inactive') {
-                filteredData = filteredData.filter(item => !item.isActive);
-            } else if (filterStatus === 'active') {
-                filteredData = filteredData.filter(item => item.isActive);
+            // Filtrar por estado en frontend solo si la entidad tiene campo isActive
+            if (hasStatusField) {
+                if (filterStatus === 'inactive') {
+                    filteredData = filteredData.filter(item => !item.isActive);
+                } else if (filterStatus === 'active') {
+                    filteredData = filteredData.filter(item => item.isActive);
+                }
             }
             
             setItems(filteredData);
@@ -76,7 +81,7 @@ const useEntityCRUD = ({
         } finally {
             setLoading(false);
         }
-    }, [page, search, filterStatus, customFilters, service, entityName, limit, onError]);
+    }, [page, search, filterStatus, customFilters, service, entityName, limit, hasStatusField, onError]);
 
     // Efecto para búsqueda con debounce
     useEffect(() => {

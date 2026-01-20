@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
 import clientRoutes from './routes/client.routes.js';
 import allyRoutes from './routes/ally.routes.js';
+import serviceRoutes from './routes/service.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -36,6 +37,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clients', verifyToken, clientRoutes);
 // Rutas de aliados (requiere autenticación)
 app.use('/api/allies', verifyToken, allyRoutes);
+// Rutas de servicios (requiere autenticación)
+app.use('/api/services', verifyToken, serviceRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

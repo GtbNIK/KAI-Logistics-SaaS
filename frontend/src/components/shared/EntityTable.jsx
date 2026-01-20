@@ -42,6 +42,7 @@ const EntityTable = ({
     entityNamePlural = 'elementos',
     canDelete = true,
     showToggle = true,
+    showStatusFilter = true, // Nuevo: controla si se muestra el filtro de estado
     extraFilters = null,
     codeColor = 'blue' // Color del badge de código (blue, purple, green, etc.)
 }) => {
@@ -76,24 +77,28 @@ const EntityTable = ({
                 </div>
                 
                 {/* Filtros */}
-                <div className="flex flex-wrap gap-3 items-center">
-                    <div className="flex items-center gap-2">
-                        <Filter size={16} className="text-slate-400" />
-                        <span className="text-sm font-medium text-slate-600">Filtros:</span>
+                {(showStatusFilter || extraFilters) && (
+                    <div className="flex flex-wrap gap-3 items-center">
+                        <div className="flex items-center gap-2">
+                            <Filter size={16} className="text-slate-400" />
+                            <span className="text-sm font-medium text-slate-600">Filtros:</span>
+                        </div>
+                        
+                        {showStatusFilter && (
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => onFilterStatusChange?.(e.target.value)}
+                                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                            >
+                                <option value="active">Activos</option>
+                                <option value="inactive">Inactivos</option>
+                                <option value="all">Todos</option>
+                            </select>
+                        )}
+                        
+                        {extraFilters}
                     </div>
-                    
-                    <select
-                        value={filterStatus}
-                        onChange={(e) => onFilterStatusChange?.(e.target.value)}
-                        className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
-                    >
-                        <option value="active">Activos</option>
-                        <option value="inactive">Inactivos</option>
-                        <option value="all">Todos</option>
-                    </select>
-                    
-                    {extraFilters}
-                </div>
+                )}
             </div>
 
             {/* Table */}
