@@ -35,7 +35,7 @@ const generateInternalCode = async () => {
 
 export const createClient = async (req, res) => {
     try {
-        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint } = req.body;
+        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToId } = req.body;
         
         // Normalizar RIF/Cédula
         const normalizedRifOrId = normalizeRifOrId(rifOrId);
@@ -64,8 +64,8 @@ export const createClient = async (req, res) => {
 
         const internalCode = await generateInternalCode();
         
-        // Si es VENDEDOR, se asigna automáticamente a sí mismo.
-        const assignedToId = req.user.id; 
+        // Si no se proporciona assignedToId, usar el usuario actual
+        const finalAssignedToId = assignedToId || req.user.id;
 
         const client = await prisma.client.create({
             data: {
@@ -78,7 +78,8 @@ export const createClient = async (req, res) => {
                 deliveryAddress,
                 contactPerson,
                 referencePoint,
-                assignedToId
+                clientDetails,
+                assignedToId: finalAssignedToId
             }
         });
 
@@ -199,7 +200,7 @@ export const getClient = async (req, res) => {
 export const updateClient = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint } = req.body;
+        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToId } = req.body;
 
         // Normalizar RIF/Cédula
         const normalizedRifOrId = normalizeRifOrId(rifOrId);
@@ -249,7 +250,7 @@ export const updateClient = async (req, res) => {
         const updatedClient = await prisma.client.update({
             where: { id },
             data: {
-                name, rifOrId: normalizedRifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint
+                name, rifOrId: normalizedRifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToId
             }
         });
 
@@ -284,6 +285,7 @@ export const deleteClient = async (req, res) => {
 export const toggleClientStatus = async (req, res) => {
     try {
         const { id } = req.params;
+        const { deactivationNote } = req.body; // Nota opcional al desactivar
         
         const existingClient = await prisma.client.findUnique({ 
             where: { id },
@@ -301,7 +303,11 @@ export const toggleClientStatus = async (req, res) => {
 
         const updatedClient = await prisma.client.update({
             where: { id },
-            data: { isActive: !existingClient.isActive }
+            data: { 
+                isActive: !existingClient.isActive,
+                // Solo guardar deactivationNote si se está desactivando
+                deactivationNote: !existingClient.isActive ? null : deactivationNote || null
+            }
         });
 
         res.json({ 

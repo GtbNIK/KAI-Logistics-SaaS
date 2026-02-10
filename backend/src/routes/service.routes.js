@@ -5,6 +5,7 @@ import {
     getService, 
     updateService, 
     deleteService,
+    toggleServiceStatus,
     getServiceTypes
 } from '../controllers/service.controller.js';
 import { authorize } from '../middleware/auth.middleware.js';
@@ -48,9 +49,16 @@ router.put('/:id', authorize('ADMIN'), updateService);
 
 /**
  * @route   DELETE /api/services/:id
- * @desc    Eliminar servicio
+ * @desc    Eliminar (desactivar) servicio
  * @access  Private (Admin)
  */
 router.delete('/:id', authorize('ADMIN'), deleteService);
+
+/**
+ * @route   PATCH /api/services/:id/toggle
+ * @desc    Activar/Desactivar servicio
+ * @access  Private (Admin)
+ */
+router.patch('/:id/toggle', authorize('ADMIN'), toggleServiceStatus);
 
 export default router;

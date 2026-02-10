@@ -27,6 +27,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         operaciones: true,
         finanzas: false
     });
+    // Estado para controlar qué submenús están expandidos
+    const [expandedSubMenus, setExpandedSubMenus] = useState({});
+
+    const toggleSubMenu = (itemId) => {
+        setExpandedSubMenus(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+    };
 
     const toggleGroup = (group) => {
         setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
@@ -47,7 +53,16 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             id: 'operaciones',
             label: 'Operaciones',
             items: [
-                { to: '/dashboard/cotizaciones', icon: FileText, label: 'Cotizaciones', roles: ['ADMIN', 'SALES'] },
+                { 
+                    id: 'cotizaciones',
+                    icon: FileText, 
+                    label: 'Cotizaciones', 
+                    roles: ['ADMIN', 'SALES'],
+                    subItems: [
+                        { to: '/dashboard/cotizaciones/nuevo', label: 'Crear Cotización' },
+                        { to: '/dashboard/cotizaciones', label: 'Ver Cotizaciones' }
+                    ]
+                },
                 { to: '/dashboard/embarques', icon: Container, label: 'Embarques', roles: ['ADMIN', 'SALES'] },
                 { to: '/dashboard/nota-entrega', icon: ScrollText, label: 'Nota de Entrega', roles: ['ADMIN'] },
                 { to: '/dashboard/aviso-cobro', icon: Receipt, label: 'Aviso de Cobro', roles: ['ADMIN'] },
@@ -59,6 +74,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             items: [
                 { to: '/dashboard/cx-cobrar', icon: TrendingUp, label: 'Cuentas Por Cobrar', roles: ['ADMIN'] },
                 { to: '/dashboard/cx-pagar', icon: TrendingDown, label: 'Cuentas Por Pagar', roles: ['ADMIN'] },
+            ]
+        },
+        {
+            id: 'configuracion',
+            label: 'Configuración',
+            items: [
+                { to: '/dashboard/configuracion', icon: Wallet, label: 'Configuración', roles: ['ADMIN'] },
             ]
         }
     ];
@@ -140,31 +162,85 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                         )}
 
                         <div className={`space-y-1 transition-all duration-300 ${!expandedGroups[group.id] && isOpen ? 'hidden' : ''}`}>
-                            {group.items.map((item) => (
-                                <NavLink
-                                    key={item.to}
-                                    to={item.to}
-                                    className={({ isActive }) => `
-                                        flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative
-                                        ${isActive 
-                                            ? 'bg-white/10 text-white font-medium shadow-inner' 
-                                            : 'text-white/60 hover:bg-white/5 hover:text-white'
-                                        }
-                                        ${!isOpen ? 'justify-center' : ''}
-                                    `}
-                                >
-                                    <item.icon size={20} strokeWidth={1.5} />
-                                    <span className={`text-sm transition-opacity duration-200 whitespace-nowrap ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
-                                        {item.label}
-                                    </span>
-
-                                    {!isOpen && (
-                                        <div className="absolute left-14 px-3 py-1.5 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 border border-white/10 shadow-xl">
-                                            {item.label}
+                            {group.items.map((item) => {
+                                // Caso Submenú
+                                if (item.subItems) {
+                                    return (
+                                        <div key={item.id} className="space-y-1">
+                                            <button
+                                                onClick={() => isOpen && toggleSubMenu(item.id)}
+                                                className={`
+                                                    w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative
+                                                    ${expandedSubMenus[item.id] ? 'text-white bg-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white'}
+                                                    ${!isOpen ? 'justify-center' : ''}
+                                                `}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <item.icon size={20} strokeWidth={1.5} />
+                                                    <span className={`text-sm transition-opacity duration-200 whitespace-nowrap ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+                                                        {item.label}
+                                                    </span>
+                                                </div>
+                                                {isOpen && (
+                                                    <ChevronDown 
+                                                        size={14} 
+                                                        className={`transition-transform duration-200 ${expandedSubMenus[item.id] ? 'rotate-180' : ''}`}
+                                                    />
+                                                )}
+                                            </button>
+                                            
+                                            {/* SubItems List */}
+                                            {isOpen && expandedSubMenus[item.id] && (
+                                                <div className="pl-9 space-y-1">
+                                                    {item.subItems.map(subItem => (
+                                                        <NavLink
+                                                            key={subItem.to}
+                                                            to={subItem.to}
+                                                            end
+                                                            className={({ isActive }) => `
+                                                                block px-3 py-2 rounded-lg text-sm transition-all duration-200
+                                                                ${isActive 
+                                                                    ? 'bg-white/10 text-white font-medium shadow-inner' 
+                                                                    : 'text-white/50 hover:bg-white/5 hover:text-white'
+                                                                }
+                                                            `}
+                                                        >
+                                                            {subItem.label}
+                                                        </NavLink>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </NavLink>
-                            ))}
+                                    );
+                                }
+
+                                // Caso Normal
+                                return (
+                                    <NavLink
+                                        key={item.to}
+                                        to={item.to}
+                                        className={({ isActive }) => `
+                                            flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative
+                                            ${isActive 
+                                                ? 'bg-white/10 text-white font-medium shadow-inner' 
+                                                : 'text-white/60 hover:bg-white/5 hover:text-white'
+                                            }
+                                            ${!isOpen ? 'justify-center' : ''}
+                                        `}
+                                    >
+                                        <item.icon size={20} strokeWidth={1.5} />
+                                        <span className={`text-sm transition-opacity duration-200 whitespace-nowrap ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+                                            {item.label}
+                                        </span>
+
+                                        {!isOpen && (
+                                            <div className="absolute left-14 px-3 py-1.5 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 border border-white/10 shadow-xl">
+                                                {item.label}
+                                            </div>
+                                        )}
+                                    </NavLink>
+                                );
+                            })}
                         </div>
                     </div>
                 ))}

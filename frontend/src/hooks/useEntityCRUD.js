@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '../context/ToastContext';
 
 /**
  * Hook genérico para operaciones CRUD de cualquier entidad
@@ -40,6 +41,9 @@ const useEntityCRUD = ({
     
     // Estado de operaciones
     const [actionLoading, setActionLoading] = useState(false);
+
+    // Toast para notificaciones
+    const toast = useToast();
 
     // Función para obtener datos
     const fetchItems = useCallback(async () => {
@@ -145,30 +149,37 @@ const useEntityCRUD = ({
             setIsDeleteOpen(false);
             setSelectedItem(null);
             fetchItems();
+            toast.entityDeleted(entityName.charAt(0).toUpperCase() + entityName.slice(1));
         } catch (err) {
             console.error(`Error deleting ${entityName}:`, err);
-            alert(err.response?.data?.message || `Error al eliminar ${entityName}`);
+            toast.showError('Error al eliminar', err.response?.data?.message || `No se pudo eliminar el ${entityName}`);
         } finally {
             setActionLoading(false);
         }
-    }, [selectedItem, service, entityName, fetchItems]);
+    }, [selectedItem, service, entityName, fetchItems, toast]);
 
-    const handleToggleStatus = useCallback(async () => {
+    const handleToggleStatus = useCallback(async (deactivationNote) => {
         if (!selectedItem) return;
         setActionLoading(true);
         try {
-            const toggleMethod = service.toggleStatus || service.toggleItemStatus;
-            await toggleMethod(selectedItem.id);
+            const capitalizedName = entityName.charAt(0).toUpperCase() + entityName.slice(1);
+            await service.toggleStatus(selectedItem.id, deactivationNote);
             setIsToggleOpen(false);
             setSelectedItem(null);
+            toast.showSuccess(
+                selectedItem.isActive ? `${capitalizedName} desactivado` : `${capitalizedName} activado`,
+                selectedItem.isActive 
+                    ? `${capitalizedName} desactivado exitosamente` 
+                    : `${capitalizedName} activado exitosamente`
+            );
             fetchItems();
         } catch (err) {
             console.error(`Error toggling ${entityName} status:`, err);
-            alert(err.response?.data?.message || `Error al cambiar estado del ${entityName}`);
+            toast.showError('Error al cambiar estado', err.response?.data?.message || `No se pudo cambiar el estado del ${entityName}`);
         } finally {
             setActionLoading(false);
         }
-    }, [selectedItem, service, entityName, fetchItems]);
+    }, [selectedItem, service, entityName, fetchItems, toast]);
 
     const handleFormSuccess = useCallback(() => {
         closeAllModals();

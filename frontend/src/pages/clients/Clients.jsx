@@ -10,7 +10,8 @@ import ClientDetailModal from '../../components/clients/ClientDetailModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ConfirmToggleModal from '../../components/modals/ConfirmToggleModal';
 import ImportExcelModal from '../../components/modals/ImportExcelModal';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 // Adaptar servicio para el hook
 const adaptedService = {
@@ -24,6 +25,44 @@ const adaptedService = {
 const Clients = () => {
     const { user } = useAuth();
     const [isImportOpen, setIsImportOpen] = useState(false);
+    const [users, setUsers] = useState([]);
+    const [configWithUsers, setConfigWithUsers] = useState(clientConfig);
+    
+    // Cargar usuarios para el selector de asignación
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/users`);
+                const userOptions = response.data.users.map(u => ({
+                    value: u.id,
+                    label: `${u.name} (${u.role})`
+                }));
+                
+                // Actualizar clientConfig con los usuarios cargados
+                const updatedConfig = {
+                    ...clientConfig,
+                    formSections: clientConfig.formSections.map(section => {
+                        if (section.title === 'Asignación') {
+                            return {
+                                ...section,
+                                fields: section.fields.map(field => 
+                                    field.name === 'assignedToId' 
+                                        ? { ...field, options: userOptions }
+                                        : field
+                                )
+                            };
+                        }
+                        return section;
+                    })
+                };
+                setConfigWithUsers(updatedConfig);
+                setUsers(response.data.users);
+            } catch (error) {
+                console.error('Error cargando usuarios:', error);
+            }
+        };
+        fetchUsers();
+    }, []);
     
     // Hook genérico con toda la lógica CRUD
     const {
@@ -111,7 +150,7 @@ const Clients = () => {
                 entityData={selectedItem}
                 service={adaptedService}
                 entityName={clientConfig.entityName}
-                sections={clientConfig.formSections}
+                sections={configWithUsers.formSections}
             />
             
             <ClientDetailModal
@@ -152,31 +191,34 @@ const Clients = () => {
                     <p className="text-slate-500 text-sm mt-1">Administra tu cartera de clientes y prospectos</p>
                 </div>
                 
-                <div className="flex gap-3">
-                    <button 
-                        onClick={handleExportExcel}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95"
-                        title="Exportar a Excel"
-                    >
-                        <FileUp size={20} />
-                        Exportar
-                    </button>
-                    <button 
-                        onClick={() => setIsImportOpen(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
-                        title="Importar desde Excel"
-                    >
-                        <FileDown size={20} />
-                        Importar
-                    </button>
-                    <button 
-                        onClick={openCreateForm}
-                        className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
-                    >
-                        <UserPlus size={20} />
-                        Nuevo Cliente
-                    </button>
-                </div>
+                {/* Botones de acción - Ocultar para rol SALES */}
+                {user?.role === 'ADMIN' && (
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={handleExportExcel}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95"
+                            title="Exportar a Excel"
+                        >
+                            <FileUp size={20} />
+                            Exportar
+                        </button>
+                        <button 
+                            onClick={() => setIsImportOpen(true)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
+                            title="Importar desde Excel"
+                        >
+                            <FileDown size={20} />
+                            Importar
+                        </button>
+                        <button 
+                            onClick={openCreateForm}
+                            className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
+                        >
+                            <UserPlus size={20} />
+                            Nuevo Cliente
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Tabla genérica */}
@@ -199,6 +241,8 @@ const Clients = () => {
                 entityName={clientConfig.entityName}
                 entityNamePlural={clientConfig.entityNamePlural}
                 canDelete={user?.role === 'ADMIN'}
+                canEdit={user?.role === 'ADMIN'}
+                showToggle={user?.role === 'ADMIN'}
                 codeColor={clientConfig.codeColor}
             />
         </div>

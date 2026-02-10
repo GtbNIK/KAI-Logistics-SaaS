@@ -20,6 +20,7 @@ import { Search, ChevronLeft, ChevronRight, Edit, Trash2, Eye, Power, Filter } f
  * @param {Function} props.onToggleStatus - Handler para cambiar estado
  * @param {string} props.entityName - Nombre de la entidad (para mensajes)
  * @param {boolean} props.canDelete - Si el usuario puede eliminar
+ * @param {boolean} props.canEdit - Si el usuario puede editar
  * @param {Object} props.extraFilters - Filtros adicionales (componente React)
  */
 const EntityTable = ({
@@ -41,6 +42,7 @@ const EntityTable = ({
     entityName = 'elemento',
     entityNamePlural = 'elementos',
     canDelete = true,
+    canEdit = true, // Nuevo: controla si el usuario puede editar
     showToggle = true,
     showStatusFilter = true, // Nuevo: controla si se muestra el filtro de estado
     extraFilters = null,
@@ -178,13 +180,15 @@ const EntityTable = ({
                                                         <Power size={18} />
                                                     </button>
                                                 )}
-                                                <button 
-                                                    className="p-2 text-slate-400 hover:text-primary-light hover:bg-blue-50 rounded-lg transition-colors" 
-                                                    title="Editar"
-                                                    onClick={() => onEdit?.(item)}
-                                                >
-                                                    <Edit size={18} />
-                                                </button>
+                                                {canEdit && (
+                                                    <button 
+                                                        className="p-2 text-slate-400 hover:text-primary-light hover:bg-blue-50 rounded-lg transition-colors" 
+                                                        title="Editar"
+                                                        onClick={() => onEdit?.(item)}
+                                                    >
+                                                        <Edit size={18} />
+                                                    </button>
+                                                )}
                                                 {canDelete && (
                                                     <button 
                                                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" 

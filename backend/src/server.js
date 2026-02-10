@@ -6,6 +6,10 @@ import authRoutes from './routes/auth.routes.js';
 import clientRoutes from './routes/client.routes.js';
 import allyRoutes from './routes/ally.routes.js';
 import serviceRoutes from './routes/service.routes.js';
+import zoneRoutes from './routes/zone.routes.js';
+import quoteRoutes from './routes/quote.routes.js';
+import rateRoutes from './routes/rate.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -39,6 +43,14 @@ app.use('/api/clients', verifyToken, clientRoutes);
 app.use('/api/allies', verifyToken, allyRoutes);
 // Rutas de servicios (requiere autenticación)
 app.use('/api/services', verifyToken, serviceRoutes);
+// Rutas de zonas (requiere autenticación)
+app.use('/api/zones', verifyToken, zoneRoutes);
+// Rutas de cotizaciones (requiere autenticación)
+app.use('/api/quotes', verifyToken, quoteRoutes);
+// Rutas de tarifas (requiere autenticación)
+app.use('/api/rates', verifyToken, rateRoutes);
+// Rutas de configuración de empresa
+app.use('/api/settings', settingsRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

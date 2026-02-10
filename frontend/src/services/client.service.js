@@ -27,8 +27,8 @@ const deleteClient = async (id) => {
     return response.data;
 };
 
-const toggleClientStatus = async (id) => {
-    const response = await axios.patch(`${API_URL}/clients/${id}/toggle-status`);
+const toggleClientStatus = async (id, deactivationNote = null) => {
+    const response = await axios.patch(`${API_URL}/clients/${id}/toggle-status`, { deactivationNote });
     return response.data;
 };
 

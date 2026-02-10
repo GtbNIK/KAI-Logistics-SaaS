@@ -89,6 +89,10 @@ model Client {
   contactPerson  String
   referencePoint String
   
+  // Nuevos campos solicitados
+  clientDetails    String?  // Descripción de lo que hace o pide comúnmente
+  deactivationNote String?  @db.Text // Nota al desactivar
+  
   isActive       Boolean  @default(true) // Para inactivar clientes
   deletedAt      DateTime? // Soft delete
   
@@ -103,6 +107,7 @@ model Client {
   paymentNotices PaymentNotice[]
   receivables    Receivable[]
   deliveryNotes  DeliveryNote[]
+  receipts       PaymentReceipt[] // Recibos de pago
 }
 
 model Ally {
@@ -134,6 +139,7 @@ model Service {
   name        String
   type        ServiceType
   notes       String?     // Notas adicionales del servicio
+  isActive    Boolean     @default(true) // Soft delete
 
   // Relations
   rates       ServiceRate[]
@@ -141,12 +147,14 @@ model Service {
 }
 
 model Zone {
-  id          String   @id @default(uuid())
-  name        String   // e.g., "Zona 1 - Centro", "Zona 2 - Periferia"
-  description String?
+  id           String   @id @default(uuid())
+  internalCode String   @unique // Código interno: ZON-0001
+  name         String   // e.g., "Zona 1 - Centro", "Zona 2 - Periferia"
+  description  String?
+  isActive     Boolean  @default(true) // Soft delete
 
   // Relations
-  rates       ServiceRate[]
+  rates        ServiceRate[]
 }
 
 // The "Tarifario": Intersection of Ally, Service, and Zone
@@ -162,7 +170,14 @@ model ServiceRate {
   zoneId    String?  // Optional: some services might not be zone-dependent
   zone      Zone?    @relation(fields: [zoneId], references: [id])
 
-  price     Decimal  @db.Decimal(10, 2)
+  // Pricing dual (costo del aliado vs precio de venta)
+  costPrice Decimal  @db.Decimal(10, 2) // Precio de compra al aliado
+  salePrice Decimal  @db.Decimal(10, 2) // Precio de venta al cliente
+  
+  // Campos para servicios marítimos/aéreos
+  originPort       String?
+  destinationPort  String?
+  shippingLine     String? // Línea naviera o aérea
   
   // Validity Period (prices change frequently)
   validFrom DateTime @default(now())
@@ -348,10 +363,32 @@ model PaymentTransaction {
   
   amount        Decimal     @db.Decimal(10, 2)
   date          DateTime    @default(now())
-  method        String?     // Transfer, Zelle, Cash
+  method        String      // "EFECTIVO", "TRANSFERENCIA", "ZELLE", "DEBITO", "CREDITO"
   reference     String?
   
+  receipt       PaymentReceipt? // Relación inversa
+  
   createdAt     DateTime    @default(now())
+}
+
+// Modelo para Recibos de Pago (estructura preparada, implementación pendiente)
+model PaymentReceipt {
+  id                   String             @id @default(uuid())
+  receiptNumber        Int                @unique @default(autoincrement())
+  
+  paymentTransactionId String             @unique
+  paymentTransaction   PaymentTransaction @relation(fields: [paymentTransactionId], references: [id])
+  
+  clientId             String
+  client               Client             @relation(fields: [clientId], references: [id])
+  
+  amount               Decimal            @db.Decimal(10, 2)
+  paymentMethod        String             // "EFECTIVO", "TRANSFERENCIA", "ZELLE"
+  reference            String?
+  
+  issuedBy             String             // Nombre del usuario que registró el pago
+  
+  createdAt            DateTime           @default(now())
 }
 
 // -----------------------------------------------------------------------------

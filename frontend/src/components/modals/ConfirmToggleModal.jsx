@@ -1,7 +1,24 @@
-import { AlertTriangle, X, Power } from 'lucide-react';
+import { AlertTriangle, X, Power, FileText } from 'lucide-react';
+import { useState } from 'react';
 
 const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, loading = false }) => {
+    const [deactivationNote, setDeactivationNote] = useState('');
+
     if (!isOpen) return null;
+
+    const handleConfirm = () => {
+        // Si se está desactivando, pasar la nota
+        if (isActive) {
+            onConfirm(deactivationNote);
+        } else {
+            onConfirm();
+        }
+    };
+
+    const handleClose = () => {
+        setDeactivationNote(''); // Limpiar nota al cerrar
+        onClose();
+    };
 
     return (
         <div className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
@@ -18,7 +35,7 @@ const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, 
                         </h3>
                     </div>
                     <button 
-                        onClick={onClose}
+                        onClick={handleClose}
                         disabled={loading}
                         className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50"
                     >
@@ -39,6 +56,25 @@ const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, 
                             <p className="font-semibold text-slate-800">{clientName}</p>
                         </div>
                     )}
+
+                    {/* Campo de nota solo cuando se desactiva */}
+                    {isActive && (
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                <FileText size={16} className="text-slate-400" />
+                                Motivo de desactivación (opcional)
+                            </label>
+                            <textarea
+                                value={deactivationNote}
+                                onChange={(e) => setDeactivationNote(e.target.value)}
+                                placeholder="Ej: Cliente inactivo comercialmente, cambio de proveedor, etc."
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all text-slate-700 resize-none"
+                                rows={3}
+                                disabled={loading}
+                            />
+                        </div>
+                    )}
+
                     <div className={`p-4 rounded-xl border flex items-start gap-3 ${
                         isActive ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
                     }`}>
@@ -54,14 +90,14 @@ const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, 
                 {/* Footer */}
                 <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         disabled={loading}
                         className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50"
                     >
                         Cancelar
                     </button>
                     <button
-                        onClick={onConfirm}
+                        onClick={handleConfirm}
                         disabled={loading}
                         className={`px-6 py-2.5 rounded-xl font-medium shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-white ${
                             isActive 

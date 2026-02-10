@@ -289,7 +289,7 @@ export const getAllyRates = async (req, res) => {
 export const upsertAllyRate = async (req, res) => {
     try {
         const { id } = req.params; // allyId
-        const { serviceId, zoneId, price, currency = 'USD', validUntil } = req.body;
+        const { serviceId, zoneId, costPrice, salePrice, currency = 'USD', validUntil, originPort, destinationPort, shippingLine } = req.body;
 
         // Verificar que el aliado existe
         const ally = await prisma.ally.findUnique({ where: { id } });
@@ -297,34 +297,98 @@ export const upsertAllyRate = async (req, res) => {
             return res.status(404).json({ message: 'Aliado no encontrado' });
         }
 
-        // Upsert: crear o actualizar si ya existe
-        const rate = await prisma.serviceRate.upsert({
-            where: {
-                allyId_serviceId_zoneId: {
+        let rate;
+
+        // Si es una tarifa de ruta (con puertos pero sin zona), creamos directamente
+        // porque el constraint único solo funciona con zona
+        if (originPort && destinationPort && !zoneId) {
+            // Verificar si ya existe una tarifa idéntica (mismo aliado, servicio, origen, destino)
+            const existingRate = await prisma.serviceRate.findFirst({
+                where: {
                     allyId: id,
                     serviceId,
-                    zoneId: zoneId || null
+                    originPort,
+                    destinationPort,
+                    zoneId: null
                 }
-            },
-            update: {
-                price: parseFloat(price),
-                currency,
-                validFrom: new Date(),
-                validUntil: validUntil ? new Date(validUntil) : null
-            },
-            create: {
-                allyId: id,
-                serviceId,
-                zoneId: zoneId || null,
-                price: parseFloat(price),
-                currency,
-                validUntil: validUntil ? new Date(validUntil) : null
-            },
-            include: {
-                service: { select: { id: true, name: true, code: true } },
-                zone: { select: { id: true, name: true } }
+            });
+
+            if (existingRate) {
+                // Actualizar la tarifa existente
+                rate = await prisma.serviceRate.update({
+                    where: { id: existingRate.id },
+                    data: {
+                        costPrice: parseFloat(costPrice),
+                        salePrice: parseFloat(salePrice),
+                        currency,
+                        validFrom: new Date(),
+                        validUntil: validUntil ? new Date(validUntil) : null,
+                        shippingLine: shippingLine || null
+                    },
+                    include: {
+                        service: { select: { id: true, name: true, code: true } },
+                        zone: { select: { id: true, name: true } }
+                    }
+                });
+            } else {
+                // Crear nueva tarifa de ruta
+                rate = await prisma.serviceRate.create({
+                    data: {
+                        allyId: id,
+                        serviceId,
+                        zoneId: null,
+                        costPrice: parseFloat(costPrice),
+                        salePrice: parseFloat(salePrice),
+                        currency,
+                        validUntil: validUntil ? new Date(validUntil) : null,
+                        originPort,
+                        destinationPort,
+                        shippingLine: shippingLine || null
+                    },
+                    include: {
+                        service: { select: { id: true, name: true, code: true } },
+                        zone: { select: { id: true, name: true } }
+                    }
+                });
             }
-        });
+        } else {
+            // Para tarifas con zona (o sin especificar ruta), usamos upsert normal
+            rate = await prisma.serviceRate.upsert({
+                where: {
+                    allyId_serviceId_zoneId: {
+                        allyId: id,
+                        serviceId,
+                        zoneId: zoneId || null
+                    }
+                },
+                update: {
+                    costPrice: parseFloat(costPrice),
+                    salePrice: parseFloat(salePrice),
+                    currency,
+                    validFrom: new Date(),
+                    validUntil: validUntil ? new Date(validUntil) : null,
+                    originPort: originPort || null,
+                    destinationPort: destinationPort || null,
+                    shippingLine: shippingLine || null
+                },
+                create: {
+                    allyId: id,
+                    serviceId,
+                    zoneId: zoneId || null,
+                    costPrice: parseFloat(costPrice),
+                    salePrice: parseFloat(salePrice),
+                    currency,
+                    validUntil: validUntil ? new Date(validUntil) : null,
+                    originPort: originPort || null,
+                    destinationPort: destinationPort || null,
+                    shippingLine: shippingLine || null
+                },
+                include: {
+                    service: { select: { id: true, name: true, code: true } },
+                    zone: { select: { id: true, name: true } }
+                }
+            });
+        }
 
         res.status(201).json(rate);
     } catch (error) {

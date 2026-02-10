@@ -77,11 +77,11 @@ async function main() {
     // 3. Crear Zonas de Entrega
     console.log('📍 Creando zonas de entrega...');
     const zonas = await Promise.all([
-        prisma.zone.create({ data: { name: 'Zona 1 - Caracas Centro', description: 'Municipios Libertador, Chacao, Baruta' } }),
-        prisma.zone.create({ data: { name: 'Zona 2 - Caracas Este', description: 'Sucre, El Hatillo' } }),
-        prisma.zone.create({ data: { name: 'Zona 3 - Miranda', description: 'Guarenas, Guatire, Los Teques' } }),
-        prisma.zone.create({ data: { name: 'Zona 4 - Maracaibo', description: 'Maracaibo y alrededores' } }),
-        prisma.zone.create({ data: { name: 'Zona 5 - Valencia', description: 'Valencia, Puerto Cabello' } }),
+        prisma.zone.create({ data: { internalCode: 'ZON-0001', name: 'Zona 1 - Caracas Centro', description: 'Municipios Libertador, Chacao, Baruta' } }),
+        prisma.zone.create({ data: { internalCode: 'ZON-0002', name: 'Zona 2 - Caracas Este', description: 'Sucre, El Hatillo' } }),
+        prisma.zone.create({ data: { internalCode: 'ZON-0003', name: 'Zona 3 - Miranda', description: 'Guarenas, Guatire, Los Teques' } }),
+        prisma.zone.create({ data: { internalCode: 'ZON-0004', name: 'Zona 4 - Maracaibo', description: 'Maracaibo y alrededores' } }),
+        prisma.zone.create({ data: { internalCode: 'ZON-0005', name: 'Zona 5 - Valencia', description: 'Valencia, Puerto Cabello' } }),
     ]);
 
     console.log(`✅ ${zonas.length} zonas creadas`);

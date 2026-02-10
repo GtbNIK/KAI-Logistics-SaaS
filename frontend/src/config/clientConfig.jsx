@@ -151,6 +151,36 @@ export const clientConfig = {
                     fullWidth: true
                 }
             ]
+        },
+        {
+            title: 'Detalles del Cliente',
+            icon: FileText,
+            columns: 1,
+            fields: [
+                {
+                    name: 'clientDetails',
+                    label: 'Información Adicional',
+                    type: 'textarea',
+                    required: false,
+                    placeholder: '¿Qué productos/servicios solicita usualmente este cliente? ¿Alguna nota importante?',
+                    rows: 3
+                }
+            ]
+        },
+        {
+            title: 'Asignación',
+            icon: User,
+            columns: 1,
+            fields: [
+                {
+                    name: 'assignedToId',
+                    label: 'Asignar a Vendedor',
+                    type: 'select',
+                    required: false,
+                    placeholder: 'Seleccionar vendedor',
+                    options: [] // Se cargará dinámicamente en Clients.jsx
+                }
+            ]
         }
     ]
 };

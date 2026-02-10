@@ -36,6 +36,19 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                     </button>
                 </div>
 
+                {/* Badge de Desactivación */}
+                {!client.isActive && client.deactivationNote && (
+                    <div className="mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div className="flex items-start gap-3">
+                            <FileText className="text-amber-600 mt-0.5" size={18} />
+                            <div>
+                                <p className="text-xs font-semibold text-amber-800 mb-1">Motivo de Desactivación</p>
+                                <p className="text-sm text-amber-700">{client.deactivationNote}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Body */}
                 <div className="p-6 space-y-6">
                     
@@ -59,7 +72,7 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                     {/* Section: Contacto */}
                     <div className="space-y-3">
                         <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <Phone size={14} /> Datos de Contacto
+                            <User size={14} /> Contacto
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
@@ -76,7 +89,7 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                                     <p className="font-medium text-slate-800">{client.phone}</p>
                                 </div>
                             </div>
-                            <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3 col-span-1 md:col-span-2">
+                            <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3 md:col-span-2">
                                 <User className="text-slate-400 mt-0.5" size={18} />
                                 <div>
                                     <p className="text-xs text-slate-400 mb-1">Persona de Contacto</p>
@@ -109,7 +122,19 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                         </div>
                     </div>
 
-                    {/* Section: Asignación */}
+                    {/* Section: Detalles del Cliente */}
+                    {client.clientDetails && (
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                <FileText size={14} /> Detalles del Cliente
+                            </h4>
+                            <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
+                                <p className="text-sm text-slate-700 whitespace-pre-wrap">{client.clientDetails}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Section: Asignación y Fechas */}
                     <div className="space-y-3">
                         <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                             <UserCheck size={14} /> Asignación

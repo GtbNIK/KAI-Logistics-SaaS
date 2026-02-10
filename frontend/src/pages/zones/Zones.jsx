@@ -1,24 +1,24 @@
 import { useState } from 'react';
-import { Package } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import serviceService from '../../services/service.service';
-import { serviceConfig } from '../../config/serviceConfig.jsx';
+import zoneService from '../../services/zone.service';
+import { zoneConfig } from '../../config/zoneConfig.jsx';
 import useEntityCRUD from '../../hooks/useEntityCRUD';
 import EntityTable from '../../components/shared/EntityTable';
 import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
-import ServiceDetailModal from '../../components/services/ServiceDetailModal';
+import ZoneDetailModal from '../../components/zones/ZoneDetailModal';
 
 // Adaptar servicio para el hook
 const adaptedService = {
-    getAll: serviceService.getServices,
-    create: serviceService.createService,
-    update: serviceService.updateService,
-    delete: serviceService.deleteService,
-    toggleStatus: serviceService.toggleStatus
+    getAll: zoneService.getZones,
+    create: zoneService.createZone,
+    update: zoneService.updateZone,
+    delete: zoneService.deleteZone,
+    toggleStatus: zoneService.toggleStatus
 };
 
-const Services = () => {
+const Zones = () => {
     const { user } = useAuth();
     const [detailItem, setDetailItem] = useState(null);
     
@@ -50,9 +50,9 @@ const Services = () => {
         actionLoading
     } = useEntityCRUD({
         service: adaptedService,
-        entityName: serviceConfig.entityName,
+        entityName: zoneConfig.entityName,
         limit: 10,
-        hasStatusField: true // Ahora Services tienen campo isActive
+        hasStatusField: true // Ahora Zones tienen campo isActive
     });
 
     // Handler para ver detalle
@@ -70,16 +70,16 @@ const Services = () => {
                 editMode={isEditMode}
                 entityData={selectedItem}
                 service={adaptedService}
-                entityName={serviceConfig.entityName}
-                sections={serviceConfig.formSections}
+                entityName={zoneConfig.entityName}
+                sections={zoneConfig.formSections}
             />
             
             <ConfirmDeleteModal
                 isOpen={isDeleteOpen}
                 onClose={closeAllModals}
                 onConfirm={handleDelete}
-                title={`Desactivar ${serviceConfig.entityName}`}
-                message={`¿Estás seguro de que deseas desactivar este ${serviceConfig.entityName}? Podrás reactivarlo después.`}
+                title={`Desactivar ${zoneConfig.entityName}`}
+                message={`¿Estás seguro de que deseas desactivar esta ${zoneConfig.entityName}? Podrás reactivarla después.`}
                 itemName={selectedItem?.name}
                 loading={actionLoading}
             />
@@ -88,26 +88,26 @@ const Services = () => {
                 isOpen={isToggleOpen}
                 onClose={closeAllModals}
                 onConfirm={handleToggleStatus}
-                title={selectedItem?.isActive ? 'Desactivar Servicio' : 'Activar Servicio'}
+                title={selectedItem?.isActive ? 'Desactivar Zona' : 'Activar Zona'}
                 message={selectedItem?.isActive 
-                    ? '¿Deseas desactivar este servicio? No aparecerá en nuevas cotizaciones.'
-                    : '¿Deseas reactivar este servicio?'
+                    ? '¿Deseas desactivar esta zona? No aparecerá en nuevas cotizaciones.'
+                    : '¿Deseas reactivar esta zona?'
                 }
                 itemName={selectedItem?.name}
                 loading={actionLoading}
             />
 
-            <ServiceDetailModal
+            <ZoneDetailModal
                 isOpen={!!detailItem}
                 onClose={() => setDetailItem(null)}
-                service={detailItem}
+                zone={detailItem}
             />
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Catálogo de Servicios</h2>
-                    <p className="text-slate-500 text-sm mt-1">Administra los servicios que ofrece la empresa</p>
+                    <h2 className="text-2xl font-bold text-slate-800">Zonas de Entrega</h2>
+                    <p className="text-slate-500 text-sm mt-1">Administra las zonas geográficas de cobertura</p>
                 </div>
                 
                 {user?.role === 'ADMIN' && (
@@ -115,8 +115,8 @@ const Services = () => {
                         onClick={openCreateForm}
                         className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
                     >
-                        <Package size={20} />
-                        Nuevo Servicio
+                        <MapPin size={20} />
+                        Nueva Zona
                     </button>
                 )}
             </div>
@@ -124,7 +124,7 @@ const Services = () => {
             {/* Tabla genérica */}
             <EntityTable
                 items={items}
-                columns={serviceConfig.columns}
+                columns={zoneConfig.columns}
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
@@ -138,15 +138,15 @@ const Services = () => {
                 onEdit={openEditForm}
                 onDelete={openDeleteConfirm}
                 onToggleStatus={openToggleConfirm}
-                entityName={serviceConfig.entityName}
-                entityNamePlural={serviceConfig.entityNamePlural}
+                entityName={zoneConfig.entityName}
+                entityNamePlural={zoneConfig.entityNamePlural}
                 canDelete={user?.role === 'ADMIN'}
                 showToggle={user?.role === 'ADMIN'}
                 showStatusFilter={true}
-                codeColor={serviceConfig.codeColor}
+                codeColor={zoneConfig.codeColor}
             />
         </div>
     );
 };
 
-export default Services;
+export default Zones;

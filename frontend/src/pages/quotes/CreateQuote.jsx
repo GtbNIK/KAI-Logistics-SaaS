@@ -1,0 +1,598 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Select from 'react-select';
+import { FileText, Save, ArrowLeft, Loader2, Plus, Trash2, Package, FileDown, Truck, MapPin } from 'lucide-react';
+import clientService from '../../services/client.service';
+import serviceService from '../../services/service.service';
+import allyService from '../../services/ally.service';
+import zoneService from '../../services/zone.service';
+import quoteService from '../../services/quote.service';
+import QuotePDFModal from '../../components/quotes/QuotePDFModal';
+import { useToast } from '../../context/ToastContext';
+
+// Componente para cada línea de item
+const QuoteItemRow = ({ 
+    item, 
+    index, 
+    services, 
+    allies, 
+    zones, 
+    loadingData,
+    onUpdate, 
+    onRemove, 
+    canRemove,
+    onRateFound
+}) => {
+    const [searchingRate, setSearchingRate] = useState(false);
+    const [foundRate, setFoundRate] = useState(null);
+
+    // Determinar tipo de servicio
+    const selectedService = services.find(s => s.value === item.serviceId);
+    const serviceType = selectedService?.data?.type;
+    const isLandService = ['DOOR_TO_DOOR', 'WAREHOUSE', 'CUSTOMS', 'OTHER'].includes(serviceType);
+    const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
+
+    // Buscar tarifa cuando cambian las selecciones
+    useEffect(() => {
+        const fetchRate = async () => {
+            if (!item.serviceId || !item.allyId) {
+                setFoundRate(null);
+                return;
+            }
+
+            setSearchingRate(true);
+            try {
+                const rateService = (await import('../../services/rate.service')).default;
+                const result = await rateService.findRate({
+                    serviceId: item.serviceId,
+                    allyId: item.allyId,
+                    zoneId: item.zoneId || undefined,
+                    originPort: item.originPort || undefined,
+                    destinationPort: item.destinationPort || undefined
+                });
+
+                if (result.found && result.rate) {
+                    setFoundRate(result.rate);
+                    onUpdate(index, { unitPrice: result.rate.salePrice });
+                    onRateFound(index, result.rate);
+                } else {
+                    setFoundRate(null);
+                    onRateFound(index, null);
+                }
+            } catch {
+                setFoundRate(null);
+                onRateFound(index, null);
+            } finally {
+                setSearchingRate(false);
+            }
+        };
+
+        fetchRate();
+    }, [item.serviceId, item.allyId, item.zoneId, item.originPort, item.destinationPort]);
+
+    const subtotal = (item.quantity || 0) * (item.unitPrice || 0);
+
+    return (
+        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-4 relative group">
+            {/* Header con número y botón eliminar */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Package size={16} className="text-slate-400" />
+                    <span className="text-sm font-medium text-slate-600">Item #{index + 1}</span>
+                    {selectedService && (
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {serviceType}
+                        </span>
+                    )}
+                </div>
+                {canRemove && (
+                    <button
+                        onClick={() => onRemove(index)}
+                        className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                )}
+            </div>
+
+            {/* Fila 1: Servicio y Aliado */}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Servicio</label>
+                    <Select
+                        options={services}
+                        value={services.find(s => s.value === item.serviceId)}
+                        isLoading={loadingData}
+                        placeholder="Servicio..."
+                        onChange={(opt) => onUpdate(index, { 
+                            serviceId: opt?.value, 
+                            zoneId: null, 
+                            originPort: '', 
+                            destinationPort: '' 
+                        })}
+                        className="text-sm"
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={{ 
+                            control: (base) => ({ ...base, minHeight: '36px' }),
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                        }}
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Aliado</label>
+                    <Select
+                        options={allies}
+                        value={allies.find(a => a.value === item.allyId)}
+                        isLoading={loadingData}
+                        placeholder="Aliado..."
+                        onChange={(opt) => onUpdate(index, { allyId: opt?.value })}
+                        className="text-sm"
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={{ 
+                            control: (base) => ({ ...base, minHeight: '36px' }),
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* Fila 2: Zona o Puertos */}
+            {isLandService && (
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Zona de Destino</label>
+                    <Select
+                        options={zones}
+                        value={zones.find(z => z.value === item.zoneId)}
+                        isLoading={loadingData}
+                        placeholder="Zona..."
+                        onChange={(opt) => onUpdate(index, { zoneId: opt?.value })}
+                        isClearable
+                        className="text-sm"
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={{ 
+                            control: (base) => ({ ...base, minHeight: '36px' }),
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                        }}
+                    />
+                </div>
+            )}
+
+            {isPortService && (
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Puerto Origen</label>
+                        <input 
+                            type="text"
+                            value={item.originPort || ''}
+                            onChange={(e) => onUpdate(index, { originPort: e.target.value })}
+                            placeholder="Ej: La Guaira"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-500">Puerto Destino</label>
+                        <input 
+                            type="text"
+                            value={item.destinationPort || ''}
+                            onChange={(e) => onUpdate(index, { destinationPort: e.target.value })}
+                            placeholder="Ej: Miami"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Fila 3: Cantidad, Precio y Subtotal */}
+            <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Cantidad</label>
+                    <input 
+                        type="number" 
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => onUpdate(index, { quantity: parseInt(e.target.value) || 1 })}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Precio Unit. ($)</label>
+                    <input 
+                        type="number" 
+                        min="0"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={(e) => onUpdate(index, { unitPrice: parseFloat(e.target.value) || 0 })}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none ${
+                            foundRate ? 'border-green-300 bg-green-50/50' : 'border-slate-200'
+                        }`}
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Subtotal</label>
+                    <div className="px-3 py-2 text-sm font-bold bg-slate-100 rounded-lg text-slate-700">
+                        ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Indicador de tarifa */}
+            {(searchingRate || item.serviceId && item.allyId) && (
+                <div className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${
+                    searchingRate ? 'text-blue-600' : foundRate ? 'text-green-600' : 'text-amber-600'
+                }`}>
+                    {searchingRate ? (
+                        <>
+                            <Loader2 size={12} className="animate-spin" />
+                            <span>Buscando tarifa...</span>
+                        </>
+                    ) : foundRate ? (
+                        <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                            <span>Tarifa aplicada: ${foundRate.salePrice.toFixed(2)}</span>
+                        </>
+                    ) : (item.serviceId && item.allyId) ? (
+                        <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            <span>Sin tarifa - precio manual</span>
+                        </>
+                    ) : null}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Componente principal
+const CreateQuote = () => {
+    const navigate = useNavigate();
+    const { showError, showSuccess, showWarning } = useToast();
+    
+    // Estados de carga
+    const [loadingData, setLoadingData] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
+    // Datos para selectores
+    const [clients, setClients] = useState([]);
+    const [services, setServices] = useState([]);
+    const [allies, setAllies] = useState([]);
+    const [zones, setZones] = useState([]);
+
+    // Estado del formulario
+    const [clientId, setClientId] = useState(null);
+    const [notes, setNotes] = useState('');
+    const [items, setItems] = useState([createEmptyItem()]);
+    
+    // Tarifas encontradas por item
+    const [itemRates, setItemRates] = useState({});
+    
+    // Estado para el modal de PDF
+    const [showPDFModal, setShowPDFModal] = useState(false);
+
+    function createEmptyItem() {
+        return {
+            id: Date.now(), // ID temporal para key
+            serviceId: null,
+            allyId: null,
+            zoneId: null,
+            originPort: '',
+            destinationPort: '',
+            quantity: 1,
+            unitPrice: 0,
+            description: ''
+        };
+    }
+
+    // Cargar datos iniciales
+    useEffect(() => {
+        const loadData = async () => {
+            setLoadingData(true);
+            try {
+                const [clientsRes, servicesRes, alliesRes, zonesRes] = await Promise.all([
+                    clientService.getClients({ limit: 100 }),
+                    serviceService.getServices({ limit: 100 }),
+                    allyService.getAllies({ limit: 100 }),
+                    zoneService.getZones({ limit: 100 })
+                ]);
+
+                setClients(clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })));
+                setServices(servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })));
+                setAllies(alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })));
+                setZones(zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })));
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showError('Error', 'Error al cargar datos iniciales');
+            } finally {
+                setLoadingData(false);
+            }
+        };
+
+        loadData();
+    }, []);
+
+    // Actualizar un item
+    const updateItem = (index, updates) => {
+        setItems(prev => prev.map((item, i) => 
+            i === index ? { ...item, ...updates } : item
+        ));
+    };
+
+    // Agregar item
+    const addItem = () => {
+        setItems(prev => [...prev, createEmptyItem()]);
+    };
+
+    // Eliminar item
+    const removeItem = (index) => {
+        setItems(prev => prev.filter((_, i) => i !== index));
+        setItemRates(prev => {
+            const newRates = { ...prev };
+            delete newRates[index];
+            return newRates;
+        });
+    };
+
+    // Callback cuando se encuentra una tarifa
+    const handleRateFound = (index, rate) => {
+        setItemRates(prev => ({ ...prev, [index]: rate }));
+    };
+
+    // Calcular totales
+    const calculateTotals = () => {
+        const subtotals = items.map(item => (item.quantity || 0) * (item.unitPrice || 0));
+        const total = subtotals.reduce((sum, st) => sum + st, 0);
+        return { subtotals, total };
+    };
+
+    const { total } = calculateTotals();
+
+    const handleSubmit = async () => {
+        if (!clientId) {
+            showWarning('Cliente requerido', 'Seleccione un cliente');
+            return;
+        }
+
+        const validItems = items.filter(item => item.serviceId && item.unitPrice > 0);
+        if (validItems.length === 0) {
+            showWarning('Items requeridos', 'Agregue al menos un servicio con precio');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const payload = {
+                clientId,
+                validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 días
+                notes,
+                items: validItems.map(item => {
+                    const service = services.find(s => s.value === item.serviceId);
+                    const ally = allies.find(a => a.value === item.allyId);
+                    
+                    return {
+                        serviceId: item.serviceId,
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        description: `${service?.label || 'Servicio'} - ${ally?.label || 'Aliado'}`
+                    };
+                })
+            };
+
+            await quoteService.createQuote(payload);
+            showSuccess('¡Éxito!', 'Cotización creada exitosamente');
+            navigate('/dashboard/cotizaciones');
+        } catch (error) {
+            console.error('Error creating quote:', error);
+            showError('Error', 'Error al crear la cotización');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="h-[calc(100vh-100px)] flex flex-col gap-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+                <button 
+                    onClick={() => navigate('/dashboard/cotizaciones')}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                >
+                    <ArrowLeft className="text-slate-500 hover:text-slate-700" />
+                </button>
+                <h1 className="text-2xl font-bold text-slate-800">Cotizador</h1>
+            </div>
+
+            {/* Main Content - Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
+                
+                {/* Left Panel: Form */}
+                <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col overflow-hidden">
+                    <div className="mb-4">
+                        <h2 className="text-lg font-semibold text-slate-800 mb-1">Configuración</h2>
+                        <p className="text-sm text-slate-500">
+                            Agregue los servicios que necesita el cliente.
+                        </p>
+                    </div>
+
+                    {/* Cliente */}
+                    <div className="space-y-2 mb-4">
+                        <label className="text-sm font-medium text-slate-700">Cliente</label>
+                        <Select
+                            options={clients}
+                            value={clients.find(c => c.value === clientId)}
+                            isLoading={loadingData}
+                            placeholder="Buscar cliente..."
+                            onChange={(opt) => setClientId(opt?.value)}
+                        />
+                    </div>
+
+                    {/* Lista de Items */}
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                        {items.map((item, index) => (
+                            <QuoteItemRow
+                                key={item.id}
+                                item={item}
+                                index={index}
+                                services={services}
+                                allies={allies}
+                                zones={zones}
+                                loadingData={loadingData}
+                                onUpdate={updateItem}
+                                onRemove={removeItem}
+                                canRemove={items.length > 1}
+                                onRateFound={handleRateFound}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Botón agregar item */}
+                    <button
+                        onClick={addItem}
+                        className="mt-4 w-full py-2 border-2 border-dashed border-slate-300 text-slate-500 rounded-xl hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Plus size={18} />
+                        Agregar otro servicio
+                    </button>
+
+                    {/* Notas */}
+                    <div className="mt-4 space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Notas (opcional)</label>
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg h-16 resize-none focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+                            placeholder="Notas internas..."
+                        />
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="mt-4 flex gap-3">
+                        {/* Botón Vista Previa PDF */}
+                        <button
+                            onClick={() => setShowPDFModal(true)}
+                            disabled={!clientId || items.every(i => !i.serviceId)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-4 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            <FileDown size={20} />
+                            Ver PDF
+                        </button>
+                        
+                        {/* Botón Guardar */}
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting || !clientId || items.every(i => !i.serviceId)}
+                            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-orange-500/30 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {submitting ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+
+                {/* Right Panel: Preview */}
+                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 text-white flex flex-col relative overflow-hidden">
+                    {/* Background decoration */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
+
+                    <div className="relative z-10 flex-1 flex flex-col">
+                        <h2 className="text-xl font-bold mb-1">Vista Previa</h2>
+                        <p className="text-slate-400 text-sm mb-4">Resumen de la cotización</p>
+
+                        {/* Cliente seleccionado */}
+                        <div className="bg-white/10 rounded-lg px-4 py-3 mb-4">
+                            <span className="text-slate-400 text-xs">Cliente</span>
+                            <p className="font-medium">
+                                {clients.find(c => c.value === clientId)?.label || 'Sin seleccionar'}
+                            </p>
+                        </div>
+
+                        {/* Lista de items */}
+                        <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                            {items.filter(i => i.serviceId).map((item, index) => {
+                                const service = services.find(s => s.value === item.serviceId);
+                                const ally = allies.find(a => a.value === item.allyId);
+                                const zone = zones.find(z => z.value === item.zoneId);
+                                const subtotal = (item.quantity || 0) * (item.unitPrice || 0);
+                                
+                                // Determinar destino según tipo de servicio
+                                const serviceType = service?.data?.type;
+                                const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
+                                const destination = isPortService 
+                                    ? (item.originPort && item.destinationPort ? `${item.originPort} → ${item.destinationPort}` : null)
+                                    : zone?.label;
+                                
+                                return (
+                                    <div key={item.id} className="bg-white/5 rounded-lg px-4 py-3">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <p className="font-medium text-sm">{service?.label || 'Servicio'}</p>
+                                            <span className="font-bold">
+                                                ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-slate-400 space-y-0.5">
+                                            {ally && (
+                                                <p className="flex items-center gap-1">
+                                                    <Truck size={12} className="text-slate-500" />
+                                                    <span>{ally.label}</span>
+                                                </p>
+                                            )}
+                                            {destination && (
+                                                <p className="flex items-center gap-1">
+                                                    <MapPin size={12} className="text-slate-500" />
+                                                    <span>{destination}</span>
+                                                </p>
+                                            )}
+                                            <p className="text-slate-500">
+                                                {item.quantity}x @ ${item.unitPrice.toFixed(2)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            
+                            {items.every(i => !i.serviceId) && (
+                                <div className="text-center text-slate-500 py-8">
+                                    <Package size={32} className="mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">Agregue servicios para ver el resumen</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Total */}
+                        <div className="bg-white text-slate-800 rounded-xl p-4 flex justify-between items-center">
+                            <div>
+                                <span className="text-sm text-slate-500">Total Estimado</span>
+                                <p className="text-xs text-slate-400">{items.filter(i => i.serviceId).length} item(s)</p>
+                            </div>
+                            <span className="text-2xl font-bold">
+                                ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {/* Modal de Vista Previa PDF */}
+            <QuotePDFModal
+                isOpen={showPDFModal}
+                onClose={() => setShowPDFModal(false)}
+                quote={{
+                    clientName: clients.find(c => c.value === clientId)?.label,
+                    items,
+                    total,
+                    notes,
+                    number: null, // Es nueva cotización
+                    validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000) // 15 días
+                }}
+                services={services}
+                allies={allies}
+                zones={zones}
+            />
+        </div>
+    );
+};
+
+export default CreateQuote;

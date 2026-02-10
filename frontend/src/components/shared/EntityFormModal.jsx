@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Modal de formulario genérico para crear/editar cualquier entidad
@@ -25,6 +26,7 @@ const EntityFormModal = ({
     title,
     sections = []
 }) => {
+    const toast = useToast();
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -69,18 +71,22 @@ const EntityFormModal = ({
         setError('');
 
         try {
+            const capitalizedName = entityName.charAt(0).toUpperCase() + entityName.slice(1);
             if (editMode && entityData) {
                 const updateMethod = service.update || service.updateItem || service[`update${entityName}`];
                 await updateMethod(entityData.id, formData);
+                toast.entityUpdated(capitalizedName);
             } else {
                 const createMethod = service.create || service.createItem || service[`create${entityName}`];
                 await createMethod(formData);
+                toast.entityCreated(capitalizedName);
             }
             onSuccess?.();
             onClose();
         } catch (err) {
             console.error(`Error saving ${entityName}:`, err);
             setError(err.response?.data?.message || `Error al ${editMode ? 'actualizar' : 'crear'} ${entityName}`);
+            toast.showError(`Error al ${editMode ? 'actualizar' : 'crear'}`, err.response?.data?.message || 'Revisa los datos e intenta nuevamente');
         } finally {
             setLoading(false);
         }
@@ -168,6 +174,9 @@ const EntityFormModal = ({
                                                     placeholder={field.placeholder}
                                                 />
                                             </div>
+                                        )}
+                                        {field.hint && (
+                                            <p className="text-xs text-slate-400 mt-1">{field.hint}</p>
                                         )}
                                     </div>
                                 ))}

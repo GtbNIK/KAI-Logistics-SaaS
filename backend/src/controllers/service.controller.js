@@ -41,7 +41,7 @@ export const createService = async (req, res) => {
 // Obtener todos los servicios
 export const getServices = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search = '', all = 'false', type } = req.query;
+        const { page = 1, limit = 10, search = '', all = 'false', type, includeInactive = 'false' } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const take = parseInt(limit);
 
@@ -52,6 +52,11 @@ export const getServices = async (req, res) => {
                 { code: { contains: search, mode: 'insensitive' } }
             ]
         };
+
+        // Filtrar por estado activo
+        if (includeInactive !== 'true') {
+            where.isActive = true;
+        }
 
         // Filtrar por tipo si se especifica
         if (type && type !== 'all') {
@@ -163,30 +168,48 @@ export const updateService = async (req, res) => {
     }
 };
 
-// Eliminar servicio
+// Eliminar servicio (Soft Delete)
 export const deleteService = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Verificar si tiene tarifas asociadas
-        const ratesCount = await prisma.serviceRate.count({
-            where: { serviceId: id }
-        });
-
-        if (ratesCount > 0) {
-            return res.status(400).json({ 
-                message: `No se puede eliminar: tiene ${ratesCount} tarifa(s) asociada(s). Elimina las tarifas primero.` 
-            });
+        const service = await prisma.service.findUnique({ where: { id } });
+        if (!service) {
+            return res.status(404).json({ message: 'Servicio no encontrado' });
         }
 
-        await prisma.service.delete({
-            where: { id }
+        // Soft delete: marcar como inactivo
+        await prisma.service.update({
+            where: { id },
+            data: { isActive: false }
         });
 
-        res.json({ message: 'Servicio eliminado correctamente' });
+        res.json({ message: 'Servicio desactivado correctamente' });
     } catch (error) {
         console.error('Error deleting service:', error);
         res.status(500).json({ message: 'Error al eliminar servicio' });
+    }
+};
+
+// Toggle estado del servicio
+export const toggleServiceStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const service = await prisma.service.findUnique({ where: { id } });
+        if (!service) {
+            return res.status(404).json({ message: 'Servicio no encontrado' });
+        }
+
+        const updatedService = await prisma.service.update({
+            where: { id },
+            data: { isActive: !service.isActive }
+        });
+
+        res.json(updatedService);
+    } catch (error) {
+        console.error('Error toggling service status:', error);
+        res.status(500).json({ message: 'Error al cambiar estado del servicio' });
     }
 };
 

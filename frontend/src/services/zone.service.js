@@ -1,19 +1,19 @@
 import axios from 'axios';
 
-const API_URL = '/api/services';
+const API_URL = '/api/zones';
 
-const serviceService = {
+const zoneService = {
     getAll: async (params = {}) => {
         const response = await axios.get(API_URL, { params });
         return response.data;
     },
 
-    getServices: async (params = {}) => {
+    getZones: async (params = {}) => {
         const response = await axios.get(API_URL, { params });
         return response.data;
     },
 
-    getService: async (id) => {
+    getZone: async (id) => {
         const response = await axios.get(`${API_URL}/${id}`);
         return response.data;
     },
@@ -23,7 +23,7 @@ const serviceService = {
         return response.data;
     },
 
-    createService: async (data) => {
+    createZone: async (data) => {
         const response = await axios.post(API_URL, data);
         return response.data;
     },
@@ -33,7 +33,7 @@ const serviceService = {
         return response.data;
     },
 
-    updateService: async (id, data) => {
+    updateZone: async (id, data) => {
         const response = await axios.put(`${API_URL}/${id}`, data);
         return response.data;
     },
@@ -43,7 +43,7 @@ const serviceService = {
         return response.data;
     },
 
-    deleteService: async (id) => {
+    deleteZone: async (id) => {
         const response = await axios.delete(`${API_URL}/${id}`);
         return response.data;
     },
@@ -51,12 +51,7 @@ const serviceService = {
     toggleStatus: async (id) => {
         const response = await axios.patch(`${API_URL}/${id}/toggle`);
         return response.data;
-    },
-
-    getServiceTypes: async () => {
-        const response = await axios.get(`${API_URL}/types`);
-        return response.data;
     }
 };
 
-export default serviceService;
+export default zoneService;
