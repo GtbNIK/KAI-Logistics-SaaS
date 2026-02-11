@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Package, FileText, DollarSign, Building, MapPin, Ship, ArrowRight, Plane } from 'lucide-react';
 import serviceService from '../../services/service.service';
+import { useAuth } from '../../context/AuthContext';
 
 // Mapeo de tipos de servicio
 const serviceTypeLabels = {
@@ -16,8 +17,10 @@ const serviceTypeLabels = {
 };
 
 const ServiceDetailModal = ({ isOpen, onClose, service }) => {
+    const { user } = useAuth();
     const [serviceDetails, setServiceDetails] = useState(null);
     const [loading, setLoading] = useState(false);
+    const isSales = user?.role === 'SALES';
 
     useEffect(() => {
         if (isOpen && service?.id) {
@@ -118,9 +121,11 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                                                 <MapPin size={12} className="inline mr-1" /> Ruta / Zona
                                             </th>
-                                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
-                                                <DollarSign size={12} className="inline mr-1" /> Costo
-                                            </th>
+                                            {!isSales && (
+                                                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
+                                                    <DollarSign size={12} className="inline mr-1" /> Costo
+                                                </th>
+                                            )}
                                             <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
                                                 <DollarSign size={12} className="inline mr-1" /> Venta
                                             </th>
@@ -159,11 +164,13 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
                                                             rate.zone?.name || <span className="italic text-slate-400">General</span>
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <span className="font-medium text-slate-500">
-                                                            ${parseFloat(rate.costPrice || 0).toFixed(2)}
-                                                        </span>
-                                                    </td>
+                                                    {!isSales && (
+                                                        <td className="px-4 py-3 text-right">
+                                                            <span className="font-medium text-slate-500">
+                                                                ${parseFloat(rate.costPrice || 0).toFixed(2)}
+                                                            </span>
+                                                        </td>
+                                                    )}
                                                     <td className="px-4 py-3 text-right">
                                                         <span className="font-bold text-green-600">
                                                             ${parseFloat(rate.salePrice || 0).toFixed(2)}

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, Download, Loader2, FileText, Truck, MapPin } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import settingsService from '../../services/settings.service';
 
 // Valores por defecto si no hay configuración
-const DEFAULT_LOGO = '/2.png';
+const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_COMPANY_SLOGAN = 'Soluciones logísticas integrales';
 const DEFAULT_PRIMARY_COLOR = '#003366';
@@ -68,18 +68,19 @@ const QuotePDFModal = ({
     const prepareItems = () => {
         return quote.items.filter(item => item.serviceId).map(item => {
             const service = services.find(s => s.value === item.serviceId);
-            const ally = allies.find(a => a.value === item.allyId);
             const zone = zones.find(z => z.value === item.zoneId);
             const serviceType = service?.data?.type;
             const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
             
+            // Extraer solo el nombre de la zona (sin el código)
+            const zoneName = zone?.label ? zone.label.split(' - ')[1] || zone.label : '-';
+            
             const destination = isPortService 
                 ? (item.originPort && item.destinationPort ? `${item.originPort} → ${item.destinationPort}` : '-')
-                : (zone?.label || '-');
+                : zoneName;
 
             return {
                 service: service?.label || 'Servicio',
-                ally: ally?.label || '-',
                 destination,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
@@ -108,7 +109,8 @@ const QuotePDFModal = ({
             });
 
             // Logo (arriba a la izquierda)
-            doc.addImage(img, 'PNG', margin, yPos, 40, 20);
+            doc.addImage(img, 'PNG', margin, yPos, 20, 10);
+
 
             // Título de la cotización (arriba a la derecha)
             doc.setFontSize(22);
@@ -120,8 +122,8 @@ const QuotePDFModal = ({
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(100, 100, 100);
-            const quoteNumber = quote.number ? `COT-${String(quote.number).padStart(5, '0')}` : 'Nueva Cotización';
-            doc.text(quoteNumber, pageWidth - margin, yPos + 16, { align: 'right' });
+            const quoteNumberHeader = quote.number ? `COT-${String(quote.number).padStart(5, '0')}` : 'Nueva Cotización';
+            doc.text(quoteNumberHeader, pageWidth - margin, yPos + 16, { align: 'right' });
 
             yPos += 35;
 
@@ -130,43 +132,115 @@ const QuotePDFModal = ({
             doc.line(margin, yPos, pageWidth - margin, yPos);
             yPos += 15;
 
-            // Información del cliente
+            // Guardar posición inicial para las dos secciones
+            const sectionStartY = yPos;
+            
+            // ===== COLUMNA IZQUIERDA: INFORMACIÓN DEL CLIENTE =====
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(51, 51, 51);
             doc.text('CLIENTE', margin, yPos);
             yPos += 6;
+            
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(80, 80, 80);
-            doc.text(quote.clientName || 'Sin seleccionar', margin, yPos);
-            yPos += 15;
-
-            // Fechas
             doc.setFontSize(10);
+            
+            // Nombre del cliente
+            const clientName = quote.client?.label || 'Sin seleccionar';
+            doc.text(clientName, margin, yPos);
+            yPos += 5;
+            
+            doc.setFontSize(9);
             doc.setTextColor(100, 100, 100);
+            
+            // Información del cliente en una sola columna (izquierda)
+            if (quote.client?.data?.rifOrId) {
+                doc.text(`RIF/Cédula: ${quote.client.data.rifOrId}`, margin, yPos);
+                yPos += 4;
+            }
+            
+            if (quote.client?.data?.contactPerson) {
+                doc.text(`Persona Contacto: ${quote.client.data.contactPerson}`, margin, yPos);
+                yPos += 4;
+            }
+            
+            if (quote.client?.data?.phone) {
+                doc.text(`Teléfono: ${quote.client.data.phone}`, margin, yPos);
+                yPos += 4;
+            }
+            
+            if (quote.client?.data?.email) {
+                doc.text(`Email: ${quote.client.data.email}`, margin, yPos);
+                yPos += 4;
+            }
+            
+            if (quote.client?.data?.address) {
+                const maxLength = 50;
+                const address = quote.client.data.address.length > maxLength 
+                    ? quote.client.data.address.substring(0, maxLength) + '...'
+                    : quote.client.data.address;
+                doc.text(`Dirección: ${address}`, margin, yPos);
+                yPos += 4;
+            }
+            
+            if (quote.client?.data?.assignedTo) {
+                doc.text(`Vendedor: ${quote.client.data.assignedTo.name}`, margin, yPos);
+                yPos += 4;
+            }
+            
+            const clientSectionEndY = yPos;
+            
+            // ===== COLUMNA DERECHA: INFORMACIÓN DE LA COTIZACIÓN =====
+            let rightColY = sectionStartY;
+            const rightColX = pageWidth / 2 + 10;
+            
+            // Número de cotización
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(51, 51, 51);
+            rightColY += 8;
+            
+            // Fechas
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 100, 100);
+            
             const today = new Date().toLocaleDateString('es-VE');
             const validUntil = quote.validUntil 
                 ? new Date(quote.validUntil).toLocaleDateString('es-VE') 
                 : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-VE');
-            doc.text(`Fecha: ${today}`, margin, yPos);
-            doc.text(`Válida hasta: ${validUntil}`, pageWidth / 2, yPos);
-            yPos += 15;
+            
+            doc.text(`Fecha: ${today}`, rightColX, rightColY);
+            rightColY += 4;
+            doc.text(`Válida hasta: ${validUntil}`, rightColX, rightColY);
+            rightColY += 4;
+            
+            // Ajustar yPos al máximo de ambas secciones
+            yPos = Math.max(clientSectionEndY, rightColY) + 10;
 
             // Tabla de items con color primario dinámico
             const items = prepareItems();
+            
+            // Detectar si hay servicios Door to Door para cambiar el header
+            const hasDoorToDoor = quote.items.some(item => {
+                const service = services.find(s => s.value === item.serviceId);
+                return service?.data?.type === 'DOOR_TO_DOOR';
+            });
+            const quantityLabel = hasDoorToDoor ? 'CBM' : 'Cant.';
+            
             const tableData = items.map((item, index) => [
                 index + 1,
                 item.service,
-                item.ally,
                 item.destination,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
                 `$${item.subtotal.toFixed(2)}`
             ]);
 
-            doc.autoTable({
+            autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Aliado', 'Destino', 'Cant.', 'P. Unit.', 'Subtotal']],
+                head: [['#', 'Servicio', 'Ruta / Zona', quantityLabel, 'P. Unit.', 'Subtotal']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -184,9 +258,9 @@ const QuotePDFModal = ({
                 },
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
-                    4: { cellWidth: 15, halign: 'center' },
-                    5: { cellWidth: 22, halign: 'right' },
-                    6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+                    3: { cellWidth: 15, halign: 'center' },
+                    4: { cellWidth: 22, halign: 'right' },
+                    5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
                 },
                 margin: { left: margin, right: margin }
             });
@@ -205,8 +279,8 @@ const QuotePDFModal = ({
 
             yPos += 35;
 
-            // Notas
-            if (quote.notes) {
+            // Notas (solo si showNotesToClient es true)
+            if (quote.notes && quote.showNotesToClient !== false) {
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(51, 51, 51);
@@ -231,7 +305,7 @@ const QuotePDFModal = ({
             );
 
             // Descargar
-            doc.save(`cotizacion_${quoteNumber.replace('-', '_')}.pdf`);
+            doc.save(`cotizacion_${quoteNumberHeader.replace('-', '_')}.pdf`);
         } catch (error) {
             console.error('Error generating PDF:', error);
         } finally {
@@ -285,10 +359,35 @@ const QuotePDFModal = ({
 
                             {/* Info cliente y fechas */}
                             <div className="grid grid-cols-2 gap-6 mb-6">
+                                {/* Columna izquierda: Cliente */}
                                 <div>
                                     <p className="text-xs text-slate-500 uppercase font-medium mb-1">Cliente</p>
-                                    <p className="font-semibold text-slate-800">{quote.clientName || 'Sin seleccionar'}</p>
+                                    <p className="font-semibold text-slate-800 mb-2">{quote.client?.label || 'Sin seleccionar'}</p>
+                                    
+                                    {/* Información del cliente en una sola columna */}
+                                    <div className="space-y-1">
+                                        {quote.client?.data?.rifOrId && (
+                                            <p className="text-xs text-slate-600">RIF/Cédula: {quote.client.data.rifOrId}</p>
+                                        )}
+                                        {quote.client?.data?.contactPerson && (
+                                            <p className="text-xs text-slate-600">Persona Contacto: {quote.client.data.contactPerson}</p>
+                                        )}
+                                        {quote.client?.data?.phone && (
+                                            <p className="text-xs text-slate-600">Teléfono: {quote.client.data.phone}</p>
+                                        )}
+                                        {quote.client?.data?.email && (
+                                            <p className="text-xs text-slate-600">Email: {quote.client.data.email}</p>
+                                        )}
+                                        {quote.client?.data?.address && (
+                                            <p className="text-xs text-slate-600">Dirección: {quote.client.data.address}</p>
+                                        )}
+                                        {quote.client?.data?.assignedTo && (
+                                            <p className="text-xs text-slate-600">Vendedor: {quote.client.data.assignedTo.name}</p>
+                                        )}
+                                    </div>
                                 </div>
+                                
+                                {/* Columna derecha: Número de cotización y fechas */}
                                 <div className="text-right">
                                     <p className="text-xs text-slate-500">
                                         Fecha: {new Date().toLocaleDateString('es-VE')}
@@ -307,8 +406,7 @@ const QuotePDFModal = ({
                                     <tr style={{ backgroundColor: primaryColor }} className="text-white">
                                         <th className="py-2 px-3 text-left font-medium">#</th>
                                         <th className="py-2 px-3 text-left font-medium">Servicio</th>
-                                        <th className="py-2 px-3 text-left font-medium">Aliado</th>
-                                        <th className="py-2 px-3 text-left font-medium">Destino</th>
+                                        <th className="py-2 px-3 text-left font-medium">Ruta / Zona</th>
                                         <th className="py-2 px-3 text-center font-medium">Cant.</th>
                                         <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
                                         <th className="py-2 px-3 text-right font-medium">Subtotal</th>
@@ -319,7 +417,6 @@ const QuotePDFModal = ({
                                         <tr key={index} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
                                             <td className="py-2 px-3 text-center">{index + 1}</td>
                                             <td className="py-2 px-3">{item.service}</td>
-                                            <td className="py-2 px-3">{item.ally}</td>
                                             <td className="py-2 px-3">{item.destination}</td>
                                             <td className="py-2 px-3 text-center">{item.quantity}</td>
                                             <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
@@ -337,8 +434,8 @@ const QuotePDFModal = ({
                                 </div>
                             </div>
 
-                            {/* Notas */}
-                            {quote.notes && (
+                            {/* Notas (solo si showNotesToClient es true) */}
+                            {quote.notes && quote.showNotesToClient !== false && (
                                 <div className="bg-amber-50 border border-amber-100 rounded-lg p-4">
                                     <p className="text-xs font-medium text-amber-700 mb-1">NOTAS</p>
                                     <p className="text-sm text-amber-900">{quote.notes}</p>

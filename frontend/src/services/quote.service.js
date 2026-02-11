@@ -15,6 +15,12 @@ const quoteService = {
         return response.data;
     },
 
+    // Obtener el siguiente número de cotización
+    getNextNumber: async () => {
+        const response = await axios.get(`${API_URL}/quotes/next-number`);
+        return response.data;
+    },
+
     // Crear nueva cotización
     createQuote: async (quoteData) => {
         const response = await axios.post(`${API_URL}/quotes`, quoteData);

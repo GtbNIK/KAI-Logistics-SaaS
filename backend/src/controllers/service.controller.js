@@ -6,6 +6,13 @@ if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 // Crear servicio
 export const createService = async (req, res) => {
     try {
+        // Solo ADMIN puede crear servicios
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ 
+                message: 'No tienes permisos para crear servicios' 
+            });
+        }
+
         const { code, name, type, notes } = req.body;
 
         // Verificar código único
@@ -105,6 +112,8 @@ export const getServices = async (req, res) => {
 export const getService = async (req, res) => {
     try {
         const { id } = req.params;
+        const isSales = req.user.role === 'SALES';
+        
         const service = await prisma.service.findUnique({
             where: { id },
             include: {
@@ -121,6 +130,14 @@ export const getService = async (req, res) => {
             return res.status(404).json({ message: 'Servicio no encontrado' });
         }
 
+        // Si es SALES, omitir costPrice de las tarifas
+        if (isSales && service.rates) {
+            service.rates = service.rates.map(rate => {
+                const { costPrice, ...rateWithoutCost } = rate;
+                return rateWithoutCost;
+            });
+        }
+
         res.json(service);
     } catch (error) {
         console.error('Error getting service:', error);
@@ -131,6 +148,13 @@ export const getService = async (req, res) => {
 // Actualizar servicio
 export const updateService = async (req, res) => {
     try {
+        // Solo ADMIN puede actualizar servicios
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ 
+                message: 'No tienes permisos para actualizar servicios' 
+            });
+        }
+
         const { id } = req.params;
         const { code, name, type, notes } = req.body;
 
@@ -171,6 +195,13 @@ export const updateService = async (req, res) => {
 // Eliminar servicio (Soft Delete)
 export const deleteService = async (req, res) => {
     try {
+        // Solo ADMIN puede eliminar servicios
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ 
+                message: 'No tienes permisos para eliminar servicios' 
+            });
+        }
+
         const { id } = req.params;
 
         const service = await prisma.service.findUnique({ where: { id } });

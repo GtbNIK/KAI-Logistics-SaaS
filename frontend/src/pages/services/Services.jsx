@@ -140,6 +140,7 @@ const Services = () => {
                 onToggleStatus={openToggleConfirm}
                 entityName={serviceConfig.entityName}
                 entityNamePlural={serviceConfig.entityNamePlural}
+                canEdit={user?.role === 'ADMIN'}
                 canDelete={user?.role === 'ADMIN'}
                 showToggle={user?.role === 'ADMIN'}
                 showStatusFilter={true}

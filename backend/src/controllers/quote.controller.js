@@ -290,3 +290,17 @@ export const deleteQuote = async (req, res) => {
         res.status(500).json({ message: 'Error al eliminar cotización' });
     }
 };
+// GET /api/quotes/next-number - Obtener el próximo número de cotización
+export const getNextQuoteNumber = async (req, res) => {
+    try {
+        const lastQuote = await prisma.quote.findFirst({
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastQuote?.number || 0) + 1;
+        res.json({ nextNumber });
+    } catch (error) {
+        console.error('Error fetching next quote number:', error);
+        res.status(500).json({ error: 'Error fetching next quote number' });
+    }
+};

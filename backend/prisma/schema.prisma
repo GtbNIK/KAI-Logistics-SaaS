@@ -209,6 +209,7 @@ model Quote {
 
   totalAmount Decimal     @db.Decimal(10, 2)
   notes       String?
+  showNotesToClient Boolean @default(true) // Controla si las notas son visibles en el PDF
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

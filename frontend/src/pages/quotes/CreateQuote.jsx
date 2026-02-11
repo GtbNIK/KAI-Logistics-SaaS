@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
-import { FileText, Save, ArrowLeft, Loader2, Plus, Trash2, Package, FileDown, Truck, MapPin } from 'lucide-react';
+import { FileText, Save, ArrowLeft, Loader2, Plus, Trash2, Package, FileDown, Truck, MapPin, Ship, Plane } from 'lucide-react';
 import clientService from '../../services/client.service';
 import serviceService from '../../services/service.service';
 import allyService from '../../services/ally.service';
@@ -120,12 +120,14 @@ const QuoteItemRow = ({
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-500">Aliado</label>
+                    <label className="text-xs font-medium text-slate-500">
+                        {serviceType === 'AIR' ? 'Línea Aérea' : isPortService ? 'Línea Naviera' : 'Aliado'}
+                    </label>
                     <Select
                         options={allies}
                         value={allies.find(a => a.value === item.allyId)}
                         isLoading={loadingData}
-                        placeholder="Aliado..."
+                        placeholder={serviceType === 'AIR' ? "Línea aérea..." : isPortService ? "Línea naviera..." : "Aliado..."}
                         onChange={(opt) => onUpdate(index, { allyId: opt?.value })}
                         className="text-sm"
                         menuPortalTarget={document.body}
@@ -185,15 +187,22 @@ const QuoteItemRow = ({
                 </div>
             )}
 
-            {/* Fila 3: Cantidad, Precio y Subtotal */}
+            {/* Fila 3: Cantidad/CBM, Precio y Subtotal */}
             <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-500">Cantidad</label>
+                    <label className="text-xs font-medium text-slate-500">
+                        {serviceType === 'DOOR_TO_DOOR' ? 'CBM' : 'Cantidad'}
+                    </label>
                     <input 
                         type="number" 
-                        min="1"
+                        min={serviceType === 'DOOR_TO_DOOR' ? '0.01' : '1'}
+                        step={serviceType === 'DOOR_TO_DOOR' ? '0.01' : '1'}
                         value={item.quantity}
-                        onChange={(e) => onUpdate(index, { quantity: parseInt(e.target.value) || 1 })}
+                        onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            const minValue = serviceType === 'DOOR_TO_DOOR' ? 0.01 : 1;
+                            onUpdate(index, { quantity: value >= minValue ? value : minValue });
+                        }}
                         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                     />
                 </div>
@@ -231,12 +240,12 @@ const QuoteItemRow = ({
                     ) : foundRate ? (
                         <>
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                            <span>Tarifa aplicada: ${foundRate.salePrice.toFixed(2)}</span>
+                            <span>Hay una tarifa Guardada para este servicio, si no desea usarla, puede modificarla manualmente: ${foundRate.salePrice.toFixed(2)}</span>
                         </>
                     ) : (item.serviceId && item.allyId) ? (
                         <>
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            <span>Sin tarifa - precio manual</span>
+                            <span>NO existe una tarifa guardada para este Servicio. Coloca el precio Manualmente.</span>
                         </>
                     ) : null}
                 </div>
@@ -263,6 +272,8 @@ const CreateQuote = () => {
     // Estado del formulario
     const [clientId, setClientId] = useState(null);
     const [notes, setNotes] = useState('');
+    const [showNotesToClient, setShowNotesToClient] = useState(true);
+    const [nextQuoteNumber, setNextQuoteNumber] = useState(null);
     const [items, setItems] = useState([createEmptyItem()]);
     
     // Tarifas encontradas por item
@@ -290,17 +301,19 @@ const CreateQuote = () => {
         const loadData = async () => {
             setLoadingData(true);
             try {
-                const [clientsRes, servicesRes, alliesRes, zonesRes] = await Promise.all([
+                const [clientsRes, servicesRes, alliesRes, zonesRes, nextNumRes] = await Promise.all([
                     clientService.getClients({ limit: 100 }),
                     serviceService.getServices({ limit: 100 }),
                     allyService.getAllies({ limit: 100 }),
-                    zoneService.getZones({ limit: 100 })
+                    zoneService.getZones({ limit: 100 }),
+                    quoteService.getNextNumber()
                 ]);
 
                 setClients(clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })));
                 setServices(servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })));
                 setAllies(alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })));
                 setZones(zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })));
+                setNextQuoteNumber(nextNumRes.nextNumber);
 
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -458,7 +471,18 @@ const CreateQuote = () => {
 
                     {/* Notas */}
                     <div className="mt-4 space-y-2">
-                        <label className="text-sm font-medium text-slate-700">Notas (opcional)</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium text-slate-700">Notas (opcional)</label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <span className="text-xs text-slate-600">Mostrar al cliente</span>
+                                <input
+                                    type="checkbox"
+                                    checked={showNotesToClient}
+                                    onChange={(e) => setShowNotesToClient(e.target.checked)}
+                                    className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
+                                />
+                            </label>
+                        </div>
                         <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
@@ -497,20 +521,89 @@ const CreateQuote = () => {
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
 
-                    <div className="relative z-10 flex-1 flex flex-col">
+                    <div className="relative z-10 flex-1 flex flex-col min-h-0">
                         <h2 className="text-xl font-bold mb-1">Vista Previa</h2>
                         <p className="text-slate-400 text-sm mb-4">Resumen de la cotización</p>
 
-                        {/* Cliente seleccionado */}
-                        <div className="bg-white/10 rounded-lg px-4 py-3 mb-4">
-                            <span className="text-slate-400 text-xs">Cliente</span>
-                            <p className="font-medium">
+                        {/* Cliente seleccionado - Fijo */}
+                        <div className="bg-white/100 rounded-lg px-4 py-3 mb-4">
+                            {/* Número de cotización */}
+                            <p className="text-xs text-slate-400 mb-1">
+                                {nextQuoteNumber ? `COT-${String(nextQuoteNumber).padStart(5, '0')}` : 'NUEVA COTIZACIÓN'}
+                            </p>
+                            
+                            <span className="text-slate-800 text-xs">Cliente</span>
+                            <p className="font-medium text-black mb-2">
                                 {clients.find(c => c.value === clientId)?.label || 'Sin seleccionar'}
                             </p>
+                            
+                            {/* Dos columnas para la info del cliente */}
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                                {/* Columna 1 */}
+                                <div className="space-y-1">
+                                    {(() => {
+                                        const selectedClient = clients.find(c => c.value === clientId);
+                                        return (
+                                            <>
+                                                {selectedClient?.data?.rifOrId && (
+                                                    <p className="text-xs text-slate-600">
+                                                        RIF/Cédula: {selectedClient.data.rifOrId}
+                                                    </p>
+                                                )}
+                                                {selectedClient?.data?.contactPerson && (
+                                                    <p className="text-xs text-slate-600">
+                                                        Contacto: {selectedClient.data.contactPerson}
+                                                    </p>
+                                                )}
+                                                {selectedClient?.data?.phone && (
+                                                    <p className="text-xs text-slate-600">
+                                                        Teléfono: {selectedClient.data.phone}
+                                                    </p>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                                
+                                {/* Columna 2 */}
+                                <div className="space-y-1">
+                                    {(() => {
+                                        const selectedClient = clients.find(c => c.value === clientId);
+                                        return (
+                                            <>
+                                                {selectedClient?.data?.email && (
+                                                    <p className="text-xs text-slate-600">
+                                                        Email: {selectedClient.data.email}
+                                                    </p>
+                                                )}
+                                                {selectedClient?.data?.address && (
+                                                    <p className="text-xs text-slate-600">
+                                                        Dirección: {selectedClient.data.address}
+                                                    </p>
+                                                )}
+                                                {selectedClient?.data?.assignedTo && (
+                                                    <p className="text-xs text-slate-600">
+                                                        Vendedor: {selectedClient.data.assignedTo.name}
+                                                    </p>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Lista de items */}
-                        <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                        {/* Divisor de servicios - Fijo */}
+                        <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Package size={16} className="text-white" />
+                                <span className="font-bold text-sm text-white">Servicios en la cotización:</span>
+                            </div>
+                            <div className="h-px bg-white/30 mb-2"></div>
+                        </div>
+
+                        {/* Lista de items - Scrolleable */}
+                        <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
                             {items.filter(i => i.serviceId).map((item, index) => {
                                 const service = services.find(s => s.value === item.serviceId);
                                 const ally = allies.find(a => a.value === item.allyId);
@@ -520,9 +613,13 @@ const CreateQuote = () => {
                                 // Determinar destino según tipo de servicio
                                 const serviceType = service?.data?.type;
                                 const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
+                                
+                                // Extraer solo el nombre de la zona (sin el código)
+                                const zoneName = zone?.label ? zone.label.split(' - ')[1] || zone.label : null;
+                                
                                 const destination = isPortService 
                                     ? (item.originPort && item.destinationPort ? `${item.originPort} → ${item.destinationPort}` : null)
-                                    : zone?.label;
+                                    : zoneName;
                                 
                                 return (
                                     <div key={item.id} className="bg-white/5 rounded-lg px-4 py-3">
@@ -535,7 +632,13 @@ const CreateQuote = () => {
                                         <div className="text-xs text-slate-400 space-y-0.5">
                                             {ally && (
                                                 <p className="flex items-center gap-1">
-                                                    <Truck size={12} className="text-slate-500" />
+                                                    {serviceType === 'AIR' ? (
+                                                        <Plane size={12} className="text-slate-500" />
+                                                    ) : isPortService ? (
+                                                        <Ship size={12} className="text-slate-500" />
+                                                    ) : (
+                                                        <Truck size={12} className="text-slate-500" />
+                                                    )}
                                                     <span>{ally.label}</span>
                                                 </p>
                                             )}
@@ -580,11 +683,12 @@ const CreateQuote = () => {
                 isOpen={showPDFModal}
                 onClose={() => setShowPDFModal(false)}
                 quote={{
-                    clientName: clients.find(c => c.value === clientId)?.label,
+                    client: clients.find(c => c.value === clientId),
                     items,
                     total,
                     notes,
-                    number: null, // Es nueva cotización
+                    showNotesToClient,
+                    number: nextQuoteNumber, // Número estimado
                     validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000) // 15 días
                 }}
                 services={services}
