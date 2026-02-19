@@ -1,10 +1,11 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Settings, User, LogOut, Bell } from 'lucide-react';
 import { useState } from 'react';
 
 const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const { user, logout } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -45,14 +46,23 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                 {/* Divider */}
                 <div className="h-6 w-px bg-slate-200 mx-1"></div>
 
-                {/* Config Button (Solo Admin normalmente, pero lo ponemos aquí a petición) */}
-                <button 
-                    className="flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:text-primary-dark hover:bg-slate-50 rounded-lg transition-colors text-sm font-medium"
-                    title="Configuración"
-                >
-                    <Settings size={18} />
-                    <span className="hidden md:inline">Configuración</span>
-                </button>
+                {/* Config Button (Solo Admin) */}
+                {user?.role === 'ADMIN' && (
+                    <button 
+                        onClick={() => navigate('/dashboard/configuracion')}
+                        className={`
+                            flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium
+                            ${location.pathname.startsWith('/dashboard/configuracion') 
+                                ? 'bg-primary/10 text-primary border border-primary/20' 
+                                : 'text-slate-600 hover:text-primary-dark hover:bg-slate-50'
+                            }
+                        `}
+                        title="Configuración"
+                    >
+                        <Settings size={18} />
+                        <span className="hidden md:inline">Configuración</span>
+                    </button>
+                )}
 
                 {/* User Profile */}
                 <div className="relative">

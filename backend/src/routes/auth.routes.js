@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, logout, getMe, getUsers } from '../controllers/auth.controller.js';
+import { register, login, logout, getMe, getUsers, updateUser, deleteUser, resetPassword } from '../controllers/auth.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -31,6 +31,15 @@ router.post('/logout', verifyToken, logout);
  * @access  Private
  */
 router.get('/me', verifyToken, getMe);
+
+// Actualizar usuario
+router.put('/users/:id', verifyToken, authorize('ADMIN'), updateUser);
+
+// Eliminar usuario
+router.delete('/users/:id', verifyToken, authorize('ADMIN'), deleteUser);
+
+// Resetear contraseña
+router.post('/users/:id/reset-password', verifyToken, authorize('ADMIN'), resetPassword);
 
 /**
  * @route   GET /api/auth/users

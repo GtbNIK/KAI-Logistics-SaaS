@@ -254,8 +254,11 @@ const QuoteItemRow = ({
     );
 };
 
+import { useParams } from 'react-router-dom';
+
 // Componente principal
 const CreateQuote = () => {
+    const { id } = useParams();
     const navigate = useNavigate();
     const { showError, showSuccess, showWarning } = useToast();
     
@@ -301,19 +304,41 @@ const CreateQuote = () => {
         const loadData = async () => {
             setLoadingData(true);
             try {
-                const [clientsRes, servicesRes, alliesRes, zonesRes, nextNumRes] = await Promise.all([
+                const [clientsRes, servicesRes, alliesRes, zonesRes] = await Promise.all([
                     clientService.getClients({ limit: 100 }),
                     serviceService.getServices({ limit: 100 }),
                     allyService.getAllies({ limit: 100 }),
-                    zoneService.getZones({ limit: 100 }),
-                    quoteService.getNextNumber()
+                    zoneService.getZones({ limit: 100 })
                 ]);
 
                 setClients(clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })));
                 setServices(servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })));
                 setAllies(alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })));
                 setZones(zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })));
-                setNextQuoteNumber(nextNumRes.nextNumber);
+
+                if (id) {
+                    const quote = await quoteService.getQuote(id);
+                    setClientId(quote.clientId);
+                    setNotes(quote.notes || '');
+                    setShowNotesToClient(quote.showNotesToClient);
+                    setNextQuoteNumber(quote.number);
+                    
+                    const mappedItems = quote.items.map(item => ({
+                        id: item.id,
+                        serviceId: item.serviceId,
+                        allyId: item.allyId,
+                        zoneId: item.zoneId,
+                        originPort: item.originPort || '',
+                        destinationPort: item.destinationPort || '',
+                        quantity: parseFloat(item.quantity),
+                        unitPrice: parseFloat(item.unitPrice),
+                        description: item.description
+                    }));
+                    setItems(mappedItems);
+                } else {
+                    const nextNumRes = await quoteService.getNextNumber();
+                    setNextQuoteNumber(nextNumRes.nextNumber);
+                }
 
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -324,7 +349,7 @@ const CreateQuote = () => {
         };
 
         loadData();
-    }, []);
+    }, [id]);
 
     // Actualizar un item
     const updateItem = (index, updates) => {
@@ -380,25 +405,31 @@ const CreateQuote = () => {
                 clientId,
                 validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 días
                 notes,
-                items: validItems.map(item => {
-                    const service = services.find(s => s.value === item.serviceId);
-                    const ally = allies.find(a => a.value === item.allyId);
-                    
-                    return {
-                        serviceId: item.serviceId,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        description: `${service?.label || 'Servicio'} - ${ally?.label || 'Aliado'}`
-                    };
-                })
+                showNotesToClient,
+                items: validItems.map(item => ({
+                    serviceId: item.serviceId,
+                    allyId: item.allyId,
+                    zoneId: item.zoneId,
+                    originPort: item.originPort || null,
+                    destinationPort: item.destinationPort || null,
+                    quantity: parseFloat(item.quantity),
+                    unitPrice: parseFloat(item.unitPrice),
+                    description: item.description || ''
+                }))
             };
 
-            await quoteService.createQuote(payload);
-            showSuccess('¡Éxito!', 'Cotización creada exitosamente');
+            if (id) {
+                await quoteService.updateQuote(id, payload);
+                showSuccess('¡Actualizado!', 'Cotización actualizada correctamente');
+            } else {
+                await quoteService.createQuote(payload);
+                showSuccess('¡Éxito!', 'Cotización creada exitosamente');
+            }
+            
             navigate('/dashboard/cotizaciones');
         } catch (error) {
-            console.error('Error creating quote:', error);
-            showError('Error', 'Error al crear la cotización');
+            console.error('Error saving quote:', error);
+            showError('Error', 'Error al guardar la cotización');
         } finally {
             setSubmitting(false);
         }

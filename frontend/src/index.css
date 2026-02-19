@@ -3,16 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --primary-dark: #003366;
-  --primary-light: #4a90e2;
-  --secondary: #ffa500;
+    /* Canales RGB separados — permite usar opacidad con Tailwind (bg-primary/10) */
+    --color-primary-dark: 31 48 66;
+    --color-primary-light: 74 144 226;
+    --color-secondary: 245 137 39;
 }
 
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+        "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }

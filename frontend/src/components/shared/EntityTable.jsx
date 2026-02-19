@@ -1,4 +1,4 @@
-import { Search, ChevronLeft, ChevronRight, Edit, Trash2, Eye, Power, Filter } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit, Trash2, Eye, Power, Filter, Printer } from 'lucide-react';
 
 /**
  * Tabla genérica para listar cualquier entidad
@@ -15,12 +15,14 @@ import { Search, ChevronLeft, ChevronRight, Edit, Trash2, Eye, Power, Filter } f
  * @param {string} props.filterStatus - Filtro de estado actual
  * @param {Function} props.onFilterStatusChange - Handler de cambio de filtro
  * @param {Function} props.onView - Handler para ver detalle
+ * @param {Function} props.onPrint - Handler para imprimir
  * @param {Function} props.onEdit - Handler para editar
  * @param {Function} props.onDelete - Handler para eliminar
  * @param {Function} props.onToggleStatus - Handler para cambiar estado
  * @param {string} props.entityName - Nombre de la entidad (para mensajes)
  * @param {boolean} props.canDelete - Si el usuario puede eliminar
  * @param {boolean} props.canEdit - Si el usuario puede editar
+ * @param {boolean} props.canPrint - Si el usuario puede imprimir
  * @param {Object} props.extraFilters - Filtros adicionales (componente React)
  */
 const EntityTable = ({
@@ -36,13 +38,15 @@ const EntityTable = ({
     filterStatus = 'active',
     onFilterStatusChange,
     onView,
+    onPrint,
     onEdit,
     onDelete,
     onToggleStatus,
     entityName = 'elemento',
     entityNamePlural = 'elementos',
     canDelete = true,
-    canEdit = true, // Nuevo: controla si el usuario puede editar
+    canEdit = true,
+    canPrint = false,
     showToggle = true,
     showStatusFilter = true, // Nuevo: controla si se muestra el filtro de estado
     extraFilters = null,
@@ -178,6 +182,18 @@ const EntityTable = ({
                                                         onClick={(e) => onToggleStatus?.(item, e)}
                                                     >
                                                         <Power size={18} />
+                                                    </button>
+                                                )}
+                                                {canPrint && (
+                                                    <button 
+                                                        className="p-2 text-slate-400 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors" 
+                                                        title="Imprimir"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onPrint?.(item);
+                                                        }}
+                                                    >
+                                                        <Printer size={18} />
                                                     </button>
                                                 )}
                                                 {canEdit && (

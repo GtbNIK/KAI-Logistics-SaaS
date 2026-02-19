@@ -76,13 +76,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 { to: '/dashboard/cx-pagar', icon: TrendingDown, label: 'Cuentas Por Pagar', roles: ['ADMIN'] },
             ]
         },
-        {
-            id: 'configuracion',
-            label: 'Configuración',
-            items: [
-                { to: '/dashboard/configuracion', icon: Wallet, label: 'Configuración', roles: ['ADMIN'] },
-            ]
-        }
     ];
 
     // Función para verificar si el usuario tiene permiso

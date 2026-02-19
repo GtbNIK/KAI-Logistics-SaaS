@@ -64,6 +64,7 @@ model User {
   password  String   // Hashed
   name      String
   role      UserRole
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -127,6 +128,7 @@ model Ally {
   // Relations
   serviceRates   ServiceRate[]
   payables       Payable[]
+  quoteItems     QuoteItem[]
 }
 
 // -----------------------------------------------------------------------------
@@ -155,6 +157,7 @@ model Zone {
 
   // Relations
   rates        ServiceRate[]
+  quoteItems   QuoteItem[]
 }
 
 // The "Tarifario": Intersection of Ally, Service, and Zone
@@ -228,12 +231,22 @@ model QuoteItem {
   service       Service  @relation(fields: [serviceId], references: [id])
   
   // Snapshot of price calculation at the moment of quote
-  quantity      Int      @default(1)
+  quantity      Decimal  @db.Decimal(10, 2)
   unitPrice     Decimal  @db.Decimal(10, 2)
   totalPrice    Decimal  @db.Decimal(10, 2)
   
   // Metadata for the item
   description   String?
+
+  // Details responsible for the price
+  allyId        String?
+  ally          Ally?    @relation(fields: [allyId], references: [id])
+  
+  zoneId        String?
+  zone          Zone?    @relation(fields: [zoneId], references: [id])
+  
+  originPort    String?
+  destinationPort String?
 }
 
 model DeliveryNote {

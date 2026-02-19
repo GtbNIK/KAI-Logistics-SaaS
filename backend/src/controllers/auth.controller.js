@@ -104,6 +104,14 @@ export const login = async (req, res) => {
             });
         }
 
+        // Verificar si el usuario está activo
+        if (!user.isActive) {
+            return res.status(403).json({
+                error: 'Cuenta desactivada',
+                message: 'Tu cuenta ha sido desactivada. Contacta al administrador.'
+            });
+        }
+
         // Generar token JWT
         const token = generateToken({
             id: user.id,
@@ -206,12 +214,15 @@ export const getMe = async (req, res) => {
  */
 export const getUsers = async (req, res) => {
     try {
+        const showAll = req.query.all === 'true';
         const users = await prisma.user.findMany({
+            where: showAll ? {} : { isActive: true },
             select: {
                 id: true,
                 name: true,
                 email: true,
-                role: true
+                role: true,
+                isActive: true
             },
             orderBy: { name: 'asc' }
         });
@@ -226,3 +237,92 @@ export const getUsers = async (req, res) => {
     }
 };
 
+
+/**
+ * @route   PUT /api/auth/users/:id
+ * @desc    Actualizar usuario (Nombre, Email, Rol)
+ * @access  Private (Admin)
+ */
+export const updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, email, role } = req.body;
+
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: { name, email, role },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+            }
+        });
+
+        res.json(updatedUser);
+    } catch (error) {
+        console.error('Error en updateUser:', error);
+        res.status(500).json({ message: 'Error al actualizar usuario' });
+    }
+};
+
+/**
+ * @route   DELETE /api/auth/users/:id
+ * @desc    Eliminar usuario
+ * @access  Private (Admin)
+ */
+export const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Evitar que el admin se elimine a sí mismo
+        if (req.user.id === id) {
+            return res.status(400).json({ message: 'No puedes eliminar tu propia cuenta' });
+        }
+
+        // Soft delete: marcar como inactivo en lugar de eliminar físicamente
+        // Esto preserva el historial de cotizaciones, envíos y demás relaciones
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        await prisma.user.update({
+            where: { id },
+            data: { isActive: false }
+        });
+
+        res.json({ message: 'Usuario desactivado exitosamente' });
+    } catch (error) {
+        console.error('Error en deleteUser:', error);
+        res.status(500).json({ message: 'Error al desactivar usuario' });
+    }
+};
+
+/**
+ * @route   POST /api/auth/users/:id/reset-password
+ * @desc    Resetear contraseña de usuario
+ * @access  Private (Admin)
+ */
+export const resetPassword = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { password } = req.body;
+
+        if (!password || password.length < 6) {
+            return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        await prisma.user.update({
+            where: { id },
+            data: { password: hashedPassword }
+        });
+
+        res.json({ message: 'Contraseña actualizada exitosamente' });
+    } catch (error) {
+        console.error('Error en resetPassword:', error);
+        res.status(500).json({ message: 'Error al resetear contraseña' });
+    }
+};

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, Download, Loader2, FileText, Truck, MapPin } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import settingsService from '../../services/settings.service';
+import { useSettings } from '../../context/SettingsContext';
 
 // Valores por defecto si no hay configuración
 const DEFAULT_LOGO = '/1.png';
@@ -34,26 +34,7 @@ const QuotePDFModal = ({
     zones       // Lista de zonas
 }) => {
     const [generating, setGenerating] = useState(false);
-    const [companySettings, setCompanySettings] = useState(null);
-    const [loadingSettings, setLoadingSettings] = useState(true);
-
-    // Cargar configuración de la empresa
-    useEffect(() => {
-        const loadSettings = async () => {
-            try {
-                const settings = await settingsService.getSettings();
-                setCompanySettings(settings);
-            } catch (error) {
-                console.error('Error loading settings:', error);
-            } finally {
-                setLoadingSettings(false);
-            }
-        };
-        
-        if (isOpen) {
-            loadSettings();
-        }
-    }, [isOpen]);
+    const { settings: companySettings, loading: loadingSettings } = useSettings();
 
     if (!isOpen) return null;
 
@@ -76,15 +57,15 @@ const QuotePDFModal = ({
             const zoneName = zone?.label ? zone.label.split(' - ')[1] || zone.label : '-';
             
             const destination = isPortService 
-                ? (item.originPort && item.destinationPort ? `${item.originPort} → ${item.destinationPort}` : '-')
+                ? (item.originPort && item.destinationPort ? `${item.originPort} -> ${item.destinationPort}` : '-')
                 : zoneName;
 
             return {
                 service: service?.label || 'Servicio',
                 destination,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                subtotal: item.quantity * item.unitPrice
+                quantity: Number(item.quantity) || 0,
+                unitPrice: Number(item.unitPrice) || 0,
+                subtotal: (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)
             };
         });
     };
@@ -109,7 +90,11 @@ const QuotePDFModal = ({
             });
 
             // Logo (arriba a la izquierda)
-            doc.addImage(img, 'PNG', margin, yPos, 20, 10);
+            // Logo (arriba a la izquierda) - Ajustado tamaño
+            // Mantener proporción si es posible, pero aquí forzamos un tamaño razonable
+            const logoWidth = 50; 
+            const logoHeight = 13.5;
+            doc.addImage(img, 'PNG', margin, yPos, logoWidth, logoHeight);
 
 
             // Título de la cotización (arriba a la derecha)
@@ -125,7 +110,7 @@ const QuotePDFModal = ({
             const quoteNumberHeader = quote.number ? `COT-${String(quote.number).padStart(5, '0')}` : 'Nueva Cotización';
             doc.text(quoteNumberHeader, pageWidth - margin, yPos + 16, { align: 'right' });
 
-            yPos += 35;
+            yPos += 30;
 
             // Línea separadora
             doc.setDrawColor(230, 230, 230);
@@ -275,7 +260,7 @@ const QuotePDFModal = ({
             doc.text('TOTAL', pageWidth - margin - 55, yPos + 8);
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
-            doc.text(`$${quote.total.toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
+            doc.text(`$${(Number(quote.total) || 0).toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
 
             yPos += 35;
 
@@ -419,8 +404,8 @@ const QuotePDFModal = ({
                                             <td className="py-2 px-3">{item.service}</td>
                                             <td className="py-2 px-3">{item.destination}</td>
                                             <td className="py-2 px-3 text-center">{item.quantity}</td>
-                                            <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
-                                            <td className="py-2 px-3 text-right font-semibold">${item.subtotal.toFixed(2)}</td>
+                                            <td className="py-2 px-3 text-right">${(Number(item.unitPrice) || 0).toFixed(2)}</td>
+                                            <td className="py-2 px-3 text-right font-semibold">${(Number(item.subtotal) || 0).toFixed(2)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -430,7 +415,7 @@ const QuotePDFModal = ({
                             <div className="flex justify-end mb-6">
                                 <div className="bg-slate-800 text-white px-6 py-3 rounded-lg">
                                     <span className="text-slate-300 text-sm mr-4">TOTAL</span>
-                                    <span className="text-xl font-bold">${quote.total.toFixed(2)}</span>
+                                    <span className="text-xl font-bold">${(Number(quote.total) || 0).toFixed(2)}</span>
                                 </div>
                             </div>
 

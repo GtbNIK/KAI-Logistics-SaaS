@@ -70,11 +70,19 @@ export const getQuote = async (req, res) => {
         const quote = await prisma.quote.findUnique({
             where: { id },
             include: {
-                client: true,
+                client: {
+                    include: {
+                        assignedTo: {
+                            select: { id: true, name: true, email: true }
+                        }
+                    }
+                },
                 user: { select: { id: true, name: true, email: true } },
                 items: {
                     include: {
-                        service: true
+                        service: true,
+                        ally: true,
+                        zone: true
                     }
                 }
             }
@@ -109,7 +117,7 @@ export const createQuote = async (req, res) => {
         // Calcular totales
         let totalAmount = 0;
         const quoteItems = items.map(item => {
-            const quantity = parseInt(item.quantity) || 1;
+            const quantity = parseFloat(item.quantity) || 1;
             const unitPrice = parseFloat(item.unitPrice) || 0;
             const totalPrice = quantity * unitPrice;
             
@@ -117,6 +125,10 @@ export const createQuote = async (req, res) => {
 
             return {
                 serviceId: item.serviceId,
+                allyId: item.allyId || null,
+                zoneId: item.zoneId || null,
+                originPort: item.originPort || null,
+                destinationPort: item.destinationPort || null,
                 quantity,
                 unitPrice,
                 totalPrice,
@@ -179,13 +191,17 @@ export const updateQuote = async (req, res) => {
 
             let totalAmount = 0;
             const quoteItems = items.map(item => {
-                const quantity = parseInt(item.quantity) || 1;
+                const quantity = parseFloat(item.quantity) || 1;
                 const unitPrice = parseFloat(item.unitPrice) || 0;
                 const totalPrice = quantity * unitPrice;
                 totalAmount += totalPrice;
                 
                 return {
                     serviceId: item.serviceId,
+                    allyId: item.allyId || null,
+                    zoneId: item.zoneId || null,
+                    originPort: item.originPort || null,
+                    destinationPort: item.destinationPort || null,
                     quantity,
                     unitPrice,
                     totalPrice,

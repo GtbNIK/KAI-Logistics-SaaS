@@ -7,6 +7,7 @@ import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import { quoteConfig } from '../../config/quoteConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 
 // Hook personalizado para cotizaciones
 const useQuotes = () => {
@@ -152,8 +153,6 @@ const QuoteViewModal = ({ quote, onClose }) => {
                         </button>
                     </div>
                 </div>
-
-                {/* Body */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {/* Info general */}
                     <div className="grid grid-cols-2 gap-4">
@@ -184,21 +183,57 @@ const QuoteViewModal = ({ quote, onClose }) => {
                             Servicios ({q.items?.length || q._count?.items || 0})
                         </h3>
                         <div className="space-y-2">
-                            {q.items?.map((item, i) => (
-                                <div key={i} className="bg-slate-50 rounded-lg p-4 flex justify-between items-center">
-                                    <div>
-                                        <p className="font-medium text-slate-800">
-                                            {item.service?.name || item.description || 'Servicio'}
-                                        </p>
-                                        <p className="text-sm text-slate-500">
-                                            {item.quantity}x @ ${parseFloat(item.unitPrice).toFixed(2)}
-                                        </p>
+                            {q.items?.map((item, i) => {
+                                const isLogistics = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'DOOR_TO_DOOR'].includes(item.service?.type);
+                                const isAir = item.service?.type === 'AIR';
+                                const showPorts = isLogistics || isAir;
+                                
+                                let allyLabel = 'Aliado';
+                                if (isLogistics) allyLabel = 'Línea Naviera';
+                                if (isAir) allyLabel = 'Línea Aérea';
+
+                                return (
+                                    <div key={i} className="bg-slate-50 rounded-lg p-4 flex justify-between items-start">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-medium text-slate-800">
+                                                    {item.service?.name || item.description || 'Servicio'}
+                                                </p>
+                                            </div>
+                                            
+                                            {/* Detalle de Aliado/Línea y Ruta/Zona */}
+                                            <div className="text-sm text-slate-500 flex flex-col gap-0.5">
+                                                {item.ally && (
+                                                    <p className="flex items-center gap-1">
+                                                        <span className="font-medium text-slate-600">{allyLabel}:</span> 
+                                                        {item.ally.name}
+                                                    </p>
+                                                )}
+                                                
+                                                {/* Mostrar Puertos si aplica, sino Zona */}
+                                                {showPorts && (item.originPort || item.destinationPort) ? (
+                                                    <p className="flex items-center gap-1">
+                                                        <span className="font-medium text-slate-600">Ruta:</span> 
+                                                        {item.originPort || 'N/A'} → {item.destinationPort || 'N/A'}
+                                                    </p>
+                                                ) : item.zone ? (
+                                                    <p className="flex items-center gap-1">
+                                                        <span className="font-medium text-slate-600">Zona:</span> 
+                                                        {item.zone.name}
+                                                    </p>
+                                                ) : null}
+
+                                                <p className="text-slate-400 text-xs mt-1 italic">
+                                                    {item.quantity} {item.service?.type === 'DOOR_TO_DOOR' ? 'CBM' : 'unidades'} @ ${parseFloat(item.unitPrice).toFixed(2)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-slate-700 whitespace-nowrap">
+                                            ${(item.quantity * parseFloat(item.unitPrice)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        </span>
                                     </div>
-                                    <span className="font-bold text-slate-700">
-                                        ${(item.quantity * parseFloat(item.unitPrice)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                    </span>
-                                </div>
-                            )) || (
+                                );
+                            }) || (
                                 <p className="text-slate-400 text-center py-4">Sin items detallados</p>
                             )}
                         </div>
@@ -211,13 +246,24 @@ const QuoteViewModal = ({ quote, onClose }) => {
                             <p className="text-sm text-amber-900">{q.notes}</p>
                         </div>
                     )}
+
+                    {/* Vendedor Asignado (Movido aquí) */}
+                    <div className="bg-slate-50 rounded-xl p-4">
+                        <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+                            <User size={14} className="text-secondary" />
+                            <span>Vendedor Asignado</span>
+                        </div>
+                        <p className="font-semibold text-slate-800">
+                            {(q.client?.assignedTo?.name) || (q.user?.name) || 'N/A'}
+                        </p>
+                    </div>
                 </div>
 
                 {/* Footer - Total */}
                 <div className="px-6 py-4 border-t border-slate-100 bg-slate-800 text-white flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <DollarSign size={20} />
-                        <span className="font-medium">Total</span>
+                        <span className="font-medium">Total:</span>
                     </div>
                     <span className="text-2xl font-bold">
                         ${parseFloat(q.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -252,6 +298,17 @@ const Quotes = () => {
     const [deletingQuote, setDeletingQuote] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
 
+    const [printingQuote, setPrintingQuote] = useState(null);
+    const [showPDFModal, setShowPDFModal] = useState(false);
+
+    // Estados para datos necesarios en el PDF
+    const [pdfData, setPdfData] = useState({
+        clients: [],
+        services: [],
+        allies: [],
+        zones: []
+    });
+
     const handleCreate = () => {
         navigate('/dashboard/cotizaciones/nuevo');
     };
@@ -269,6 +326,46 @@ const Quotes = () => {
     const handleDeleteClick = (item) => {
         if (item.status === 'DRAFT') {
             setDeletingQuote(item);
+        }
+    };
+
+    // Cargar datos para el PDF (solo si no se han cargado)
+    const loadPdfData = async () => {
+        if (pdfData.clients.length > 0) return; // Ya cargados
+
+        try {
+            const [clientsRes, servicesRes, alliesRes, zonesRes] = await Promise.all([
+                (await import('../../services/client.service')).default.getClients({ limit: 100 }),
+                (await import('../../services/service.service')).default.getServices({ limit: 100 }),
+                (await import('../../services/ally.service')).default.getAllies({ limit: 100 }),
+                (await import('../../services/zone.service')).default.getZones({ limit: 100 })
+            ]);
+
+            setPdfData({
+                clients: clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })),
+                services: servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })),
+                allies: alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })),
+                zones: zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z }))
+            });
+        } catch (error) {
+            console.error('Error loading PDF data:', error);
+            showError('Error', 'No se pudieron cargar los datos para imprimir');
+        }
+    };
+
+    const handlePrint = async (item) => {
+        // Cargar datos primero
+        await loadPdfData();
+        
+        // Cargar detalles completos de la cotización si es necesario
+        try {
+             // Si el item viene de la tabla, puede no tener items completos. Mejor cargar fresh.
+            const fullQuote = await quoteService.getQuote(item.id);
+            setPrintingQuote(fullQuote);
+            setShowPDFModal(true);
+        } catch (error) {
+            console.error('Error fetching quote for print:', error);
+            showError('Error', 'No se pudo cargar la cotización para imprimir');
         }
     };
 
@@ -315,10 +412,12 @@ const Quotes = () => {
                 onPageChange={setPage}
                 showStatusFilter={false}
                 onView={handleView}
+                onPrint={handlePrint}
                 onEdit={(item) => item.status === 'DRAFT' ? handleEdit(item) : null}
                 onDelete={(item) => item.status === 'DRAFT' ? handleDeleteClick(item) : null}
                 canEdit={true}
                 canDelete={true}
+                canPrint={true}
                 showToggle={false}
                 codeColor="blue"
             />
@@ -328,6 +427,33 @@ const Quotes = () => {
                 <QuoteViewModal 
                     quote={viewingQuote} 
                     onClose={() => setViewingQuote(null)} 
+                />
+            )}
+
+            {/* Modal de PDF */}
+            {showPDFModal && printingQuote && (
+                <QuotePDFModal
+                    isOpen={showPDFModal}
+                    onClose={() => {
+                        setShowPDFModal(false);
+                        setPrintingQuote(null);
+                    }}
+                    quote={{
+                        client: pdfData.clients.find(c => c.value === printingQuote.clientId),
+                        items: printingQuote.items.map(item => ({
+                            ...item,
+                            quantity: parseFloat(item.quantity),
+                            unitPrice: parseFloat(item.unitPrice)
+                        })),
+                        total: printingQuote.totalAmount,
+                        notes: printingQuote.notes,
+                        showNotesToClient: printingQuote.showNotesToClient,
+                        number: printingQuote.number,
+                        validUntil: printingQuote.validUntil ? new Date(printingQuote.validUntil) : null
+                    }}
+                    services={pdfData.services}
+                    allies={pdfData.allies}
+                    zones={pdfData.zones}
                 />
             )}
 
