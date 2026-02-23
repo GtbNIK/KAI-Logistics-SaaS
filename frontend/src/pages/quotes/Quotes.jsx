@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, X, Package, User, Calendar, DollarSign, Loader2 } from 'lucide-react';
+import { Plus, FileText, X, Package, User, Calendar, DollarSign, Loader2, Activity } from 'lucide-react';
 import quoteService from '../../services/quote.service';
+import paymentNoticeService from '../../services/paymentNotice.service';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
+import ConfirmActionModal from '../../components/modals/ConfirmActionModal';
 import { quoteConfig } from '../../config/quoteConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
+import ChangeQuoteStatusModal from '../../components/quotes/ChangeQuoteStatusModal';
 
 // Hook personalizado para cotizaciones
 const useQuotes = () => {
@@ -17,9 +20,18 @@ const useQuotes = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filters, setFilters] = useState({});
     
     const { showError, showSuccess } = useToast();
+
+    // Debounce: espera 1200ms tras el último cambio antes de buscar
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 1200);
+        return () => clearTimeout(timer);
+    }, [search]);
 
     const fetchQuotes = async () => {
         setLoading(true);
@@ -27,7 +39,7 @@ const useQuotes = () => {
             const params = {
                 page,
                 limit: 10,
-                search,
+                search: debouncedSearch,
                 ...filters
             };
             const response = await quoteService.getQuotes(params);
@@ -44,7 +56,7 @@ const useQuotes = () => {
 
     useEffect(() => {
         fetchQuotes();
-    }, [page, search, filters]);
+    }, [page, debouncedSearch, filters]);
 
     const deleteQuote = async (id) => {
         try {
@@ -76,9 +88,13 @@ const useQuotes = () => {
 };
 
 // Modal de visualización de cotización
-const QuoteViewModal = ({ quote, onClose }) => {
+const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
     const [loading, setLoading] = useState(true);
     const [fullQuote, setFullQuote] = useState(null);
+    const [isConverting, setIsConverting] = useState(false);
+    const [showConvertConfirm, setShowConvertConfirm] = useState(false);
+    const { showSuccess, showError } = useToast();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const loadQuote = async () => {
@@ -108,6 +124,23 @@ const QuoteViewModal = ({ quote, onClose }) => {
                 {config.label}
             </span>
         );
+    };
+
+    const handleConvertToNotice = async () => {
+        setIsConverting(true);
+        try {
+            await paymentNoticeService.convertFromQuote(q.id);
+            showSuccess('¡Éxito!', 'Aviso de cobro generado correctamente');
+            setShowConvertConfirm(false);
+            if (onConvertSuccess) onConvertSuccess();
+            onClose();
+        } catch (error) {
+            console.error('Error converting quote:', error);
+            showError('Error', error.response?.data?.message || 'No se pudo generar el aviso de cobro');
+            setShowConvertConfirm(false);
+        } finally {
+            setIsConverting(false);
+        }
     };
 
     if (loading) {
@@ -148,7 +181,26 @@ const QuoteViewModal = ({ quote, onClose }) => {
                     </div>
                     <div className="flex items-center gap-3">
                         {getStatusBadge(q.status)}
-                        <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                        {q.status === 'APPROVED' && (
+                            <button 
+                                onClick={() => setShowConvertConfirm(true)}
+                                disabled={isConverting}
+                                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2 disabled:bg-slate-300"
+                            >
+                                {isConverting ? (
+                                    <>
+                                        <Loader2 className="animate-spin" size={16} />
+                                        <span>Generando...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <DollarSign size={16} />
+                                        <span>Generar Aviso de Cobro</span>
+                                    </>
+                                )}
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors ml-2">
                             <X size={20} className="text-slate-500" />
                         </button>
                     </div>
@@ -260,7 +312,7 @@ const QuoteViewModal = ({ quote, onClose }) => {
                 </div>
 
                 {/* Footer - Total */}
-                <div className="px-6 py-4 border-t border-slate-100 bg-slate-800 text-white flex items-center justify-between">
+                <div className="px-6 py-4 border-t border-slate-100 bg-slate-800 text-white flex items-center justify-between mt-auto">
                     <div className="flex items-center gap-2">
                         <DollarSign size={20} />
                         <span className="font-medium">Total:</span>
@@ -270,6 +322,16 @@ const QuoteViewModal = ({ quote, onClose }) => {
                     </span>
                 </div>
             </div>
+
+            <ConfirmActionModal
+                isOpen={showConvertConfirm}
+                onClose={() => setShowConvertConfirm(false)}
+                onConfirm={handleConvertToNotice}
+                title="Generar Aviso de Cobro"
+                message={`¿Estás seguro de generar un Aviso de Cobro a partir de esta cotización (COT-${String(q.number).padStart(5, '0')})?\n\nEsta acción registrará la deuda contable en la cartera de Cuentas por Cobrar del cliente y cambiará el estado de la cotización.`}
+                confirmText="Sí, generar aviso"
+                loading={isConverting}
+            />
         </div>
     );
 };
@@ -289,9 +351,13 @@ const Quotes = () => {
         setPage,
         search,
         setSearch,
+        filters,
+        setFilters,
         refresh,
         deleteQuote
     } = useQuotes();
+
+    const { showError, showSuccess } = useToast();
 
     // Estados para modales
     const [viewingQuote, setViewingQuote] = useState(null);
@@ -300,6 +366,8 @@ const Quotes = () => {
 
     const [printingQuote, setPrintingQuote] = useState(null);
     const [showPDFModal, setShowPDFModal] = useState(false);
+
+    const [statusQuote, setStatusQuote] = useState(null);
 
     // Estados para datos necesarios en el PDF
     const [pdfData, setPdfData] = useState({
@@ -377,6 +445,20 @@ const Quotes = () => {
         setDeletingQuote(null);
     };
 
+    const handleUpdateStatus = async (id, newStatus) => {
+        try {
+            await quoteService.updateQuoteStatus(id, newStatus);
+            showSuccess('¡Estado Actualizado!', 'El estado de la cotización ha sido cambiado');
+            setStatusQuote(null);
+            refresh();
+            return true;
+        } catch (error) {
+            console.error('Error updating status:', error);
+            showError('Error', error.response?.data?.message || 'No se pudo actualizar el estado');
+            return false;
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -395,6 +477,30 @@ const Quotes = () => {
                     <Plus size={20} />
                     Nueva Cotización
                 </button>
+            </div>
+
+            {/* Filtros de estado */}
+            <div className="flex items-center gap-2 flex-wrap">
+                {[
+                    { value: '',          label: 'Todas' },
+                    { value: 'DRAFT',     label: 'Borrador' },
+                    { value: 'SENT',      label: 'Enviada' },
+                    { value: 'APPROVED',  label: 'Aprobada' },
+                    { value: 'REJECTED',  label: 'Rechazada' },
+                    { value: 'CONVERTED', label: 'Convertida' },
+                ].map(opt => (
+                    <button
+                        key={opt.value}
+                        onClick={() => setFilters(opt.value ? { status: opt.value } : {})}
+                        className={`px-4 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                            (filters.status || '') === opt.value
+                                ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary'
+                        }`}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
             </div>
 
             {/* Table */}
@@ -420,13 +526,34 @@ const Quotes = () => {
                 canPrint={true}
                 showToggle={false}
                 codeColor="blue"
+                extraActions={(item) => {
+                    const isConverted = item.status === 'CONVERTED';
+                    return (
+                        <button
+                            className={`p-2 rounded-lg transition-colors ${
+                                isConverted
+                                    ? 'text-slate-200 cursor-not-allowed'
+                                    : 'text-slate-400 hover:text-purple-500 hover:bg-purple-50'
+                            }`}
+                            title={isConverted ? 'Convertida — no editable' : 'Cambiar Estado'}
+                            disabled={isConverted}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isConverted) setStatusQuote(item);
+                            }}
+                        >
+                            <Activity size={18} />
+                        </button>
+                    );
+                }}
             />
 
             {/* Modal de vista */}
-            {viewingQuote && (
+            {viewingQuote && !showPDFModal && (
                 <QuoteViewModal 
                     quote={viewingQuote} 
-                    onClose={() => setViewingQuote(null)} 
+                    onClose={() => setViewingQuote(null)}
+                    onConvertSuccess={refresh}
                 />
             )}
 
@@ -466,6 +593,14 @@ const Quotes = () => {
                 message="¿Estás seguro de que deseas eliminar esta cotización? Esta acción eliminará todos los items asociados."
                 itemName={deletingQuote ? `COT-${String(deletingQuote.number).padStart(5, '0')} - ${deletingQuote.client?.name || 'Cliente'}` : ''}
                 loading={deleteLoading}
+            />
+
+            {/* Modal de cambio de estado */}
+            <ChangeQuoteStatusModal
+                isOpen={!!statusQuote}
+                onClose={() => setStatusQuote(null)}
+                quote={statusQuote}
+                onUpdateStatus={handleUpdateStatus}
             />
         </div>
     );

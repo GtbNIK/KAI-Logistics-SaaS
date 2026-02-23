@@ -50,6 +50,7 @@ const EntityTable = ({
     showToggle = true,
     showStatusFilter = true, // Nuevo: controla si se muestra el filtro de estado
     extraFilters = null,
+    extraActions = null,
     codeColor = 'blue' // Color del badge de código (blue, purple, green, etc.)
 }) => {
     
@@ -214,6 +215,7 @@ const EntityTable = ({
                                                         <Trash2 size={18} />
                                                     </button>
                                                 )}
+                                                {extraActions && extraActions(item)}
                                             </div>
                                         </td>
                                     </tr>

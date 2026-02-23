@@ -9,6 +9,8 @@ import Services from './pages/services/Services';
 import Zones from './pages/zones/Zones';
 import Quotes from './pages/quotes/Quotes';
 import CreateQuote from './pages/quotes/CreateQuote';
+import PaymentNotices from './pages/billing/PaymentNotices';
+import Receivables from './pages/billing/Receivables';
 import Settings from './pages/admin/Settings';
 import MainLayout from './layouts/MainLayout';
 
@@ -71,6 +73,24 @@ function App() {
                                     <ProtectedRoute>
                                         <MainLayout>
                                             <Zones />
+                                        </MainLayout>
+                                    </ProtectedRoute>
+                                } />
+
+
+                                {/* Rutas de Cobranza */}
+                                <Route path="/dashboard/aviso-cobro" element={
+                                    <ProtectedRoute>
+                                        <MainLayout>
+                                            <PaymentNotices />
+                                        </MainLayout>
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/dashboard/cx-cobrar" element={
+                                    <ProtectedRoute>
+                                        <MainLayout>
+                                            <Receivables />
                                         </MainLayout>
                                     </ProtectedRoute>
                                 } />

@@ -10,6 +10,8 @@ import zoneRoutes from './routes/zone.routes.js';
 import quoteRoutes from './routes/quote.routes.js';
 import rateRoutes from './routes/rate.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
+import paymentNoticeRoutes from './routes/payment-notice.routes.js';
+import receivableRoutes from './routes/receivable.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -51,6 +53,10 @@ app.use('/api/quotes', verifyToken, quoteRoutes);
 app.use('/api/rates', verifyToken, rateRoutes);
 // Rutas de configuración de empresa
 app.use('/api/settings', settingsRoutes);
+// Rutas de Avisos de Cobro (requiere autenticación integrada en las rutas)
+app.use('/api/payment-notices', paymentNoticeRoutes);
+// Rutas de Receivables (Cuentas por cobrar)
+app.use('/api/receivables', receivableRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

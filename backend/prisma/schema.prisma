@@ -287,13 +287,26 @@ model PaymentNotice {
 
   // General
   totalAmount     Decimal  @db.Decimal(10, 2)
+  notes           String?  @db.Text
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   // Relations
+  items           PaymentNoticeItem[]
   tracking        Shipment?
   receivable      Receivable?
+}
+
+model PaymentNoticeItem {
+  id              String   @id @default(uuid())
+  paymentNoticeId String
+  paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id], onDelete: Cascade)
+  
+  description     String
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(10, 2)
+  totalPrice      Decimal  @db.Decimal(10, 2)
 }
 
 model Shipment {
