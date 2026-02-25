@@ -197,7 +197,7 @@ const EntityTable = ({
                                                         <Printer size={18} />
                                                     </button>
                                                 )}
-                                                {canEdit && (
+                                                {(typeof canEdit === 'function' ? canEdit(item) : canEdit) && (
                                                     <button 
                                                         className="p-2 text-slate-400 hover:text-primary-light hover:bg-blue-50 rounded-lg transition-colors" 
                                                         title="Editar"
@@ -206,7 +206,7 @@ const EntityTable = ({
                                                         <Edit size={18} />
                                                     </button>
                                                 )}
-                                                {canDelete && (
+                                                {(typeof canDelete === 'function' ? canDelete(item) : canDelete) && (
                                                     <button 
                                                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" 
                                                         title="Eliminar"

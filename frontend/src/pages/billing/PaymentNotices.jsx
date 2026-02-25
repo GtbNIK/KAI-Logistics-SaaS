@@ -19,7 +19,7 @@ const usePaymentNotices = () => {
     const { showError } = useToast();
 
     useEffect(() => {
-        const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 1200);
+        const t = setTimeout(() => { setDebouncedSearch(search);}, 1200);
         return () => clearTimeout(t);
     }, [search]);
 

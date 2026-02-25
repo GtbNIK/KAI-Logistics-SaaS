@@ -56,7 +56,9 @@ export const convertFromQuote = async (req, res) => {
                             if (item.service?.name)   parts.push(item.service.name);
                             if (item.ally?.name)      parts.push(`Aliado: ${item.ally.name}`);
                             if (item.zone?.name)      parts.push(`Zona: ${item.zone.name}`);
-                            if (item.originPort)      parts.push(`Puerto: ${item.originPort}`);
+                            if (item.originPort || item.destinationPort) {
+                                parts.push(`Ruta: ${item.originPort || 'N/A'} → ${item.destinationPort || 'N/A'}`);
+                            }
                             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
                             return {
                                 description,

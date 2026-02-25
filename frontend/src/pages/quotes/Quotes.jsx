@@ -519,10 +519,10 @@ const Quotes = () => {
                 showStatusFilter={false}
                 onView={handleView}
                 onPrint={handlePrint}
-                onEdit={(item) => item.status === 'DRAFT' ? handleEdit(item) : null}
-                onDelete={(item) => item.status === 'DRAFT' ? handleDeleteClick(item) : null}
-                canEdit={true}
-                canDelete={true}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+                canEdit={(item) => item.status === 'DRAFT'}
+                canDelete={(item) => item.status === 'DRAFT' || 'SENT' || 'REJECTED'}
                 canPrint={true}
                 showToggle={false}
                 codeColor="blue"
