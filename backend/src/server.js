@@ -28,6 +28,10 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Servir archivos estáticos (imágenes subidas)
+import { UPLOADS_DIR } from './config/upload.js';
+app.use('/uploads', express.static(UPLOADS_DIR));
+
 // Rutas de prueba
 app.get('/api/health', (req, res) => {
     res.json({

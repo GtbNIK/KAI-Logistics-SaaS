@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getSettings, updateSettings } from '../controllers/settings.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import upload from '../config/upload.js';
 
 const router = Router();
 
@@ -8,6 +9,16 @@ const router = Router();
 router.get('/', verifyToken, getSettings);
 
 // Actualizar configuración (solo admin)
-router.put('/', verifyToken, authorize('ADMIN'), updateSettings);
+// Acepta dos archivos opcionales: quoteBg y noticeBg
+router.put(
+    '/',
+    verifyToken,
+    authorize('ADMIN'),
+    upload.fields([
+        { name: 'quoteBg', maxCount: 1 },
+        { name: 'noticeBg', maxCount: 1 }
+    ]),
+    updateSettings
+);
 
 export default router;

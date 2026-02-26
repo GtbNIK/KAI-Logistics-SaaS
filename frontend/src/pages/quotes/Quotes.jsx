@@ -392,7 +392,7 @@ const Quotes = () => {
     };
 
     const handleDeleteClick = (item) => {
-        if (item.status === 'DRAFT') {
+        if (['DRAFT', 'SENT', 'REJECTED'].includes(item.status)) {
             setDeletingQuote(item);
         }
     };
@@ -522,7 +522,7 @@ const Quotes = () => {
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
                 canEdit={(item) => item.status === 'DRAFT'}
-                canDelete={(item) => item.status === 'DRAFT' || 'SENT' || 'REJECTED'}
+                canDelete={(item) => item.status === 'DRAFT' || item.status === 'SENT' || item.status === 'REJECTED'}
                 canPrint={true}
                 showToggle={false}
                 codeColor="blue"

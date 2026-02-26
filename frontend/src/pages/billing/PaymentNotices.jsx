@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import EntityTable from '../../components/shared/EntityTable';
 import { paymentNoticeConfig } from '../../config/paymentNoticeConfig';
+import PaymentNoticePDFModal from '../../components/billing/PaymentNoticePDFModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -172,10 +173,25 @@ const NoticeDetailModal = ({ notice, onClose }) => {
 // ─── Página principal ─────────────────────────────────────────────────────────
 const PaymentNotices = () => {
     const [viewingNotice, setViewingNotice] = useState(null);
+    const [printingNotice, setPrintingNotice] = useState(null);
+    const [showPDFModal, setShowPDFModal] = useState(false);
+    const { showError } = useToast();
     const {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch
     } = usePaymentNotices();
+
+    const handlePrint = async (item) => {
+        try {
+            // Cargar datos completos del aviso (incluye client completo)
+            const res = await axios.get(`${API_URL}/payment-notices/${item.id}`, { withCredentials: true });
+            setPrintingNotice(res.data);
+            setShowPDFModal(true);
+        } catch (error) {
+            console.error('Error loading notice for print:', error);
+            showError('Error', 'No se pudo cargar el aviso para imprimir');
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -204,12 +220,21 @@ const PaymentNotices = () => {
                 showToggle={false}
                 canEdit={false}
                 canDelete={false}
-                canPrint={false}
+                canPrint={true}
                 onView={(item) => setViewingNotice(item)}
+                onPrint={handlePrint}
             />
 
             {viewingNotice && (
                 <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} />
+            )}
+
+            {showPDFModal && printingNotice && (
+                <PaymentNoticePDFModal
+                    isOpen={showPDFModal}
+                    onClose={() => { setShowPDFModal(false); setPrintingNotice(null); }}
+                    notice={printingNotice}
+                />
             )}
         </div>
     );

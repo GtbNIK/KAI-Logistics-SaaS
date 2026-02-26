@@ -36,10 +36,10 @@ export const SettingsProvider = ({ children }) => {
         }
     };
 
-    const updateSettings = async (newSettings) => {
+    const updateSettings = async (newSettings, files = {}, removals = {}) => {
         try {
             setLoading(true);
-            const updated = await settingsService.updateSettings(newSettings);
+            const updated = await settingsService.updateSettings(newSettings, files, removals);
             setSettings(updated);
             applyTheme(updated); // Apply immediately
             showSuccess('Configuración actualizada', 'Los cambios se guardaron correctamente');

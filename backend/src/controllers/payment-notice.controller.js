@@ -112,30 +112,36 @@ export const getPaymentNotices = async (req, res) => {
     try {
         const { search = '', page = 1, limit = 10 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
+        const isSales = req.user.role === 'SALES';
 
-        const where = search
-            ? {
+        let where = {};
+
+        // Si es SALES, solo ver avisos de sus clientes asignados
+        if (isSales) {
+            where.client = { assignedToId: req.user.id };
+        }
+
+        if (search) {
+            const searchConditions = {
                 OR: [
                     { client: { name: { contains: search, mode: 'insensitive' } } },
                     { number: { equals: parseInt(search) || undefined } }
                 ]
-              }
-            : {};
+            };
+            // Combinar filtro de SALES con búsqueda
+            where = isSales
+                ? { AND: [{ client: { assignedToId: req.user.id } }, searchConditions] }
+                : searchConditions;
+        }
 
         const [notices, total] = await Promise.all([
             prisma.paymentNotice.findMany({
                 where,
                 include: {
-                    client: {
-                        select: { name: true, rifOrId: true }
-                    },
-                    quote: {
-                        select: { number: true }
-                    },
+                    client: { select: { name: true, rifOrId: true } },
+                    quote: { select: { number: true } },
                     items: true,
-                    receivable: {
-                        select: { id: true, status: true, balance: true, paidAmount: true }
-                    }
+                    receivable: { select: { id: true, status: true, balance: true, paidAmount: true } }
                 },
                 orderBy: { createdAt: 'desc' },
                 skip,
@@ -188,6 +194,11 @@ export const getPaymentNoticeById = async (req, res) => {
 
         if (!notice) {
             return res.status(404).json({ message: 'Aviso de Cobro no encontrado' });
+        }
+
+        // Si es rol de ventas, verificar que el aviso pertenezca a un cliente asignado
+        if (req.user.role === 'SALES' && notice.client.assignedToId !== req.user.id) {
+            return res.status(403).json({ message: 'No tienes permisos para ver el aviso de cobro de este cliente' });
         }
 
         res.json(notice);

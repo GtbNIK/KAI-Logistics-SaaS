@@ -44,6 +44,7 @@ const QuotePDFModal = ({
     const companySlogan = companySettings?.footerText || DEFAULT_COMPANY_SLOGAN;
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
+    const quoteBgUrl = companySettings?.quoteBgUrl || null;
 
     // Preparar datos para el PDF
     const prepareItems = () => {
@@ -76,8 +77,26 @@ const QuotePDFModal = ({
         try {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 20;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 25;
             let yPos = 20;
+
+            // Fondo personalizado (si existe)
+            if (quoteBgUrl) {
+                try {
+                    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+                    const bgImg = new window.Image();
+                    bgImg.crossOrigin = 'anonymous';
+                    await new Promise((resolve, reject) => {
+                        bgImg.onload = resolve;
+                        bgImg.onerror = reject;
+                        bgImg.src = `${API_BASE}${quoteBgUrl}`;
+                    });
+                    doc.addImage(bgImg, 'JPEG', 0, 0, pageWidth, pageHeight);
+                } catch (err) {
+                    console.warn('No se pudo cargar el fondo del PDF:', err);
+                }
+            }
 
             // Cargar logo
             const img = new Image();
@@ -279,7 +298,6 @@ const QuotePDFModal = ({
             }
 
             // Footer
-            const pageHeight = doc.internal.pageSize.getHeight();
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
             doc.text(

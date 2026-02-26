@@ -8,7 +8,7 @@ import authService from '../../services/auth.service';
 import {
     Save, Briefcase, Users, Key, Palette,
     FileText, Image, UserPlus, Mail, Lock,
-    User, ShieldCheck, Eye, EyeOff, X
+    User, ShieldCheck, Eye, EyeOff, X, Upload, Trash2
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────
@@ -229,6 +229,93 @@ const ResetPasswordModal = ({ isOpen, onClose, user, onSuccess }) => {
     );
 };
 
+// ─────────────────────────────────────────────────
+// Upload de imagen con drag & drop para fondos de PDF
+// ─────────────────────────────────────────────────
+const PdfBackgroundUploader = ({ label, description, currentUrl, file, onFileChange, onRemove }) => {
+    const [dragging, setDragging] = useState(false);
+
+    const handleFile = (f) => {
+        if (!f) return;
+        if (!f.type.startsWith('image/')) return;
+        onFileChange(f);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setDragging(false);
+        handleFile(e.dataTransfer.files[0]);
+    };
+
+    const handleDragOver = (e) => { e.preventDefault(); setDragging(true); };
+    const handleDragLeave = () => setDragging(false);
+
+    // Determinar qué mostrar como preview
+    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+    const previewSrc = file
+        ? URL.createObjectURL(file)           // Archivo nuevo local (aún sin guardar)
+        : currentUrl
+            ? `${API_BASE}${currentUrl}`       // URL del servidor
+            : null;
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+            <p className="text-xs text-slate-400 mb-3">{description}</p>
+
+            {previewSrc ? (
+                // Vista previa
+                <div className="relative group rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                    <img
+                        src={previewSrc}
+                        alt={label}
+                        className="w-full h-40 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <button
+                            type="button"
+                            onClick={onRemove}
+                            className="p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                            title="Eliminar fondo"
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
+                    <div className="absolute bottom-2 right-2">
+                        <span className={`text-white text-xs px-2 py-0.5 rounded-full font-medium shadow-sm ${file ? 'bg-amber-500' : 'bg-green-500'}`}>
+                            {file ? 'Nueva — sin guardar' : 'Guardada'}
+                        </span>
+                    </div>
+                </div>
+            ) : (
+                // Zona de drop
+                <label
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    className={`flex flex-col items-center justify-center h-40 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
+                        dragging
+                            ? 'border-primary bg-primary/5 scale-[1.02]'
+                            : 'border-slate-300 hover:border-primary/50 hover:bg-slate-50'
+                    }`}
+                >
+                    <Upload size={28} className={`mb-2 ${dragging ? 'text-primary' : 'text-slate-400'}`} />
+                    <p className="text-sm text-slate-500 font-medium">
+                        {dragging ? 'Suelta la imagen aquí' : 'Arrastra una imagen o haz clic'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">JPG, PNG — máx. 5MB</p>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFile(e.target.files[0])}
+                    />
+                </label>
+            )}
+        </div>
+    );
+};
+
 // ═══════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════
@@ -239,6 +326,11 @@ const Settings = () => {
 
     const [formData, setFormData] = useState({});
     const [saving, setSaving] = useState(false);
+
+    // Archivos de fondo pendientes de subir
+    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null });
+    // Flags de eliminación de fondos
+    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false });
 
     // Estados usuarios
     const [users, setUsers] = useState([]);
@@ -279,7 +371,10 @@ const Settings = () => {
     const handleSaveSettings = async () => {
         setSaving(true);
         try {
-            await updateSettings(formData);
+            await updateSettings(formData, pendingFiles, pendingRemovals);
+            // Resetear estados pendientes
+            setPendingFiles({ quoteBg: null, noticeBg: null });
+            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false });
         } finally {
             setSaving(false);
         }
@@ -424,6 +519,20 @@ const Settings = () => {
                                     placeholder="Texto al pie de los documentos"
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+                                    <FileText size={14} /> Datos Bancarios / Información de Pago
+                                </label>
+                                <textarea
+                                    name="paymentInfo"
+                                    value={formData.paymentInfo || ''}
+                                    onChange={handleInputChange}
+                                    rows={4}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                    placeholder={"Banco: Banesco\nCuenta: 0134-...\nTitular: Mi Empresa C.A.\nPago Móvil: 04XX-XXXXXXX"}
+                                />
+                                <p className="text-xs text-slate-400 mt-1">Este texto aparecerá en el bloque de información de pago del PDF de Avisos de Cobro.</p>
+                            </div>
                         </div>
                     </div>
 
@@ -501,6 +610,53 @@ const Settings = () => {
                         </div>
                     </div>
                 </div>
+
+                    {/* Card Fondos de PDF */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50">
+                            <div className="p-2 bg-primary/10 rounded-lg">
+                                <Image size={18} className="text-primary" />
+                            </div>
+                            <div>
+                                <h2 className="font-semibold text-slate-800">Fondos de PDF</h2>
+                                <p className="text-xs text-slate-500">Imágenes de fondo para documentos generados (JPG/PNG)</p>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Upload Cotización */}
+                                <PdfBackgroundUploader
+                                    label="Fondo de Cotización"
+                                    description="Se usará como fondo en el PDF de cotizaciones"
+                                    currentUrl={pendingRemovals.removeQuoteBg ? null : formData.quoteBgUrl}
+                                    file={pendingFiles.quoteBg}
+                                    onFileChange={(f) => {
+                                        setPendingFiles(prev => ({ ...prev, quoteBg: f }));
+                                        setPendingRemovals(prev => ({ ...prev, removeQuoteBg: false }));
+                                    }}
+                                    onRemove={() => {
+                                        setPendingFiles(prev => ({ ...prev, quoteBg: null }));
+                                        setPendingRemovals(prev => ({ ...prev, removeQuoteBg: true }));
+                                    }}
+                                />
+                                {/* Upload Aviso de Cobro */}
+                                <PdfBackgroundUploader
+                                    label="Fondo de Aviso de Cobro"
+                                    description="Se usará como fondo en el PDF de avisos de cobro"
+                                    currentUrl={pendingRemovals.removeNoticeBg ? null : formData.noticeBgUrl}
+                                    file={pendingFiles.noticeBg}
+                                    onFileChange={(f) => {
+                                        setPendingFiles(prev => ({ ...prev, noticeBg: f }));
+                                        setPendingRemovals(prev => ({ ...prev, removeNoticeBg: false }));
+                                    }}
+                                    onRemove={() => {
+                                        setPendingFiles(prev => ({ ...prev, noticeBg: null }));
+                                        setPendingRemovals(prev => ({ ...prev, removeNoticeBg: true }));
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
 
                 {/* Botón guardar unificado */}
                     <div className="flex justify-center pt-4">

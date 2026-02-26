@@ -16,9 +16,32 @@ const settingsService = {
 
     /**
      * Actualizar configuración de la empresa
+     * @param {Object} data - Campos de texto (companyName, colors, etc.)
+     * @param {Object} files - Archivos opcionales { quoteBg: File, noticeBg: File }
+     * @param {Object} removals - Flags de borrado { removeQuoteBg: bool, removeNoticeBg: bool }
      */
-    updateSettings: async (data) => {
-        const response = await axios.put(`${API_URL}/settings`, data, { withCredentials: true });
+    updateSettings: async (data, files = {}, removals = {}) => {
+        const formData = new FormData();
+
+        // Campos de texto
+        Object.entries(data).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && key !== 'quoteBgUrl' && key !== 'noticeBgUrl') {
+                formData.append(key, value);
+            }
+        });
+
+        // Archivos de imagen
+        if (files.quoteBg) formData.append('quoteBg', files.quoteBg);
+        if (files.noticeBg) formData.append('noticeBg', files.noticeBg);
+
+        // Flags de eliminación
+        if (removals.removeQuoteBg) formData.append('removeQuoteBg', 'true');
+        if (removals.removeNoticeBg) formData.append('removeNoticeBg', 'true');
+
+        const response = await axios.put(`${API_URL}/settings`, formData, {
+            withCredentials: true,
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
         return response.data;
     }
 };

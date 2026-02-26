@@ -1,6 +1,30 @@
-import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle } from 'lucide-react';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const ClientDetailModal = ({ isOpen, onClose, client }) => {
+    const [receivablesSummary, setReceivablesSummary] = useState(null);
+    const [loadingReceivables, setLoadingReceivables] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen || !client?.id) return;
+
+        const fetchSummary = async () => {
+            setLoadingReceivables(true);
+            try {
+                const res = await axios.get(`${API_URL}/clients/${client.id}/receivables-summary`, { withCredentials: true });
+                setReceivablesSummary(res.data);
+            } catch {
+                setReceivablesSummary(null);
+            } finally {
+                setLoadingReceivables(false);
+            }
+        };
+        fetchSummary();
+    }, [isOpen, client?.id]);
+
     if (!isOpen || !client) return null;
 
     const formatDate = (dateString) => {
@@ -44,6 +68,27 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                             <div>
                                 <p className="text-xs font-semibold text-amber-800 mb-1">Motivo de Desactivación</p>
                                 <p className="text-sm text-amber-700">{client.deactivationNote}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Badge Cuentas por Cobrar Activas */}
+                {!loadingReceivables && receivablesSummary?.activeCount > 0 && (
+                    <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 bg-red-100 rounded-lg">
+                                <AlertCircle className="text-red-600" size={18} />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-semibold text-red-800">
+                                    {receivablesSummary.activeCount === 1
+                                        ? '1 cuenta por cobrar activa'
+                                        : `${receivablesSummary.activeCount} cuentas por cobrar activas`}
+                                </p>
+                                <p className="text-xs text-red-600 mt-0.5">
+                                    Saldo pendiente: <span className="font-bold">${Number(receivablesSummary.totalPendingBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </p>
                             </div>
                         </div>
                     </div>

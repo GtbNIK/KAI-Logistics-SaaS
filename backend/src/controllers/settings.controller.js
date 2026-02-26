@@ -1,11 +1,13 @@
 import prisma from '../lib/prisma.js';
+import fs from 'fs';
+import path from 'path';
+import { UPLOADS_DIR } from '../config/upload.js';
 
 /**
  * Obtener la configuración de la empresa
  */
 export const getSettings = async (req, res) => {
     try {
-        // Obtener la primera (y única) configuración de empresa
         const settings = await prisma.companySettings.findFirst();
         
         if (!settings) {
@@ -23,31 +25,58 @@ export const getSettings = async (req, res) => {
 
 /**
  * Actualizar la configuración de la empresa
+ * Acepta tanto JSON (campos de texto) como multipart/form-data (con imágenes)
  */
 export const updateSettings = async (req, res) => {
     try {
-        const { companyName, rif, primaryColor, secondaryColor, headerText, footerText, logoUrl } = req.body;
+        const { companyName, rif, primaryColor, secondaryColor, headerText, footerText, logoUrl, paymentInfo } = req.body;
         
-        // Obtener el registro existente
         const existing = await prisma.companySettings.findFirst();
         
         if (!existing) {
-            return res.status(404).json({ 
-                message: 'Configuración no encontrada' 
-            });
+            return res.status(404).json({ message: 'Configuración no encontrada' });
         }
-        
+
+        // Construir objeto de datos a actualizar
+        const data = {
+            companyName,
+            rif,
+            primaryColor,
+            secondaryColor,
+            headerText,
+            footerText,
+            logoUrl,
+            paymentInfo
+        };
+
+        // Procesar archivos subidos (si los hay)
+        if (req.files) {
+            // Fondo de cotización
+            if (req.files.quoteBg?.[0]) {
+                // Borrar archivo anterior si existe
+                deleteOldFile(existing.quoteBgUrl);
+                data.quoteBgUrl = `/uploads/backgrounds/${req.files.quoteBg[0].filename}`;
+            }
+            // Fondo de aviso de cobro
+            if (req.files.noticeBg?.[0]) {
+                deleteOldFile(existing.noticeBgUrl);
+                data.noticeBgUrl = `/uploads/backgrounds/${req.files.noticeBg[0].filename}`;
+            }
+        }
+
+        // Comprobar si se solicita eliminar una imagen (sin reemplazar)
+        if (req.body.removeQuoteBg === 'true') {
+            deleteOldFile(existing.quoteBgUrl);
+            data.quoteBgUrl = null;
+        }
+        if (req.body.removeNoticeBg === 'true') {
+            deleteOldFile(existing.noticeBgUrl);
+            data.noticeBgUrl = null;
+        }
+
         const updated = await prisma.companySettings.update({
             where: { id: existing.id },
-            data: {
-                companyName,
-                rif,
-                primaryColor,
-                secondaryColor,
-                headerText,
-                footerText,
-                logoUrl
-            }
+            data
         });
         
         res.json(updated);
@@ -56,3 +85,20 @@ export const updateSettings = async (req, res) => {
         res.status(500).json({ message: 'Error al actualizar configuración' });
     }
 };
+
+/**
+ * Elimina un archivo antiguo del disco
+ */
+function deleteOldFile(fileUrl) {
+    if (!fileUrl) return;
+    try {
+        // fileUrl es algo como "/uploads/backgrounds/quote-123456.jpg"
+        const relativePath = fileUrl.replace('/uploads/', '');
+        const fullPath = path.join(UPLOADS_DIR, relativePath);
+        if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+        }
+    } catch (err) {
+        console.warn('No se pudo eliminar archivo antiguo:', err.message);
+    }
+}

@@ -319,3 +319,48 @@ export const toggleClientStatus = async (req, res) => {
         res.status(500).json({ message: 'Error al cambiar estado del cliente' });
     }
 };
+
+/**
+ * @route   GET /api/clients/:id/receivables-summary
+ * @desc    Obtener resumen de cuentas por cobrar activas de un cliente
+ * @access  Private (ADMIN, SALES)
+ */
+export const getClientReceivablesSummary = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verificar acceso SALES: solo puede ver sus clientes
+        if (req.user.role === 'SALES') {
+            const client = await prisma.client.findUnique({ where: { id }, select: { assignedToId: true } });
+            if (!client || client.assignedToId !== req.user.id) {
+                return res.status(403).json({ message: 'No tienes acceso a este cliente' });
+            }
+        }
+
+        // Contar receivables activas (no pagadas completamente)
+        const [activeCount, totalBalance] = await Promise.all([
+            prisma.receivable.count({
+                where: {
+                    clientId: id,
+                    status: { in: ['PENDING', 'PARTIALLY_PAID'] }
+                }
+            }),
+            prisma.receivable.aggregate({
+                where: {
+                    clientId: id,
+                    status: { in: ['PENDING', 'PARTIALLY_PAID'] }
+                },
+                _sum: { balance: true }
+            })
+        ]);
+
+        res.json({
+            activeCount,
+            totalPendingBalance: totalBalance._sum.balance || 0
+        });
+    } catch (error) {
+        console.error('Error in getClientReceivablesSummary:', error);
+        res.status(500).json({ message: 'Error al obtener resumen de cuentas por cobrar' });
+    }
+};
+
