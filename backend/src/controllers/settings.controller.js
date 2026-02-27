@@ -15,7 +15,27 @@ export const getSettings = async (req, res) => {
                 message: 'Configuración de empresa no encontrada' 
             });
         }
+
+        /* HABILITAR ESTO SOLO SI NO QUIEREN QUE LOS USUARIOS CON ROL VENTAS VEAN LOS DATOS BANCARIOS DE LA EMPRESA
+
+        // Si NO es admin, devolver solo datos de tema visual (lo mínimo necesario)
+        if (req.user.role !== 'ADMIN') {
+            return res.json({
+                id: settings.id,
+                companyName: settings.companyName,
+                rif: settings.rif,
+                primaryColor: settings.primaryColor,
+                secondaryColor: settings.secondaryColor,
+                logoUrl: settings.logoUrl,
+                headerText: settings.headerText,
+                footerText: settings.footerText,
+                quoteBgUrl: settings.quoteBgUrl,
+                noticeBgUrl: settings.noticeBgUrl
+            });
+        } 
+        */
         
+        // Admin recibe todo
         res.json(settings);
     } catch (error) {
         console.error('Error fetching company settings:', error);

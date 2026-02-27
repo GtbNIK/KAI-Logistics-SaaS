@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, CreditCard, Plus, X, DollarSign, Wallet, Clock, BadgeDollarSign, Filter } from 'lucide-react';
+import { TrendingUp, CreditCard, Plus, X, DollarSign, Wallet, Clock, BadgeDollarSign, Filter, FileText } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import EntityTable from '../../components/shared/EntityTable';
@@ -64,6 +64,7 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('TRANSFER');
     const [reference, setReference] = useState('');
+    const [notes, setNotes] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const { showSuccess, showError } = useToast();
@@ -78,7 +79,7 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
         setLoading(true);
         try {
             await axios.post(`${API_URL}/receivables/${receivable.id}/payments`, {
-                amount: parseFloat(amount), method, reference: reference || undefined, date
+                amount: parseFloat(amount), method, reference: reference || undefined, date, notes: notes || undefined
             });
             showSuccess('¡Pago Registrado!', `Se abonaron $${parseFloat(amount).toFixed(2)}`);
             onSuccess();
@@ -149,6 +150,13 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
                         <label className="text-xs font-medium text-slate-700">Fecha del Pago</label>
                         <input type="date" value={date} onChange={e => setDate(e.target.value)}
                             className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-700">Notas <span className="text-slate-400">(opcional)</span></label>
+                        <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                            className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50"
+                            rows={2}
+                            placeholder="Información adicional del pago..." />
                     </div>
                     <div className="pt-2 flex justify-end gap-3 border-t border-slate-100">
                         <button type="button" onClick={onClose}
@@ -239,6 +247,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Fecha</th>
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Método</th>
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Referencia</th>
+                                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Notas</th>
                                             <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500">Monto</th>
                                         </tr>
                                     </thead>
@@ -252,6 +261,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                                                     {paymentMethods.find(m => m.value === p.method)?.label || p.method}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-400 text-xs font-mono">{p.reference || '—'}</td>
+                                                <td className="px-4 py-3 text-slate-500 text-xs max-w-[150px] truncate" title={p.notes || ''}>{p.notes || '—'}</td>
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">
                                                     +${parseFloat(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </td>

@@ -45,6 +45,13 @@ enum PaymentStatus {
   PAID
 }
 
+enum DeliveryNoteStatus {
+  DRAFT
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
 enum ShipmentStatus {
   PENDING
   AT_ORIGIN_WAREHOUSE
@@ -220,6 +227,7 @@ model Quote {
   // Relations
   items           QuoteItem[]
   paymentNotice   PaymentNotice? // Convert to order
+  deliveryNotes   DeliveryNote[]
 }
 
 model QuoteItem {
@@ -250,25 +258,42 @@ model QuoteItem {
 }
 
 model DeliveryNote {
-  id              String   @id @default(uuid())
-  number          Int      @unique @default(autoincrement())
+  id              String             @id @default(uuid())
+  number          Int                @unique @default(autoincrement())
   
-  date            DateTime @default(now())
+  date            DateTime           @default(now())
+  status          DeliveryNoteStatus @default(DRAFT)
   
   clientId        String
-  client          Client   @relation(fields: [clientId], references: [id])
+  client          Client             @relation(fields: [clientId], references: [id])
   
-  // Delivery info (NO internal pricing/ally info visible to client)
-  deliveredTo     String?
-  deliveryAddress String?
+  quoteId         String?            // Cotización de origen (opcional)
+  quote           Quote?             @relation(fields: [quoteId], references: [id])
   
-  isClosed        Boolean  @default(false)
+  // Delivery info
+  deliveredTo     String?            // Persona que recibe
+  deliveryAddress String?            // Dirección puntual de entrega
+  notes           String?            @db.Text
   
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?          // Soft delete
+  
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
   
   // Relations
-  paymentNotice   PaymentNotice? // DeliveryNote generates PaymentNotice
+  items           DeliveryNoteItem[]
+  paymentNotice   PaymentNotice?     // DeliveryNote generates PaymentNotice
+}
+
+model DeliveryNoteItem {
+  id              String       @id @default(uuid())
+  deliveryNoteId  String
+  deliveryNote    DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  
+  description     String
+  quantity        Decimal      @db.Decimal(10, 2)
+  unitPrice       Decimal      @db.Decimal(10, 2)
+  totalPrice      Decimal      @db.Decimal(10, 2)
 }
 
 model PaymentNotice {
@@ -392,6 +417,7 @@ model PaymentTransaction {
   date          DateTime    @default(now())
   method        String      // "EFECTIVO", "TRANSFERENCIA", "ZELLE", "DEBITO", "CREDITO"
   reference     String?
+  notes         String?     @db.Text // Notas adicionales del pago
   
   receipt       PaymentReceipt? // Relación inversa
   

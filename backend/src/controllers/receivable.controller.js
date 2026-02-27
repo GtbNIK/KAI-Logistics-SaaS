@@ -99,7 +99,7 @@ export const getReceivableById = async (req, res) => {
 export const registerPayment = async (req, res) => {
     try {
         const { id } = req.params;
-        const { amount, method, reference, date } = req.body;
+        const { amount, method, reference, date, notes } = req.body;
 
         if (!amount || amount <= 0) {
             return res.status(400).json({ message: 'El monto del pago debe ser mayor a 0' });
@@ -149,6 +149,7 @@ export const registerPayment = async (req, res) => {
                     amount: paymentAmount,
                     method,
                     reference,
+                    notes: notes || null,
                     date: date ? new Date(date) : new Date()
                 }
             });

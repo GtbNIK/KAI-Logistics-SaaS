@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Package, FileText, DollarSign, Building, MapPin, Ship, ArrowRight, Plane } from 'lucide-react';
+import { X, Package, FileText, DollarSign, Building, MapPin, Ship, ArrowRight, Plane, Clock } from 'lucide-react';
 import serviceService from '../../services/service.service';
 import { useAuth } from '../../context/AuthContext';
 
@@ -129,13 +129,17 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
                                             <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
                                                 <DollarSign size={12} className="inline mr-1" /> Venta
                                             </th>
+                                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                                                <Clock size={12} className="inline mr-1" /> Vigencia
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {rates.map(rate => {
                                             const isRoute = rate.originPort && rate.destinationPort;
+                                            const isExpired = rate.validUntil && new Date(rate.validUntil) < new Date();
                                             return (
-                                                <tr key={rate.id} className="hover:bg-slate-50/50">
+                                                <tr key={rate.id} className={`hover:bg-slate-50/50 ${isExpired ? 'opacity-60' : ''}`}>
                                                     <td className="px-4 py-3">
                                                         <span className="font-medium text-slate-700">
                                                             {rate.ally?.name || 'Sin aliado'}
@@ -176,6 +180,17 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
                                                             ${parseFloat(rate.salePrice || 0).toFixed(2)}
                                                         </span>
                                                         <span className="text-xs text-slate-400 ml-1">{rate.currency}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        {(() => {
+                                                            const isExp = rate.validUntil && new Date(rate.validUntil) < new Date();
+                                                            if (!rate.validUntil) {
+                                                                return <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-50 text-green-600 border border-green-200">Vigente</span>;
+                                                            }
+                                                            return isExp
+                                                                ? <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-red-50 text-red-500 border border-red-200">Vencida</span>
+                                                                : <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-50 text-green-600 border border-green-200">Vigente</span>;
+                                                        })()}
                                                     </td>
                                                 </tr>
                                             );

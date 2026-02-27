@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import settingsService from '../services/settings.service';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 const SettingsContext = createContext();
 
@@ -8,10 +9,20 @@ export const useSettings = () => {
     return useContext(SettingsContext);
 };
 
+const DEFAULT_SETTINGS = {
+    companyName: 'Company Name',
+    primaryColor: '#1F3142',
+    secondaryColor: '#F28729',
+    headerText: '',
+    footerText: '',
+    logoUrl: ''
+};
+
 export const SettingsProvider = ({ children }) => {
     const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
     const { showSuccess, showError } = useToast();
+    const { user } = useAuth();
 
     const fetchSettings = async () => {
         try {
@@ -19,18 +30,12 @@ export const SettingsProvider = ({ children }) => {
             setSettings(data);
             applyTheme(data);
         } catch (error) {
-            console.error('Error loading settings:', error);
-            // Default settings fallback
-            const defaults = {
-                companyName: 'Compay Name',
-                primaryColor: '#003366',
-                secondaryColor: '#FFA500',
-                headerText: '', 
-                footerText: '',
-                logoUrl: ''
-            };
-            setSettings(defaults);
-            applyTheme(defaults);
+            // Silenciamos el error 401 porque es normal cuando no se ha iniciado sesión
+            if (error.response?.status !== 401) {
+                console.error('Error loading settings:', error);
+            }
+            setSettings(DEFAULT_SETTINGS);
+            applyTheme(DEFAULT_SETTINGS);
         } finally {
             setLoading(false);
         }
@@ -81,9 +86,18 @@ export const SettingsProvider = ({ children }) => {
         return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
     };
 
+    // Re-cargar settings cada vez que el usuario cambie (login/logout)
     useEffect(() => {
-        fetchSettings();
-    }, []);
+        if (user) {
+            // Usuario autenticado: cargar settings reales de la BD
+            fetchSettings();
+        } else {
+            // Sin usuario: cargar defaults
+            setSettings(DEFAULT_SETTINGS);
+            applyTheme(DEFAULT_SETTINGS);
+            setLoading(false);
+        }
+    }, [user]);
 
     return (
         <SettingsContext.Provider value={{ settings, loading, updateSettings, refreshSettings: fetchSettings }}>

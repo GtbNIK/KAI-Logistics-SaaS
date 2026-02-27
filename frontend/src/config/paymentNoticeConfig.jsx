@@ -33,15 +33,25 @@ export const paymentNoticeConfig = {
             )
         },
         {
-            header: 'Cotización',
+            header: 'Origen',
             accessor: 'quote',
-            render: (item) => item.quote
-                ? (
-                    <span className="px-2 py-1 text-xs rounded border bg-blue-50 text-blue-600 border-blue-200">
-                        COT-{String(item.quote.number).padStart(5, '0')}
-                    </span>
-                )
-                : <span className="text-slate-400 text-xs">—</span>
+            render: (item) => {
+                if (item.quote) {
+                    return (
+                        <span className="px-2 py-1 text-xs rounded border bg-blue-50 text-blue-600 border-blue-200">
+                            COT-{String(item.quote.number).padStart(5, '0')}
+                        </span>
+                    );
+                }
+                if (item.deliveryNote) {
+                    return (
+                        <span className="px-2 py-1 text-xs rounded border bg-emerald-50 text-emerald-600 border-emerald-200">
+                            NDE-{String(item.deliveryNote.number).padStart(5, '0')}
+                        </span>
+                    );
+                }
+                return <span className="text-slate-400 text-xs">—</span>;
+            }
         },
         {
             header: 'Total',

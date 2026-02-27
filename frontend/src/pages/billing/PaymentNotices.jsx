@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Receipt, DollarSign, Package, FileText, User, Calendar, X, Loader2 } from 'lucide-react';
+import { Receipt, DollarSign, Package, FileText, User, Calendar, X, Loader2, ScrollText } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import EntityTable from '../../components/shared/EntityTable';
@@ -98,6 +98,18 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                                 Originado desde:{' '}
                                 <span className="font-semibold text-blue-700">
                                     COT-{String(n.quote.number).padStart(5, '0')}
+                                </span>
+                            </span>
+                        </div>
+                    )}
+
+                    {n.deliveryNote && (
+                        <div className="flex items-center gap-2 text-sm bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-100">
+                            <ScrollText size={14} className="text-emerald-500" />
+                            <span className="text-slate-600">
+                                Originado desde Nota de Entrega:{' '}
+                                <span className="font-semibold text-emerald-700">
+                                    NDE-{String(n.deliveryNote.number).padStart(5, '0')}
                                 </span>
                             </span>
                         </div>

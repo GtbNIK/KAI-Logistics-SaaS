@@ -285,6 +285,22 @@ const CreateQuote = () => {
     // Estado para el modal de PDF
     const [showPDFModal, setShowPDFModal] = useState(false);
 
+    // Debounce para búsqueda de clientes
+    const [clientInputValue, setClientInputValue] = useState('');
+    const [filteredClients, setFilteredClients] = useState([]);
+
+    useEffect(() => {
+        if (!clientInputValue.trim()) {
+            setFilteredClients(clients);
+            return;
+        }
+        const t = setTimeout(() => {
+            const search = clientInputValue.toLowerCase();
+            setFilteredClients(clients.filter(c => c.label.toLowerCase().includes(search)));
+        }, 800);
+        return () => clearTimeout(t);
+    }, [clientInputValue, clients]);
+
     function createEmptyItem() {
         return {
             id: Date.now(), // ID temporal para key
@@ -464,11 +480,15 @@ const CreateQuote = () => {
                     <div className="space-y-2 mb-4">
                         <label className="text-sm font-medium text-slate-700">Cliente</label>
                         <Select
-                            options={clients}
+                            options={filteredClients}
                             value={clients.find(c => c.value === clientId)}
                             isLoading={loadingData}
                             placeholder="Buscar cliente..."
                             onChange={(opt) => setClientId(opt?.value)}
+                            onInputChange={(val) => setClientInputValue(val)}
+                            filterOption={() => true}
+                            noOptionsMessage={() => 'Sin resultados'}
+                            isClearable
                         />
                     </div>
 

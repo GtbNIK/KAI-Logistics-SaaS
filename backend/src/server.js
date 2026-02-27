@@ -12,6 +12,7 @@ import rateRoutes from './routes/rate.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import paymentNoticeRoutes from './routes/payment-notice.routes.js';
 import receivableRoutes from './routes/receivable.routes.js';
+import deliveryNoteRoutes from './routes/delivery-note.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -61,6 +62,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/payment-notices', paymentNoticeRoutes);
 // Rutas de Receivables (Cuentas por cobrar)
 app.use('/api/receivables', receivableRoutes);
+// Rutas de Notas de Entrega
+app.use('/api/delivery-notes', deliveryNoteRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

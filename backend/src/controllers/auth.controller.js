@@ -124,13 +124,17 @@ export const login = async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+            maxAge: 60 * 60 * 1000 // 1 hora
         });
+
+        // Calcular fecha de expiración para el frontend
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
         // Responder con datos del usuario y token
         res.json({
             message: 'Login exitoso',
             token,
+            expiresAt,
             user: {
                 id: user.id,
                 email: user.email,
