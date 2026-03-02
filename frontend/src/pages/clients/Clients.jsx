@@ -92,7 +92,9 @@ const Clients = () => {
         handleToggleStatus,
         handleFormSuccess,
         actionLoading,
-        refetch
+        refetch,
+        customFilters,
+        setCustomFilters
     } = useEntityCRUD({
         service: adaptedService,
         entityName: clientConfig.entityName,
@@ -244,6 +246,24 @@ const Clients = () => {
                 canEdit={user?.role === 'ADMIN'}
                 showToggle={user?.role === 'ADMIN'}
                 codeColor={clientConfig.codeColor}
+                extraFilters={
+                    users.length > 0 && (
+                        <select
+                            value={customFilters.assignedToId || ''}
+                            onChange={(e) => setCustomFilters(
+                                e.target.value
+                                    ? { assignedToId: e.target.value }
+                                    : {}
+                            )}
+                            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                        >
+                            <option value="">Todos los vendedores</option>
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                        </select>
+                    )
+                }
             />
         </div>
     );

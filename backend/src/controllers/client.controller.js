@@ -110,7 +110,7 @@ export const createClient = async (req, res) => {
 
 export const getClients = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search = '', all = 'false', includeInactive = 'false' } = req.query;
+        const { page = 1, limit = 10, search = '', all = 'false', includeInactive = 'false', assignedToId } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const take = parseInt(limit);
         const isSales = req.user.role === 'SALES';
@@ -131,8 +131,11 @@ export const getClients = async (req, res) => {
             where.isActive = true;
         }
 
+        // SALES siempre ve solo sus clientes. ADMIN puede filtrar por vendedor
         if (isSales) {
             where.assignedToId = req.user.id;
+        } else if (assignedToId) {
+            where.assignedToId = assignedToId;
         }
 
         // Si all=true, devolver sin paginación (para selects)

@@ -83,6 +83,7 @@ export const clientConfig = {
                     label: 'RIF / Cédula',
                     type: 'text',
                     required: true,
+                    maxLength: 10,
                     placeholder: 'Ej. J-12345678-9',
                     icon: FileText
                 }
@@ -112,7 +113,7 @@ export const clientConfig = {
                 {
                     name: 'phone',
                     label: 'Teléfono',
-                    type: 'text',
+                    type: 'phone',
                     required: true,
                     placeholder: '+58 412 1234567',
                     icon: Phone

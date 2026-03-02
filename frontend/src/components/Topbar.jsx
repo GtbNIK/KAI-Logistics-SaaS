@@ -161,7 +161,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
 
     return (
         <>
-            <header className="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 sticky top-0 z-10">
+            <header className="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 sticky top-0 z-20">
                 {/* Left: Page Title */}
                 <div className="flex items-center gap-4">
                     <h1 className="text-xl font-semibold text-slate-800 tracking-tight">

@@ -65,7 +65,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 },
                 { to: '/dashboard/nota-entrega', icon: ScrollText, label: 'Nota de Entrega', roles: ['ADMIN'] },
                 { to: '/dashboard/aviso-cobro', icon: Receipt, label: 'Aviso de Cobro', roles: ['ADMIN', 'SALES'] },
-                { to: '/dashboard/embarques', icon: Container, label: 'Embarques', roles: ['ADMIN', 'SALES'] },
+                { to: '/dashboard/embarques', icon: Container, label: 'Tracking', roles: ['ADMIN', 'SALES'] },
             ]
         },
         {
@@ -94,7 +94,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     return (
         <aside 
             className={`
-                fixed left-0 top-0 z-40 h-screen bg-primary-dark text-white transition-all duration-300 ease-in-out border-r border-white/10 flex flex-col shadow-xl
+                fixed left-0 top-0 z-20 h-screen bg-primary-dark text-white transition-all duration-300 ease-in-out border-r border-white/10 flex flex-col shadow-xl
                 ${isOpen ? 'w-64' : 'w-20'}
             `}
         >

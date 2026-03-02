@@ -75,6 +75,7 @@ export const allyConfig = {
                     label: 'RIF / Cédula',
                     type: 'text',
                     required: true,
+                    maxLength: 10,
                     placeholder: 'Ej. J-12345678-9',
                     icon: FileText
                 }

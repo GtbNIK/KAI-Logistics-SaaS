@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 /**
  * Modal de formulario genérico para crear/editar cualquier entidad
@@ -159,6 +161,18 @@ const EntityFormModal = ({
                                                     <option key={i} value={opt.value}>{opt.label}</option>
                                                 ))}
                                             </select>
+                                        ) : field.type === 'phone' ? (
+                                            <div className="phone-input-container w-full">
+                                                <PhoneInput
+                                                    defaultCountry="ve"
+                                                    value={formData[field.name] || ''}
+                                                    onChange={phone => handleChange({ target: { name: field.name, value: phone, type: 'text' } })}
+                                                    inputClassName="!w-full !py-2 !h-auto !bg-slate-50 border border-slate-200 !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all"
+                                                    countrySelectorStyleProps={{
+                                                        buttonClassName: "!bg-slate-50 border border-slate-200 !rounded-l-xl !px-3 !h-10"
+                                                    }}
+                                                />
+                                            </div>
                                         ) : (
                                             <div className="relative">
                                                 {field.icon && (
@@ -170,6 +184,7 @@ const EntityFormModal = ({
                                                     required={field.required}
                                                     value={formData[field.name] || ''}
                                                     onChange={handleChange}
+                                                    maxLength={field.maxLength}
                                                     className={`w-full py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all ${field.icon ? 'pl-10 pr-4' : 'px-4'}`}
                                                     placeholder={field.placeholder}
                                                 />

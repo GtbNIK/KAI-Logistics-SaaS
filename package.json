@@ -8,5 +8,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "react-international-phone": "^4.8.0"
+  }
 }

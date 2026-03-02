@@ -62,7 +62,7 @@ const NoteDetailModal = ({ note, onClose }) => {
     const statusCfg = statusMap[n.status] || statusMap.DRAFT;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -296,7 +296,7 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
     const total = items.reduce((acc, i) => acc + Number(i.totalPrice || 0), 0);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
                 onClick={e => e.stopPropagation()}>
                 {/* Header */}
@@ -505,7 +505,7 @@ const FinalizeModal = ({ isOpen, onClose, note, onSuccess }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
                     <div className="p-2 bg-green-50 rounded-xl">

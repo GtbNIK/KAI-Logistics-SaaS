@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, X, Package, User, Calendar, DollarSign, Loader2, Activity } from 'lucide-react';
 import quoteService from '../../services/quote.service';
@@ -144,20 +145,21 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
     };
 
     if (loading) {
-        return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        return createPortal(
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100]">
                 <div className="bg-white rounded-2xl p-8 flex items-center gap-3">
                     <Loader2 className="animate-spin text-primary" />
                     <span>Cargando cotización...</span>
                 </div>
-            </div>
+            </div>,
+            document.body
         );
     }
 
     const q = fullQuote || quote;
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    return createPortal(
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4" onClick={onClose}>
             <div 
                 className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
@@ -332,7 +334,8 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                 confirmText="Sí, generar aviso"
                 loading={isConverting}
             />
-        </div>
+        </div>,
+        document.body
     );
 };
 

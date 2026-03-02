@@ -87,17 +87,21 @@ const useEntityCRUD = ({
         }
     }, [page, search, filterStatus, customFilters, service, entityName, limit, hasStatusField, onError]);
 
-    // Efecto para búsqueda con debounce
+    // Efecto principal: se ejecuta cuando cambian filtros/búsqueda O al montar
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
-            setPage(1);
             fetchItems();
         }, 500);
         return () => clearTimeout(delayDebounceFn);
     }, [search, filterStatus, customFilters]);
 
-    // Efecto para cambio de página
+    // Efecto de paginación: solo corre cuando cambia la página (no en el primer render)
+    const isFirstRender = useState(true);
     useEffect(() => {
+        if (isFirstRender[0]) {
+            isFirstRender[1](false);
+            return;
+        }
         fetchItems();
     }, [page]);
 

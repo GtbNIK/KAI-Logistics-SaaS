@@ -57,10 +57,12 @@ const QuoteItemRow = ({
                     onRateFound(index, result.rate);
                 } else {
                     setFoundRate(null);
+                    onUpdate(index, { unitPrice: 0 });
                     onRateFound(index, null);
                 }
             } catch {
                 setFoundRate(null);
+                onUpdate(index, { unitPrice: 0 });
                 onRateFound(index, null);
             } finally {
                 setSearchingRate(false);
