@@ -328,9 +328,9 @@ const Settings = () => {
     const [saving, setSaving] = useState(false);
 
     // Archivos de fondo pendientes de subir
-    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null });
+    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null, deliveryNoteBg: null });
     // Flags de eliminación de fondos
-    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false });
+    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false });
 
     // Estados usuarios
     const [users, setUsers] = useState([]);
@@ -373,8 +373,8 @@ const Settings = () => {
         try {
             await updateSettings(formData, pendingFiles, pendingRemovals);
             // Resetear estados pendientes
-            setPendingFiles({ quoteBg: null, noticeBg: null });
-            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false });
+            setPendingFiles({ quoteBg: null, noticeBg: null, deliveryNoteBg: null });
+            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false });
         } finally {
             setSaving(false);
         }
@@ -652,6 +652,21 @@ const Settings = () => {
                                     onRemove={() => {
                                         setPendingFiles(prev => ({ ...prev, noticeBg: null }));
                                         setPendingRemovals(prev => ({ ...prev, removeNoticeBg: true }));
+                                    }}
+                                />
+                                {/* Upload Nota de Entrega */}
+                                <PdfBackgroundUploader
+                                    label="Fondo de Nota de Entrega"
+                                    description="Se usará como fondo en el PDF de notas de entrega"
+                                    currentUrl={pendingRemovals.removeDeliveryNoteBg ? null : formData.deliveryNoteBgUrl}
+                                    file={pendingFiles.deliveryNoteBg}
+                                    onFileChange={(f) => {
+                                        setPendingFiles(prev => ({ ...prev, deliveryNoteBg: f }));
+                                        setPendingRemovals(prev => ({ ...prev, removeDeliveryNoteBg: false }));
+                                    }}
+                                    onRemove={() => {
+                                        setPendingFiles(prev => ({ ...prev, deliveryNoteBg: null }));
+                                        setPendingRemovals(prev => ({ ...prev, removeDeliveryNoteBg: true }));
                                     }}
                                 />
                             </div>

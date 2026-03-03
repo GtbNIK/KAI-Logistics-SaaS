@@ -465,8 +465,9 @@ model CompanySettings {
   footerText  String?
 
   // PDF Background Images (rutas de archivos subidos)
-  quoteBgUrl  String?  // Fondo del PDF de cotizaciones
-  noticeBgUrl String?  // Fondo del PDF de avisos de cobro
+  quoteBgUrl          String?  // Fondo del PDF de cotizaciones
+  noticeBgUrl         String?  // Fondo del PDF de avisos de cobro
+  deliveryNoteBgUrl   String?  // Fondo del PDF de notas de entrega
 
   // Texto de información de pago para el PDF de Avisos de Cobro
   paymentInfo String?  // Ej: "Banco: Banesco\nCuenta: 0134-...\nTitular: Empresa C.A."

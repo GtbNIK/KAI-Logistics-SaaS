@@ -82,6 +82,11 @@ export const updateSettings = async (req, res) => {
                 deleteOldFile(existing.noticeBgUrl);
                 data.noticeBgUrl = `/uploads/backgrounds/${req.files.noticeBg[0].filename}`;
             }
+            // Fondo de nota de entrega
+            if (req.files.deliveryNoteBg?.[0]) {
+                deleteOldFile(existing.deliveryNoteBgUrl);
+                data.deliveryNoteBgUrl = `/uploads/backgrounds/${req.files.deliveryNoteBg[0].filename}`;
+            }
         }
 
         // Comprobar si se solicita eliminar una imagen (sin reemplazar)
@@ -92,6 +97,10 @@ export const updateSettings = async (req, res) => {
         if (req.body.removeNoticeBg === 'true') {
             deleteOldFile(existing.noticeBgUrl);
             data.noticeBgUrl = null;
+        }
+        if (req.body.removeDeliveryNoteBg === 'true') {
+            deleteOldFile(existing.deliveryNoteBgUrl);
+            data.deliveryNoteBgUrl = null;
         }
 
         const updated = await prisma.companySettings.update({

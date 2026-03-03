@@ -16,7 +16,8 @@ router.put(
     authorize('ADMIN'),
     upload.fields([
         { name: 'quoteBg', maxCount: 1 },
-        { name: 'noticeBg', maxCount: 1 }
+        { name: 'noticeBg', maxCount: 1 },
+        { name: 'deliveryNoteBg', maxCount: 1 }
     ]),
     updateSettings
 );
