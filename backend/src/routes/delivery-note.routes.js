@@ -25,13 +25,13 @@ router.post('/', authorize('ADMIN'), createDeliveryNote);
  * @route   GET /api/delivery-notes
  * @desc    Listar notas de entrega (paginado)
  */
-router.get('/', authorize('ADMIN'), getDeliveryNotes);
+router.get('/', authorize('ADMIN', 'SALES'), getDeliveryNotes);
 
 /**
  * @route   GET /api/delivery-notes/:id
  * @desc    Obtener detalle de una nota de entrega
  */
-router.get('/:id', authorize('ADMIN'), getDeliveryNoteById);
+router.get('/:id', authorize('ADMIN', 'SALES'), getDeliveryNoteById);
 
 /**
  * @route   PUT /api/delivery-notes/:id

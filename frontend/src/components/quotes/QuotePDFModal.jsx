@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, Loader2, FileText, Truck, MapPin } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -22,6 +23,18 @@ const hexToRgb = (hex) => {
     } : { r: 0, g: 51, b: 102 };
 };
 
+const getJsPdfImageFormatFromUrl = (url) => {
+    if (!url) return null;
+
+    const cleanUrl = String(url).split('?')[0].split('#')[0];
+    const ext = cleanUrl.split('.').pop()?.toLowerCase();
+
+    if (ext === 'jpg' || ext === 'jpeg') return 'JPEG';
+    if (ext === 'png') return 'PNG';
+    if (ext === 'webp') return 'WEBP';
+    return null;
+};
+
 /**
  * Modal para vista previa y generación de PDF de cotización
  */
@@ -37,6 +50,7 @@ const QuotePDFModal = ({
     const { settings: companySettings, loading: loadingSettings } = useSettings();
 
     if (!isOpen) return null;
+    if (typeof document === 'undefined') return null;
 
     // Obtener valores de configuración o defaults
     const logoUrl = companySettings?.logoUrl || DEFAULT_LOGO;
@@ -45,6 +59,11 @@ const QuotePDFModal = ({
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
     const quoteBgUrl = companySettings?.quoteBgUrl || null;
+
+    const resolveClientName = () => {
+        const c = quote?.client;
+        return c?.data?.name || c?.name || c?.label || quote?.clientName || 'Sin seleccionar';
+    };
 
     // Preparar datos para el PDF
     const prepareItems = () => {
@@ -92,7 +111,9 @@ const QuotePDFModal = ({
                         bgImg.onerror = reject;
                         bgImg.src = `${API_BASE}${quoteBgUrl}`;
                     });
-                    doc.addImage(bgImg, 'JPEG', 0, 0, pageWidth, pageHeight);
+
+                    const bgFormat = getJsPdfImageFormatFromUrl(quoteBgUrl) || 'JPEG';
+                    doc.addImage(bgImg, bgFormat, 0, 0, pageWidth, pageHeight);
                 } catch (err) {
                     console.warn('No se pudo cargar el fondo del PDF:', err);
                 }
@@ -151,7 +172,7 @@ const QuotePDFModal = ({
             doc.setFontSize(10);
             
             // Nombre del cliente
-            const clientName = quote.client?.label || 'Sin seleccionar';
+            const clientName = resolveClientName();
             doc.text(clientName, margin, yPos);
             yPos += 5;
             
@@ -307,8 +328,17 @@ const QuotePDFModal = ({
                 { align: 'center' }
             );
 
-            // Descargar
-            doc.save(`cotizacion_${quoteNumberHeader.replace('-', '_')}.pdf`);
+            const blob = doc.output('blob');
+            const blobUrl = URL.createObjectURL(blob);
+
+            const newTab = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+            if (!newTab) {
+                doc.save(`cotizacion_${quoteNumberHeader.replace('-', '_')}.pdf`);
+            }
+
+            setTimeout(() => {
+                URL.revokeObjectURL(blobUrl);
+            }, 60_000);
         } catch (error) {
             console.error('Error generating PDF:', error);
         } finally {
@@ -318,7 +348,7 @@ const QuotePDFModal = ({
 
     const items = prepareItems();
 
-    return (
+    return createPortal((
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div 
                 className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
@@ -332,7 +362,7 @@ const QuotePDFModal = ({
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-slate-800">Vista Previa del PDF</h2>
-                            <p className="text-sm text-slate-500">Revise antes de descargar</p>
+                            <p className="text-sm text-slate-500">Revise antes de imprimir</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -365,7 +395,7 @@ const QuotePDFModal = ({
                                 {/* Columna izquierda: Cliente */}
                                 <div>
                                     <p className="text-xs text-slate-500 uppercase font-medium mb-1">Cliente</p>
-                                    <p className="font-semibold text-slate-800 mb-2">{quote.client?.label || 'Sin seleccionar'}</p>
+                                    <p className="font-semibold text-slate-800 mb-2">{resolveClientName()}</p>
                                     
                                     {/* Información del cliente en una sola columna */}
                                     <div className="space-y-1">
@@ -474,14 +504,14 @@ const QuotePDFModal = ({
                         ) : (
                             <>
                                 <Download size={18} />
-                                Descargar PDF
+                                Imprimir PDF
                             </>
                         )}
                     </button>
                 </div>
             </div>
         </div>
-    );
+    ), document.body);
 };
 
 export default QuotePDFModal;

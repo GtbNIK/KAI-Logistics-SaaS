@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, Loader2, Receipt, Eye, EyeOff } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -14,6 +15,18 @@ const hexToRgb = (hex) => {
     return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 };
 
+const getJsPdfImageFormatFromUrl = (url) => {
+    if (!url) return null;
+
+    const cleanUrl = String(url).split('?')[0].split('#')[0];
+    const ext = cleanUrl.split('.').pop()?.toLowerCase();
+
+    if (ext === 'jpg' || ext === 'jpeg') return 'JPEG';
+    if (ext === 'png') return 'PNG';
+    if (ext === 'webp') return 'WEBP';
+    return null;
+};
+
 /**
  * Modal para vista previa y generación de PDF de aviso de cobro
  */
@@ -23,6 +36,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const { settings: companySettings, loading: loadingSettings } = useSettings();
 
     if (!isOpen || !notice) return null;
+    if (typeof document === 'undefined') return null;
 
     // Valores de configuración
     const logoUrl = companySettings?.logoUrl || DEFAULT_LOGO;
@@ -89,7 +103,9 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                         bgImg.onerror = reject;
                         bgImg.src = `${API_BASE}${noticeBgUrl}`;
                     });
-                    doc.addImage(bgImg, 'JPEG', 0, 0, pageWidth, pageHeight);
+
+                    const bgFormat = getJsPdfImageFormatFromUrl(noticeBgUrl) || 'JPEG';
+                    doc.addImage(bgImg, bgFormat, 0, 0, pageWidth, pageHeight);
                 } catch (err) {
                     console.warn('No se pudo cargar el fondo del PDF:', err);
                 }
@@ -298,7 +314,17 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 { align: 'center' }
             );
 
-            doc.save(`aviso_cobro_${noticeNumber.replace('-', '_')}.pdf`);
+            const blob = doc.output('blob');
+            const blobUrl = URL.createObjectURL(blob);
+
+            const newTab = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+            if (!newTab) {
+                doc.save(`aviso_cobro_${noticeNumber.replace('-', '_')}.pdf`);
+            }
+
+            setTimeout(() => {
+                URL.revokeObjectURL(blobUrl);
+            }, 60_000);
         } catch (error) {
             console.error('Error generating PDF:', error);
         } finally {
@@ -308,7 +334,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
 
     const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
 
-    return (
+    return createPortal((
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div
                 className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
@@ -504,14 +530,14 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                         ) : (
                             <>
                                 <Download size={18} />
-                                Descargar PDF
+                                Imprimir PDF
                             </>
                         )}
                     </button>
                 </div>
             </div>
         </div>
-    );
+    ), document.body);
 };
 
 export default PaymentNoticePDFModal;

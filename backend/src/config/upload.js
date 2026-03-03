@@ -26,7 +26,11 @@ const storage = multer.diskStorage({
     filename: (req, file, cb) => {
         // Nombre: tipo-timestamp.ext  (ej: quote-1709056000.jpg)
         const ext = path.extname(file.originalname).toLowerCase();
-        const prefix = file.fieldname === 'quoteBg' ? 'quote' : 'notice';
+        const prefix = file.fieldname === 'quoteBg'
+            ? 'quote'
+            : file.fieldname === 'deliveryNoteBg'
+                ? 'delivery-note'
+                : 'notice';
         cb(null, `${prefix}-${Date.now()}${ext}`);
     }
 });
