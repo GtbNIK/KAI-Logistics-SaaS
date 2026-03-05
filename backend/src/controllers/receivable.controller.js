@@ -1,5 +1,51 @@
 import prisma from '../config/database.js';
 
+export const createReceivable = async (req, res) => {
+    try {
+        const { clientId, totalAmount, manualNotes } = req.body;
+
+        if (!clientId) {
+            return res.status(400).json({ message: 'El cliente es requerido' });
+        }
+
+        const amount = Number(totalAmount);
+        if (!totalAmount || Number.isNaN(amount) || amount < 0) {
+            return res.status(400).json({ message: 'El monto total debe ser mayor a 0' });
+        }
+
+        const receivable = await prisma.receivable.create({
+            data: {
+                paymentNoticeId: null,
+                clientId,
+                totalAmount: amount,
+                paidAmount: 0,
+                balance: amount,
+                status: 'PENDING',
+                manualNotes: manualNotes || null
+            },
+            include: {
+                client: { select: { name: true, rifOrId: true } },
+                paymentNotice: {
+                    select: {
+                        number: true,
+                        issueDate: true,
+                        client: { select: { name: true, rifOrId: true } }
+                    }
+                },
+                payments: true
+            }
+        });
+
+        res.status(201).json({
+            message: 'Cuenta por cobrar creada exitosamente',
+            data: receivable
+        });
+    } catch (error) {
+        console.error('Error in createReceivable:', error);
+        res.status(500).json({ message: 'Error al crear cuenta por cobrar' });
+    }
+};
+
 /**
  * @route   GET /api/receivables
  * @desc    Obtener lista de cuentas por cobrar (Receivables)
@@ -13,15 +59,23 @@ export const getReceivables = async (req, res) => {
         const where = {};
         if (status) where.status = status;
         if (search) {
-            where.paymentNotice = {
-                client: { name: { contains: search, mode: 'insensitive' } }
+            const num = parseInt(search);
+            const searchConditions = {
+                OR: [
+                    { client: { name: { contains: search, mode: 'insensitive' } } },
+                    { paymentNotice: { client: { name: { contains: search, mode: 'insensitive' } } } },
+                    ...(Number.isNaN(num) ? [] : [{ number: { equals: num } }])
+                ]
             };
+
+            Object.assign(where, searchConditions);
         }
 
         const [receivables, total] = await Promise.all([
             prisma.receivable.findMany({
                 where,
                 include: {
+                    client: { select: { name: true, rifOrId: true } },
                     paymentNotice: {
                         select: {
                             number: true,
@@ -65,6 +119,7 @@ export const getReceivableById = async (req, res) => {
         const receivable = await prisma.receivable.findUnique({
             where: { id },
             include: {
+                client: { select: { name: true, email: true, rifOrId: true } },
                 paymentNotice: {
                     select: {
                         number: true,
@@ -107,6 +162,7 @@ export const registerPayment = async (req, res) => {
         if (!method) {
             return res.status(400).json({ message: 'El método de pago es requerido' });
         }
+        
 
         const receivable = await prisma.receivable.findUnique({
             where: { id },

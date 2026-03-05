@@ -167,6 +167,16 @@ model Zone {
   quoteItems   QuoteItem[]
 }
 
+model Port {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // The "Tarifario": Intersection of Ally, Service, and Zone
 model ServiceRate {
   id        String   @id @default(uuid())
@@ -263,6 +273,8 @@ model DeliveryNote {
   
   date            DateTime           @default(now())
   status          DeliveryNoteStatus @default(DRAFT)
+
+	warehouseNumber String
   
   clientId        String
   client          Client             @relation(fields: [clientId], references: [id])
@@ -282,7 +294,6 @@ model DeliveryNote {
   
   // Relations
   items           DeliveryNoteItem[]
-  paymentNotice   PaymentNotice?     // DeliveryNote generates PaymentNotice
 }
 
 model DeliveryNoteItem {
@@ -290,19 +301,35 @@ model DeliveryNoteItem {
   deliveryNoteId  String
   deliveryNote    DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
   
+  d2dItemId        String?
+  d2dItem          D2DItem?     @relation(fields: [d2dItemId], references: [id])
+
   description     String
   quantity        Decimal      @db.Decimal(10, 2)
-  unitPrice       Decimal      @db.Decimal(10, 2)
-  totalPrice      Decimal      @db.Decimal(10, 2)
+	weight          Decimal?     @db.Decimal(10, 2)
+	cbm             Decimal?     @db.Decimal(10, 3)
+}
+
+model D2DItem {
+	id          String   @id @default(uuid())
+	description String   @unique
+	createdAt   DateTime @default(now())
+	updatedAt   DateTime @updatedAt
+
+	deliveryNoteItems DeliveryNoteItem[]
+}
+
+model SvcProvider {
+	id        String   @id @default(uuid())
+	name      String   @unique
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
 }
 
 model PaymentNotice {
   id              String   @id @default(uuid())
   number          Int      @unique @default(autoincrement())
   issueDate       DateTime @default(now())
-  
-  deliveryNoteId  String?  @unique
-  deliveryNote    DeliveryNote? @relation(fields: [deliveryNoteId], references: [id])
   
   quoteId         String?  @unique
   quote           Quote?   @relation(fields: [quoteId], references: [id])
@@ -372,12 +399,15 @@ model Shipment {
 
 model Receivable {
   id              String        @id @default(uuid())
+  number          Int           @unique @default(autoincrement())
   
-  paymentNoticeId String        @unique
-  paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id])
+  paymentNoticeId String?       @unique
+  paymentNotice   PaymentNotice? @relation(fields: [paymentNoticeId], references: [id])
   
   clientId        String
   client          Client        @relation(fields: [clientId], references: [id])
+
+  manualNotes     String?       @db.Text
   
   totalAmount     Decimal       @db.Decimal(10, 2)
   paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
@@ -415,7 +445,7 @@ model PaymentTransaction {
   
   amount        Decimal     @db.Decimal(10, 2)
   date          DateTime    @default(now())
-  method        String      // "EFECTIVO", "TRANSFERENCIA", "ZELLE", "DEBITO", "CREDITO"
+  method        String      // "EFECTIVO USD", "TRANSFERENCIA", "TRANSFERENCIA INTERNACIONAL", "PAGO MÓVIL", "BINANCE (USDT)", "ZELLE", "OTRO"
   reference     String?
   notes         String?     @db.Text // Notas adicionales del pago
   
@@ -436,7 +466,7 @@ model PaymentReceipt {
   client               Client             @relation(fields: [clientId], references: [id])
   
   amount               Decimal            @db.Decimal(10, 2)
-  paymentMethod        String             // "EFECTIVO", "TRANSFERENCIA", "ZELLE"
+  paymentMethod        String             // "EFECTIVO USD" unicamente
   reference            String?
   
   issuedBy             String             // Nombre del usuario que registró el pago

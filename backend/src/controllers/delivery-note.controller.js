@@ -5,8 +5,7 @@ import prisma from '../config/database.js';
 const DELIVERY_NOTE_INCLUDE = {
     client: { select: { name: true, rifOrId: true } },
     quote: { select: { number: true } },
-    items: true,
-    paymentNotice: { select: { id: true, number: true } }
+    items: true
 };
 
 // ─── GET /api/delivery-notes ─────────────────────────────────────────────────
@@ -86,13 +85,6 @@ export const getDeliveryNoteById = async (req, res) => {
                 client: true,
                 quote: { select: { number: true } },
                 items: true,
-                paymentNotice: {
-                    select: {
-                        id: true,
-                        number: true,
-                        receivable: { select: { id: true, status: true, balance: true } }
-                    }
-                }
             }
         });
 
@@ -115,7 +107,7 @@ export const getDeliveryNoteById = async (req, res) => {
 // ─── POST /api/delivery-notes ────────────────────────────────────────────────
 export const createDeliveryNote = async (req, res) => {
     try {
-        const { clientId, quoteId, deliveredTo, deliveryAddress, notes, items } = req.body;
+        const { clientId, quoteId, deliveredTo, deliveryAddress, warehouseNumber, notes, items } = req.body;
 
         if (!clientId) {
             return res.status(400).json({ message: 'El cliente es obligatorio' });
@@ -124,6 +116,10 @@ export const createDeliveryNote = async (req, res) => {
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'Debe incluir al menos un item' });
         }
+
+		if (!warehouseNumber) {
+			return res.status(400).json({ message: 'El número de Warehouse es obligatorio' });
+		}
 
         // Verificar que el cliente exista
         const client = await prisma.client.findUnique({ where: { id: clientId } });
@@ -137,13 +133,15 @@ export const createDeliveryNote = async (req, res) => {
                 quoteId: quoteId || null,
                 deliveredTo: deliveredTo || null,
                 deliveryAddress: deliveryAddress || null,
+				warehouseNumber,
                 notes: notes || null,
                 items: {
                     create: items.map(item => ({
+						d2dItemId: item.d2dItemId || null,
                         description: item.description,
                         quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        totalPrice: item.totalPrice
+						weight: item.weight ?? null,
+						cbm: item.cbm ?? null
                     }))
                 }
             },
@@ -161,7 +159,7 @@ export const createDeliveryNote = async (req, res) => {
 export const updateDeliveryNote = async (req, res) => {
     try {
         const { id } = req.params;
-        const { clientId, deliveredTo, deliveryAddress, notes, items } = req.body;
+		const { clientId, deliveredTo, deliveryAddress, warehouseNumber, notes, items } = req.body;
 
         const existing = await prisma.deliveryNote.findUnique({ where: { id } });
         if (!existing || existing.deletedAt) {
@@ -182,13 +180,15 @@ export const updateDeliveryNote = async (req, res) => {
                     clientId: clientId || existing.clientId,
                     deliveredTo: deliveredTo ?? existing.deliveredTo,
                     deliveryAddress: deliveryAddress ?? existing.deliveryAddress,
+					warehouseNumber: warehouseNumber ?? existing.warehouseNumber,
                     notes: notes ?? existing.notes,
                     items: {
                         create: (items || []).map(item => ({
+							d2dItemId: item.d2dItemId || null,
                             description: item.description,
                             quantity: item.quantity,
-                            unitPrice: item.unitPrice,
-                            totalPrice: item.totalPrice
+							weight: item.weight ?? null,
+							cbm: item.cbm ?? null
                         }))
                     }
                 },
@@ -244,91 +244,9 @@ export const updateDeliveryNoteStatus = async (req, res) => {
 // Transacción: marca como DELIVERED + genera PaymentNotice + Receivable
 export const finalizeDeliveryNote = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { adjustedItems, notes: finalNotes } = req.body;
-
-        const existing = await prisma.deliveryNote.findUnique({
-            where: { id },
-            include: { items: true, paymentNotice: true, client: true }
-        });
-
-        if (!existing || existing.deletedAt) {
-            return res.status(404).json({ message: 'Nota de entrega no encontrada' });
-        }
-
-        if (existing.status === 'DELIVERED') {
-            return res.status(400).json({ message: 'Esta nota ya fue entregada y tiene su aviso de cobro generado' });
-        }
-
-        if (existing.paymentNotice) {
-            return res.status(400).json({ message: 'Esta nota ya tiene un aviso de cobro asociado' });
-        }
-
-        // Usar items ajustados si se pasan, si no usar los originales
-        const finalItems = adjustedItems && adjustedItems.length > 0 ? adjustedItems : existing.items;
-        const totalAmount = finalItems.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0);
-
-        const result = await prisma.$transaction(async (tx) => {
-            // 1. Si hay items ajustados, actualizar los items de la nota
-            if (adjustedItems && adjustedItems.length > 0) {
-                await tx.deliveryNoteItem.deleteMany({ where: { deliveryNoteId: id } });
-                await tx.deliveryNoteItem.createMany({
-                    data: adjustedItems.map(item => ({
-                        deliveryNoteId: id,
-                        description: item.description,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        totalPrice: item.totalPrice
-                    }))
-                });
-            }
-
-            // 2. Marcar como DELIVERED
-            await tx.deliveryNote.update({
-                where: { id },
-                data: {
-                    status: 'DELIVERED',
-                    notes: finalNotes ?? existing.notes
-                }
-            });
-
-            // 3. Crear PaymentNotice
-            const paymentNotice = await tx.paymentNotice.create({
-                data: {
-                    deliveryNoteId: id,
-                    clientId: existing.clientId,
-                    totalAmount,
-                    notes: finalNotes ?? existing.notes,
-                    items: {
-                        create: finalItems.map(item => ({
-                            description: item.description,
-                            quantity: item.quantity,
-                            unitPrice: item.unitPrice,
-                            totalPrice: item.totalPrice
-                        }))
-                    }
-                }
-            });
-
-            // 4. Crear Receivable (Cuenta por cobrar)
-            await tx.receivable.create({
-                data: {
-                    paymentNoticeId: paymentNotice.id,
-                    clientId: existing.clientId,
-                    totalAmount,
-                    paidAmount: 0,
-                    balance: totalAmount,
-                    status: 'PENDING'
-                }
-            });
-
-            return paymentNotice;
-        });
-
-        res.status(201).json({
-            message: 'Nota de entrega finalizada. Aviso de cobro y cuenta por cobrar generados exitosamente.',
-            paymentNotice: result
-        });
+        return res.status(400).json({
+			message: 'Las Notas de Entrega ya no generan Aviso de Cobro ni Cuentas por Cobrar.'
+		});
     } catch (error) {
         console.error('Error in finalizeDeliveryNote:', error);
         res.status(500).json({ message: 'Error al finalizar nota de entrega' });
@@ -341,8 +259,7 @@ export const deleteDeliveryNote = async (req, res) => {
         const { id } = req.params;
 
         const existing = await prisma.deliveryNote.findUnique({
-            where: { id },
-            include: { paymentNotice: true }
+            where: { id }
         });
 
         if (!existing || existing.deletedAt) {
@@ -351,10 +268,6 @@ export const deleteDeliveryNote = async (req, res) => {
 
         if (existing.status === 'DELIVERED') {
             return res.status(400).json({ message: 'No se puede eliminar una nota ya entregada' });
-        }
-
-        if (existing.paymentNotice) {
-            return res.status(400).json({ message: 'No se puede eliminar una nota con aviso de cobro asociado' });
         }
 
         await prisma.deliveryNote.update({

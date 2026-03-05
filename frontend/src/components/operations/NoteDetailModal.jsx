@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { ScrollText, DollarSign, Package, User, Calendar, MapPin, X } from 'lucide-react';
+import { ScrollText, Package, User, Calendar, MapPin, X } from 'lucide-react';
 
 const STATUS_MAP = {
     DRAFT:      { label: 'Borrador',   color: 'bg-slate-100 text-slate-600' },
@@ -65,7 +65,16 @@ const NoteDetailModal = ({ note, onClose }) => {
                         </div>
                     </div>
 
-                    {n.deliveredTo && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
+                            <MapPin className="text-slate-400 mt-0.5" size={16} />
+                            <div>
+                                <p className="text-xs text-slate-400 mb-1">Número de WareHouse</p>
+                                <p className="font-medium text-slate-800">{n.warehouseNumber}</p>
+                            </div>
+                        </div>
+
+                        {n.deliveredTo && (
                         <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
                             <User className="text-slate-400 mt-0.5" size={16} />
                             <div>
@@ -74,6 +83,7 @@ const NoteDetailModal = ({ note, onClose }) => {
                             </div>
                         </div>
                     )}
+                    </div>
 
                     {n.deliveryAddress && (
                         <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
@@ -97,18 +107,20 @@ const NoteDetailModal = ({ note, onClose }) => {
                                         <div className="flex-1">
                                             <p className="text-sm font-medium text-slate-700">{item.description}</p>
                                             <p className="text-xs text-slate-400">
-                                                {Number(item.quantity)} × ${parseFloat(item.unitPrice).toFixed(2)}
+                                                Cant.: {Number(item.quantity)}
                                             </p>
+                                            {item.weight != null && item.weight !== '' && (
+                                                <p className="text-xs text-slate-400">Peso: {Number(item.weight).toFixed(2)} KG</p>
+                                            )}
+                                            {item.cbm != null && item.cbm !== '' && (
+                                                <p className="text-xs text-slate-400">CBM: {Number(item.cbm).toFixed(3)}</p>
+                                            )}
                                         </div>
-                                        <span className="font-bold text-slate-700 whitespace-nowrap ml-4">
-                                            ${parseFloat(item.totalPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                        </span>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
-
                     {n.notes && (
                         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
                             <p className="text-xs font-medium text-amber-600 mb-1">Notas</p>
@@ -116,27 +128,7 @@ const NoteDetailModal = ({ note, onClose }) => {
                         </div>
                     )}
 
-                    {n.paymentNotice && (
-                        <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                            <p className="text-xs font-medium text-purple-600 mb-1">Aviso de Cobro Generado</p>
-                            <span className="px-2.5 py-1 text-xs font-semibold rounded-md border bg-purple-50 text-purple-600 border-purple-200">
-                                AVC-{String(n.paymentNotice.number).padStart(5, '0')}
-                            </span>
-                        </div>
-                    )}
                 </div>
-
-                {/* Footer total */}
-                {n.items && n.items.length > 0 && (
-                    <div className="px-6 py-4 border-t border-slate-100 bg-slate-800 text-white flex items-center justify-between rounded-b-2xl">
-                        <span className="text-sm font-medium flex items-center gap-2">
-                            <DollarSign size={16} /> Total
-                        </span>
-                        <span className="text-2xl font-bold">
-                            ${n.items.reduce((acc, i) => acc + parseFloat(i.totalPrice || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </span>
-                    </div>
-                )}
             </div>
         </div>,
         document.body

@@ -1,11 +1,14 @@
 import { createPortal } from 'react-dom';
 import { TrendingUp, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus } from 'lucide-react';
+import { toVenezuelanFormat } from '../../utils/dateHelpers';
 
 const paymentMethods = [
     { value: 'TRANSFER', label: 'Transferencia Bancaria' },
+    {value: 'INTL_TRANSFER', label: 'Transferencia Internacional'},
+    {value: 'P_MOBILE', label: 'Pago Móvil'},
+    {value: 'BINANCE_USDT', label: 'Binance (USDT)'},
     { value: 'ZELLE',    label: 'Zelle' },
     { value: 'CASH_USD', label: 'Efectivo USD' },
-    { value: 'CASH_VES', label: 'Efectivo Bs.' },
     { value: 'OTHER',    label: 'Otro' },
 ];
 
@@ -13,6 +16,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
     if (!receivable) return null;
     const r = receivable;
     const pendingBalance = parseFloat(r.totalAmount) - parseFloat(r.paidAmount || 0);
+    const client = r.paymentNotice?.client || r.client;
 
     return createPortal(
         <div
@@ -30,10 +34,11 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                         </div>
                         <div>
                             <h2 className="font-bold text-slate-800 text-xl">
-                                {r.paymentNotice?.client?.name || 'N/A'}
+                                {client?.name || 'N/A'}
                             </h2>
                             <p className="text-xs text-slate-500">
-                                AVC-{String(r.paymentNotice?.number || 0).padStart(5, '0')} · Cuenta por Cobrar
+                                CXC-{String(r.number || 0).padStart(5, '0')} · Cuenta por Cobrar
+                                {r.paymentNotice?.number ? ` · AVC-${String(r.paymentNotice.number).padStart(5, '0')}` : ''}
                             </p>
                         </div>
                     </div>
@@ -43,6 +48,13 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                 </div>
 
                 <div className="overflow-y-auto p-6 space-y-5">
+                    {r.manualNotes && (
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                            <p className="text-xs font-semibold text-slate-500 mb-1">Notas</p>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{r.manualNotes}</p>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-3 gap-3">
                         <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
                             <DollarSign size={18} className="mx-auto text-slate-400 mb-1" />
@@ -100,7 +112,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                                         {r.payments.map((p, i) => (
                                             <tr key={i} className="hover:bg-slate-50/50">
                                                 <td className="px-4 py-3 text-slate-500 text-xs">
-                                                    {new Date(p.date || p.createdAt).toLocaleDateString('es-VE')}
+                                                    {toVenezuelanFormat(p.date || p.createdAt)}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-600 text-xs">
                                                     {paymentMethods.find(m => m.value === p.method)?.label || p.method}

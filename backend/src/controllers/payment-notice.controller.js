@@ -140,7 +140,6 @@ export const getPaymentNotices = async (req, res) => {
                 include: {
                     client: { select: { name: true, rifOrId: true } },
                     quote: { select: { number: true } },
-                    deliveryNote: { select: { number: true } },
                     items: true,
                     receivable: { select: { id: true, status: true, balance: true, paidAmount: true } }
                 },
@@ -181,9 +180,6 @@ export const getPaymentNoticeById = async (req, res) => {
                 client: true,
                 items: true,
                 quote: {
-                    select: { number: true }
-                },
-                deliveryNote: {
                     select: { number: true }
                 },
                 receivable: {

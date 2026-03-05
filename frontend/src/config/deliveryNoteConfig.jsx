@@ -1,4 +1,6 @@
 // Configuración de columnas para la tabla de Notas de Entrega
+import { toVenezuelanFormat } from '../utils/dateHelpers';
+
 export const deliveryNoteConfig = {
     entityName: 'nota de entrega',
     entityNamePlural: 'notas de entrega',
@@ -18,7 +20,7 @@ export const deliveryNoteConfig = {
             accessor: 'date',
             render: (item) => (
                 <span className="text-slate-500 text-sm">
-                    {new Date(item.date || item.createdAt).toLocaleDateString('es-VE')}
+					{toVenezuelanFormat(item.date || item.createdAt)}
                 </span>
             )
         },
@@ -60,17 +62,6 @@ export const deliveryNoteConfig = {
                     </span>
                 );
             }
-        },
-        {
-            header: 'Aviso',
-            accessor: 'paymentNotice',
-            render: (item) => item.paymentNotice
-                ? (
-                    <span className="px-2 py-1 text-xs rounded border bg-purple-50 text-purple-600 border-purple-200">
-                        AVC-{String(item.paymentNotice.number).padStart(5, '0')}
-                    </span>
-                )
-                : <span className="text-slate-400 text-xs">Sin generar</span>
         },
     ]
 };

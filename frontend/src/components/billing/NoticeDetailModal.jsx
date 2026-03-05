@@ -64,18 +64,6 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                         </div>
                     )}
 
-                    {n.deliveryNote && (
-                        <div className="flex items-center gap-2 text-sm bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-100">
-                            <ScrollText size={14} className="text-emerald-500" />
-                            <span className="text-slate-600">
-                                Originado desde Nota de Entrega:{' '}
-                                <span className="font-semibold text-emerald-700">
-                                    NDE-{String(n.deliveryNote.number).padStart(5, '0')}
-                                </span>
-                            </span>
-                        </div>
-                    )}
-
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                             <Package size={16} className="text-primary" /> Servicios Cobrados

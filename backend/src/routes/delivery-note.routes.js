@@ -5,7 +5,6 @@ import {
     createDeliveryNote,
     updateDeliveryNote,
     updateDeliveryNoteStatus,
-    finalizeDeliveryNote,
     deleteDeliveryNote
 } from '../controllers/delivery-note.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
@@ -44,12 +43,6 @@ router.put('/:id', authorize('ADMIN'), updateDeliveryNote);
  * @desc    Cambiar estado de la nota
  */
 router.patch('/:id/status', authorize('ADMIN'), updateDeliveryNoteStatus);
-
-/**
- * @route   POST /api/delivery-notes/:id/finalize
- * @desc    Finalizar entrega → genera PaymentNotice + Receivable
- */
-router.post('/:id/finalize', authorize('ADMIN'), finalizeDeliveryNote);
 
 /**
  * @route   DELETE /api/delivery-notes/:id

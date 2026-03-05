@@ -163,15 +163,21 @@ const EntityFormModal = ({
                                             </select>
                                         ) : field.type === 'phone' ? (
                                             <div className="phone-input-container w-full">
-                                                <PhoneInput
-                                                    defaultCountry="ve"
-                                                    value={formData[field.name] || ''}
-                                                    onChange={phone => handleChange({ target: { name: field.name, value: phone, type: 'text' } })}
-                                                    inputClassName="!w-full !py-2 !h-auto !bg-slate-50 border border-slate-200 !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all"
-                                                    countrySelectorStyleProps={{
-                                                        buttonClassName: "!bg-slate-50 border border-slate-200 !rounded-l-xl !px-3 !h-10"
-                                                    }}
-                                                />
+                                                {/* No renderizar PhoneInput hasta que formData tenga valor en modo edición */}
+                                                {(!editMode || formData[field.name]) ? (
+                                                    <PhoneInput
+                                                        defaultCountry="ve"
+                                                        value={formData[field.name] || ''}
+                                                        onChange={phone => handleChange({ target: { name: field.name, value: phone, type: 'text' } })}
+                                                        inputClassName="!w-full !py-2 !h-auto !bg-slate-50 border border-slate-200 !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all"
+                                                        countrySelectorStyleProps={{
+                                                            buttonClassName: "!bg-slate-50 border border-slate-200 !rounded-l-xl !px-3 !h-10"
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    // Skeleton mientras carga el valor
+                                                    <div className="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl animate-pulse" />
+                                                )}
                                             </div>
                                         ) : (
                                             <div className="relative">

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Building, FileText, MapPin, Calendar, DollarSign, Plus, Trash2, Package, Map, AlertTriangle, Clock, Ship, ArrowRight, Anchor, Plane } from 'lucide-react';
+import Select from 'react-select';
 import allyService from '../../services/ally.service';
+import portService from '../../services/port.service';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
@@ -31,6 +33,7 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
     const [showAddRate, setShowAddRate] = useState(false);
     const [zones, setZones] = useState([]);
     const [services, setServices] = useState([]);
+    const [ports, setPorts] = useState([]);
     
     // Estado del formulario
     const [newRate, setNewRate] = useState({ 
@@ -74,12 +77,14 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
 
     const fetchCatalogs = async () => {
         try {
-            const [zonesData, servicesData] = await Promise.all([
+            const [zonesData, servicesData, portsRes] = await Promise.all([
                 allyService.getZones(),
-                allyService.getServices()
+                allyService.getServices(),
+                portService.getPorts({ all: 'true' })
             ]);
             setZones(zonesData);
             setServices(servicesData);
+            setPorts((portsRes.data || []).map(p => ({ value: p.id, label: p.name, data: p })));
         } catch (error) {
             console.error('Error fetching catalogs:', error);
         }
@@ -272,22 +277,36 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
                                             <>
                                                 <div>
                                                     <label className="text-xs text-slate-500 font-medium ml-1">Puerto Origen *</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Ej. Miami"
-                                                        value={newRate.originPort}
-                                                        onChange={(e) => setNewRate({...newRate, originPort: e.target.value})}
-                                                        className="w-full mt-1 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                                                    <Select
+                                                        options={ports}
+                                                        value={ports.find(p => p.label === newRate.originPort)}
+                                                        placeholder="Puerto..."
+                                                        onChange={(opt) => setNewRate({ ...newRate, originPort: opt?.label || '' })}
+                                                        isClearable
+                                                        className="mt-1 text-sm"
+                                                        menuPortalTarget={document.body}
+                                                        menuPosition="fixed"
+                                                        styles={{
+                                                            control: (base) => ({ ...base, minHeight: '36px' }),
+                                                            menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                                                        }}
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className="text-xs text-slate-500 font-medium ml-1">Puerto Destino *</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Ej. La Guaira"
-                                                        value={newRate.destinationPort}
-                                                        onChange={(e) => setNewRate({...newRate, destinationPort: e.target.value})}
-                                                        className="w-full mt-1 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                                                    <Select
+                                                        options={ports}
+                                                        value={ports.find(p => p.label === newRate.destinationPort)}
+                                                        placeholder="Puerto..."
+                                                        onChange={(opt) => setNewRate({ ...newRate, destinationPort: opt?.label || '' })}
+                                                        isClearable
+                                                        className="mt-1 text-sm"
+                                                        menuPortalTarget={document.body}
+                                                        menuPosition="fixed"
+                                                        styles={{
+                                                            control: (base) => ({ ...base, minHeight: '36px' }),
+                                                            menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                                                        }}
                                                     />
                                                 </div>
                                                 <div className="md:col-span-2">

@@ -46,7 +46,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 { to: '/dashboard/clientes', icon: Users, label: 'Clientes', roles: ['ADMIN', 'SALES'] },
                 { to: '/dashboard/aliados', icon: Truck, label: 'Aliados', roles: ['ADMIN'] },
                 { to: '/dashboard/servicios', icon: Package, label: 'Servicios', roles: ['ADMIN', 'SALES'] },
-                { to: '/dashboard/zonas', icon: MapPin, label: 'Zonas', roles: ['ADMIN'] },
+                { to: '/dashboard/zonas', icon: MapPin, label: 'Zonas / Puertos', roles: ['ADMIN'] },
             ]
         },
         {

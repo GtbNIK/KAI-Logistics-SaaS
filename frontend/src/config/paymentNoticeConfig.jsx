@@ -43,13 +43,6 @@ export const paymentNoticeConfig = {
                         </span>
                     );
                 }
-                if (item.deliveryNote) {
-                    return (
-                        <span className="px-2 py-1 text-xs rounded border bg-emerald-50 text-emerald-600 border-emerald-200">
-                            NDE-{String(item.deliveryNote.number).padStart(5, '0')}
-                        </span>
-                    );
-                }
                 return <span className="text-slate-400 text-xs">—</span>;
             }
         },

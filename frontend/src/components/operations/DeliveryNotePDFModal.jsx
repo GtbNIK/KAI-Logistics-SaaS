@@ -53,10 +53,9 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
     const items = (note.items || []).map(item => ({
         description: item.description || 'Item',
         quantity: Number(item.quantity) || 0,
-        unitPrice: Number(item.unitPrice) || 0,
-        totalPrice: Number(item.totalPrice) || 0
+        weight: item.weight != null ? Number(item.weight) : null,
+		cbm: item.cbm != null ? Number(item.cbm) : null
     }));
-    const total = items.reduce((acc, i) => acc + i.totalPrice, 0);
 
     const statusMap = {
         DRAFT: 'Borrador',
@@ -174,6 +173,9 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
             doc.text(`Fecha: ${noteDate}`, rightX, rightY);
             rightY += 4;
 
+			doc.text(`Warehouse: ${note.warehouseNumber || 'N/A'}`, rightX, rightY);
+			rightY += 4;
+
             if (note.quote) {
                 doc.text(`Cotizacion origen: COT-${String(note.quote.number).padStart(5, '0')}`, rightX, rightY);
                 rightY += 4;
@@ -201,13 +203,13 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                 i + 1,
                 item.description,
                 item.quantity,
-                `$${item.unitPrice.toFixed(2)}`,
-                `$${item.totalPrice.toFixed(2)}`
+				item.weight != null ? `${item.weight.toFixed(2)} KG` : '—',
+				item.cbm != null ? item.cbm.toFixed(3) : '—'
             ]);
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Descripción', 'Cant.', 'P. Unit.', 'Total']],
+				head: [['#', 'Descripción', 'Cant.', 'Peso', 'CBM']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -229,17 +231,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
 
             yPos = doc.lastAutoTable.finalY + 10;
 
-            // ── Total ──
-            doc.setFillColor(30, 41, 59);
-            doc.roundedRect(pageWidth - margin - 60, yPos, 60, 20, 3, 3, 'F');
-            doc.setFontSize(10);
-            doc.setTextColor(255);
-            doc.text('TOTAL', pageWidth - margin - 55, yPos + 8);
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`$${total.toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
-
-            yPos += 35;
+			yPos += 10;
 
             // ── Notas (respeta el toggle) ──
             if (showNotes && note.notes) {
@@ -373,6 +365,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
 
                                     <div className="text-right">
                                         <p className="text-xs text-slate-500">Fecha: {noteDate}</p>
+										<p className="text-xs text-slate-500">Nro. Warehouse: {note.warehouseNumber || 'N/A'}</p>
                                         {note.quote && (
                                             <p className="text-xs text-slate-500">
                                                 Origen: COT-{String(note.quote.number).padStart(5, '0')}
@@ -391,36 +384,28 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                                 </div>
 
                                 {/* Tabla de items */}
-                                <table className="w-full mb-6 text-sm">
+                                <table className="w-full text-sm">
                                     <thead>
-                                        <tr style={{ backgroundColor: primaryColor }} className="text-white">
+                                        <tr className="bg-slate-100">
                                             <th className="py-2 px-3 text-left font-medium">#</th>
                                             <th className="py-2 px-3 text-left font-medium">Descripción</th>
                                             <th className="py-2 px-3 text-center font-medium">Cant.</th>
-                                            <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
-                                            <th className="py-2 px-3 text-right font-medium">Total</th>
+											<th className="py-2 px-3 text-right font-medium">Peso</th>
+											<th className="py-2 px-3 text-right font-medium">CBM</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {items.map((item, index) => (
-                                            <tr key={index} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
+                                            <tr key={index} className="border-b border-slate-200">
                                                 <td className="py-2 px-3 text-center">{index + 1}</td>
                                                 <td className="py-2 px-3">{item.description}</td>
                                                 <td className="py-2 px-3 text-center">{item.quantity}</td>
-                                                <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
-                                                <td className="py-2 px-3 text-right font-semibold">${item.totalPrice.toFixed(2)}</td>
+											<td className="py-2 px-3 text-right">{item.weight != null ? `${item.weight.toFixed(2)} KG` : '—'}</td>
+											<td className="py-2 px-3 text-right font-semibold">{item.cbm != null ? item.cbm.toFixed(3) : '—'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-
-                                {/* Total */}
-                                <div className="flex justify-end mb-6">
-                                    <div className="bg-slate-800 text-white px-6 py-3 rounded-lg">
-                                        <span className="text-slate-300 text-sm mr-4">TOTAL</span>
-                                        <span className="text-xl font-bold">${total.toFixed(2)}</span>
-                                    </div>
-                                </div>
 
                                 {/* Notas — con toggle */}
                                 {note.notes && (

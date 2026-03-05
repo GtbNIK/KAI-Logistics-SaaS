@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ScrollText, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 import { useToast } from '../../context/ToastContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -12,8 +13,10 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
     const [clientId, setClientId] = useState('');
     const [deliveredTo, setDeliveredTo] = useState('');
     const [deliveryAddress, setDeliveryAddress] = useState('');
+	const [warehouseNumber, setWarehouseNumber] = useState('');
     const [notes, setNotes] = useState('');
-    const [items, setItems] = useState([{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }]);
+	const [items, setItems] = useState([{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
+	const [d2dItems, setD2dItems] = useState([]);
     const [saving, setSaving] = useState(false);
     const { showSuccess, showError } = useToast();
 
@@ -40,26 +43,33 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
             .then(res => setClients(res.data.data || []))
             .catch(() => {});
 
+		axios.get(`${API_URL}/d2d-items?all=true`, { withCredentials: true })
+			.then(res => setD2dItems(res.data.data || []))
+			.catch(() => {});
+
         if (editNote) {
             setClientId(editNote.clientId || '');
             setDeliveredTo(editNote.deliveredTo || '');
             setDeliveryAddress(editNote.deliveryAddress || '');
+			setWarehouseNumber(editNote.warehouseNumber || '');
             setNotes(editNote.notes || '');
             setItems(editNote.items?.length > 0
                 ? editNote.items.map(i => ({
+					d2dItemId: i.d2dItemId ?? null,
                     description: i.description,
                     quantity: Number(i.quantity),
-                    unitPrice: Number(i.unitPrice),
-                    totalPrice: Number(i.totalPrice)
+					weight: i.weight ?? '',
+					cbm: i.cbm ?? ''
                 }))
-                : [{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }]
+				: [{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]
             );
         } else {
             setClientId('');
             setDeliveredTo('');
             setDeliveryAddress('');
+			setWarehouseNumber('');
             setNotes('');
-            setItems([{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }]);
+			setItems([{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
         }
         setClientInputValue('');
     }, [isOpen, editNote]);
@@ -67,24 +77,30 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
     const updateItem = (index, field, value) => {
         const updated = [...items];
         updated[index][field] = value;
-        if (field === 'quantity' || field === 'unitPrice') {
-            updated[index].totalPrice = Number(updated[index].quantity) * Number(updated[index].unitPrice);
-        }
         setItems(updated);
     };
 
-    const addItem = () => setItems([...items, { description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }]);
+	const addItem = () => setItems([...items, { d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
     const removeItem = (index) => { if (items.length > 1) setItems(items.filter((_, i) => i !== index)); };
+
+	const d2dItemOptions = d2dItems.map(i => ({ value: i.id, label: i.description }));
+
+	const createD2DItem = async (description) => {
+		const res = await axios.post(`${API_URL}/d2d-items`, { description }, { withCredentials: true });
+		const created = res.data;
+		setD2dItems((prev) => [...prev, created].sort((a, b) => String(a.description).localeCompare(String(b.description), 'es')));
+		return created;
+	};
 
     const handleSubmit = async (e) => {
         e?.preventDefault();
         if (!clientId) return showError('Error', 'Selecciona un cliente');
+		if (!warehouseNumber.trim()) return showError('Error', 'El número de Warehouse es obligatorio');
         if (items.some(i => !i.description.trim())) return showError('Error', 'Todos los items deben tener descripción');
-        if (items.some(i => Number(i.unitPrice) <= 0)) return showError('Error', 'El precio unitario no puede ser negativo o igual a cero');
 
         setSaving(true);
         try {
-            const data = { clientId, deliveredTo, deliveryAddress, notes, items };
+			const data = { clientId, deliveredTo, deliveryAddress, warehouseNumber, notes, items };
             if (editNote) {
                 await axios.put(`${API_URL}/delivery-notes/${editNote.id}`, data, { withCredentials: true });
                 showSuccess('Actualizada', 'Nota de entrega actualizada correctamente');
@@ -102,8 +118,6 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
     };
 
     if (!isOpen) return null;
-
-    const total = items.reduce((acc, i) => acc + Number(i.totalPrice || 0), 0);
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
@@ -161,6 +175,13 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                         </div>
                     </div>
 
+					<div>
+						<label className="block text-sm font-medium text-slate-700 mb-1">Número de Warehouse *</label>
+						<input type="text" value={warehouseNumber} onChange={e => setWarehouseNumber(e.target.value)}
+							className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+							placeholder="Ej: WH-12345" required />
+					</div>
+
                     {/* Notas */}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Notas</label>
@@ -188,9 +209,34 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                                         </button>
                                     )}
                                 </div>
-                                <input type="text" placeholder="Descripción del servicio *" value={item.description}
-                                    onChange={e => updateItem(idx, 'description', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+                                <CreatableSelect
+                                    options={d2dItemOptions}
+                                    value={item.d2dItemId
+                                        ? d2dItemOptions.find(o => o.value === item.d2dItemId) || { value: item.d2dItemId, label: item.description }
+                                        : (item.description ? { value: null, label: item.description } : null)
+                                    }
+                                    placeholder="Descripción del servicio *"
+                                    isClearable
+                                    formatCreateLabel={(inputValue) => `Crear "${inputValue}"`}
+                                    onChange={(opt) => {
+                                        updateItem(idx, 'd2dItemId', opt?.value || null);
+                                        updateItem(idx, 'description', opt?.label || '');
+                                    }}
+                                    onCreateOption={async (inputValue) => {
+                                        try {
+                                            const created = await createD2DItem(inputValue);
+                                            updateItem(idx, 'd2dItemId', created.id);
+                                            updateItem(idx, 'description', created.description);
+                                            showSuccess('Creado', 'Item agregado al catálogo');
+                                        } catch (err) {
+                                            showError('Error', err.response?.data?.message || 'No se pudo crear el item');
+                                        }
+                                    }}
+                                    styles={{
+                                        control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px' }),
+                                        menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', zIndex: 50 }),
+                                    }}
+                                />
                                 <div className="grid grid-cols-3 gap-3">
                                     <div>
                                         <label className="text-xs text-slate-400">Cantidad</label>
@@ -199,25 +245,20 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                     </div>
                                     <div>
-                                        <label className="text-xs text-slate-400">Precio Unit. ($)</label>
-                                        <input type="number" min="0" step="0.01" value={item.unitPrice}
-                                            onChange={e => updateItem(idx, 'unitPrice', e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+									<label className="text-xs text-slate-400">Peso (KG)</label>
+									<input type="number" min="0" step="0.01" value={item.weight}
+										onChange={e => updateItem(idx, 'weight', e.target.value)}
+										className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                     </div>
                                     <div>
-                                        <label className="text-xs text-slate-400">Total ($)</label>
-                                        <input type="text" readOnly value={`$${Number(item.totalPrice || 0).toFixed(2)}`}
-                                            className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700" />
+									<label className="text-xs text-slate-400">CBM</label>
+									<input type="number" min="0" step="0.001" value={item.cbm}
+										onChange={e => updateItem(idx, 'cbm', e.target.value)}
+										className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                     </div>
                                 </div>
                             </div>
                         ))}
-
-                        <div className="flex justify-end">
-                            <div className="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm">
-                                Total: <span className="font-bold text-lg">${total.toFixed(2)}</span>
-                            </div>
-                        </div>
                     </div>
                 </form>
 

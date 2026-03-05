@@ -5,11 +5,11 @@ export const receivableConfig = {
 
     columns: [
         {
-            header: 'Aviso',
-            accessor: 'paymentNotice',
+            header: 'Cuenta',
+            accessor: 'number',
             render: (item) => (
                 <span className="px-2.5 py-1 text-xs font-semibold rounded-md border bg-purple-50 text-purple-600 border-purple-200">
-                    AVC-{String(item.paymentNotice?.number || 0).padStart(5, '0')}
+                    CXC-{String(item.number || 0).padStart(5, '0')}
                 </span>
             )
         },
@@ -19,10 +19,10 @@ export const receivableConfig = {
             render: (item) => (
                 <div className="flex flex-col">
                     <span className="font-medium text-slate-800">
-                        {item.paymentNotice?.client?.name || 'N/A'}
+                        {item.paymentNotice?.client?.name || item.client?.name || 'N/A'}
                     </span>
                     <span className="text-xs text-slate-400">
-                        {item.paymentNotice?.client?.rifOrId || ''}
+                        {item.paymentNotice?.client?.rifOrId || item.client?.rifOrId || ''}
                     </span>
                 </div>
             )

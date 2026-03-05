@@ -7,12 +7,15 @@ import clientRoutes from './routes/client.routes.js';
 import allyRoutes from './routes/ally.routes.js';
 import serviceRoutes from './routes/service.routes.js';
 import zoneRoutes from './routes/zone.routes.js';
+import portRoutes from './routes/port.routes.js';
 import quoteRoutes from './routes/quote.routes.js';
 import rateRoutes from './routes/rate.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import paymentNoticeRoutes from './routes/payment-notice.routes.js';
 import receivableRoutes from './routes/receivable.routes.js';
 import deliveryNoteRoutes from './routes/delivery-note.routes.js';
+import d2dItemRoutes from './routes/d2d-item.routes.js';
+import svcProviderRoutes from './routes/svc-provider.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -20,6 +23,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+process.env.TZ = 'America/Caracas';
 
 // Middlewares
 app.use(cors({
@@ -52,6 +56,8 @@ app.use('/api/allies', verifyToken, allyRoutes);
 app.use('/api/services', verifyToken, serviceRoutes);
 // Rutas de zonas (requiere autenticación)
 app.use('/api/zones', verifyToken, zoneRoutes);
+// Rutas de puertos (requiere autenticación)
+app.use('/api/ports', verifyToken, portRoutes);
 // Rutas de cotizaciones (requiere autenticación)
 app.use('/api/quotes', verifyToken, quoteRoutes);
 // Rutas de tarifas (requiere autenticación)
@@ -64,6 +70,12 @@ app.use('/api/payment-notices', paymentNoticeRoutes);
 app.use('/api/receivables', receivableRoutes);
 // Rutas de Notas de Entrega
 app.use('/api/delivery-notes', deliveryNoteRoutes);
+
+// Catálogo de items D2D (para Notas de Entrega)
+app.use('/api/d2d-items', verifyToken, d2dItemRoutes);
+
+// Catálogo de proveedores de servicio (para Cuentas por Pagar - futuro)
+app.use('/api/svc-providers', verifyToken, svcProviderRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

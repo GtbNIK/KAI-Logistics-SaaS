@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
 import { receivableConfig } from '../../config/receivableConfig';
 import ReceivableDetailModal from '../../components/billing/ReceivableDetailModal';
 import RegisterPaymentModal from '../../components/billing/RegisterPaymentModal';
+import CreateReceivableModal from '../../components/billing/CreateReceivableModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -57,6 +59,8 @@ const useReceivables = () => {
 const Receivables = () => {
     const [viewingReceivable, setViewingReceivable] = useState(null);
     const [registeringPayment, setRegisteringPayment] = useState(null);
+    const [creatingReceivable, setCreatingReceivable] = useState(false);
+    const { user } = useAuth();
     const {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter, refresh
@@ -106,6 +110,18 @@ const Receivables = () => {
                 )}
             </div>
 
+            {user?.role === 'ADMIN' && (
+                <div className="flex justify-end">
+                    <button
+                        onClick={() => setCreatingReceivable(true)}
+                        className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
+                    >
+                        <Plus size={20} />
+                        Nueva Cuenta por Cobrar
+                    </button>
+                </div>
+            )}
+
             <EntityTable
                 entityName={receivableConfig.entityName}
                 entityNamePlural={receivableConfig.entityNamePlural}
@@ -147,6 +163,14 @@ const Receivables = () => {
                 <RegisterPaymentModal
                     receivable={registeringPayment}
                     onClose={() => setRegisteringPayment(null)}
+                    onSuccess={refresh}
+                />
+            )}
+
+            {creatingReceivable && (
+                <CreateReceivableModal
+                    isOpen={creatingReceivable}
+                    onClose={() => setCreatingReceivable(false)}
                     onSuccess={refresh}
                 />
             )}

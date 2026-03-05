@@ -6,6 +6,7 @@ import clientService from '../../services/client.service';
 import serviceService from '../../services/service.service';
 import allyService from '../../services/ally.service';
 import zoneService from '../../services/zone.service';
+import portService from '../../services/port.service';
 import quoteService from '../../services/quote.service';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import { useToast } from '../../context/ToastContext';
@@ -17,6 +18,7 @@ const QuoteItemRow = ({
     services, 
     allies, 
     zones, 
+	ports,
     loadingData,
     onUpdate, 
     onRemove, 
@@ -168,23 +170,39 @@ const QuoteItemRow = ({
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Origen</label>
-                        <input 
-                            type="text"
-                            value={item.originPort || ''}
-                            onChange={(e) => onUpdate(index, { originPort: e.target.value })}
-                            placeholder="Ej: La Guaira"
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                        />
+						<Select
+							options={ports}
+							value={ports.find(p => p.label === item.originPort)}
+							isLoading={loadingData}
+							placeholder="Puerto..."
+							onChange={(opt) => onUpdate(index, { originPort: opt?.label || '' })}
+							isClearable
+							className="text-sm"
+							menuPortalTarget={document.body}
+							menuPosition="fixed"
+							styles={{
+								control: (base) => ({ ...base, minHeight: '36px' }),
+								menuPortal: (base) => ({ ...base, zIndex: 9999 })
+							}}
+						/>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Destino</label>
-                        <input 
-                            type="text"
-                            value={item.destinationPort || ''}
-                            onChange={(e) => onUpdate(index, { destinationPort: e.target.value })}
-                            placeholder="Ej: Miami"
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                        />
+						<Select
+							options={ports}
+							value={ports.find(p => p.label === item.destinationPort)}
+							isLoading={loadingData}
+							placeholder="Puerto..."
+							onChange={(opt) => onUpdate(index, { destinationPort: opt?.label || '' })}
+							isClearable
+							className="text-sm"
+							menuPortalTarget={document.body}
+							menuPosition="fixed"
+							styles={{
+								control: (base) => ({ ...base, minHeight: '36px' }),
+								menuPortal: (base) => ({ ...base, zIndex: 9999 })
+							}}
+						/>
                     </div>
                 </div>
             )}
@@ -273,6 +291,7 @@ const CreateQuote = () => {
     const [services, setServices] = useState([]);
     const [allies, setAllies] = useState([]);
     const [zones, setZones] = useState([]);
+	const [ports, setPorts] = useState([]);
 
     // Estado del formulario
     const [clientId, setClientId] = useState(null);
@@ -333,6 +352,9 @@ const CreateQuote = () => {
                 setServices(servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })));
                 setAllies(alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })));
                 setZones(zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })));
+
+				const portsRes = await portService.getPorts({ all: 'true' });
+				setPorts((portsRes.data || []).map(p => ({ value: p.id, label: p.name, data: p })));
 
                 if (id) {
                     const quote = await quoteService.getQuote(id);
@@ -494,33 +516,34 @@ const CreateQuote = () => {
                         />
                     </div>
 
-                    {/* Lista de Items */}
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                        {items.map((item, index) => (
-                            <QuoteItemRow
-                                key={item.id}
-                                item={item}
-                                index={index}
-                                services={services}
-                                allies={allies}
-                                zones={zones}
-                                loadingData={loadingData}
-                                onUpdate={updateItem}
-                                onRemove={removeItem}
-                                canRemove={items.length > 1}
-                                onRateFound={handleRateFound}
-                            />
-                        ))}
-                    </div>
+					{/* Items */}
+					<div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+						{items.map((item, index) => (
+							<QuoteItemRow
+								key={item.id}
+								item={item}
+								index={index}
+								services={services}
+								allies={allies}
+								zones={zones}
+								ports={ports}
+								loadingData={loadingData}
+								onUpdate={updateItem}
+								onRemove={removeItem}
+								canRemove={items.length > 1}
+								onRateFound={handleRateFound}
+							/>
+						))}
+					</div>
 
                     {/* Botón agregar item */}
-                    <button
-                        onClick={addItem}
-                        className="mt-4 w-full py-2 border-2 border-dashed border-slate-300 text-slate-500 rounded-xl hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
-                    >
-                        <Plus size={18} />
-                        Agregar otro servicio
-                    </button>
+					<button
+						onClick={addItem}
+						className="mt-4 w-full py-2 border-2 border-dashed border-slate-300 text-slate-500 rounded-xl hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+					>
+						<Plus size={18} />
+						Agregar otro servicio
+					</button>
 
                     {/* Notas */}
                     <div className="mt-4 space-y-2">

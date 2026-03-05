@@ -3,14 +3,17 @@ import { createPortal } from 'react-dom';
 import { CreditCard, X, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
+import { getTodayLocal, toLocalISOString } from '../../utils/dateHelpers';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const paymentMethods = [
     { value: 'TRANSFER', label: 'Transferencia Bancaria' },
+    {value: 'INTL_TRANSFER', label: 'Transferencia Internacional'},
+    {value: 'P_MOBILE', label: 'Pago Móvil'},
+    {value: 'BINANCE_USDT', label: 'Binance (USDT)'},
     { value: 'ZELLE',    label: 'Zelle' },
     { value: 'CASH_USD', label: 'Efectivo USD' },
-    { value: 'CASH_VES', label: 'Efectivo Bs.' },
     { value: 'OTHER',    label: 'Otro' },
 ];
 
@@ -19,12 +22,13 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
     const [method, setMethod] = useState('TRANSFER');
     const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(getTodayLocal());
     const [loading, setLoading] = useState(false);
     const { showSuccess, showError } = useToast();
 
     if (!receivable) return null;
     const pendingBalance = parseFloat(receivable.totalAmount) - parseFloat(receivable.paidAmount || 0);
+    const client = receivable.paymentNotice?.client || receivable.client;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -33,7 +37,7 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
         setLoading(true);
         try {
             await axios.post(`${API_URL}/receivables/${receivable.id}/payments`, {
-                amount: parseFloat(amount), method, reference: reference || undefined, date, notes: notes || undefined
+                amount: parseFloat(amount), method, reference: reference || undefined, date: toLocalISOString(date), notes: notes || undefined,
             });
             showSuccess('¡Pago Registrado!', `Se abonaron $${parseFloat(amount).toFixed(2)}`);
             onSuccess();
@@ -55,7 +59,7 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
                         </div>
                         <div>
                             <h3 className="font-bold text-slate-800">Registrar Pago</h3>
-                            <p className="text-xs text-slate-500">{receivable.paymentNotice?.client?.name}</p>
+                            <p className="text-xs text-slate-500">{client?.name || 'N/A'}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">

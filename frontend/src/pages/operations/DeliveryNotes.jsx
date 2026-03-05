@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ScrollText, Plus, Truck, Ban, Check } from 'lucide-react';
+import { ScrollText, Plus, Truck, Ban } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
+import ConfirmActionModal from '../../components/modals/ConfirmActionModal';
 import { deliveryNoteConfig } from '../../config/deliveryNoteConfig';
 import NoteDetailModal from '../../components/operations/NoteDetailModal';
 import NoteFormModal from '../../components/operations/NoteFormModal';
-import FinalizeModal from '../../components/operations/FinalizeModal';
 import DeliveryNotePDFModal from '../../components/operations/DeliveryNotePDFModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -54,7 +54,7 @@ const DeliveryNotes = () => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingNote, setEditingNote] = useState(null);
     const [deletingNote, setDeletingNote] = useState(null);
-    const [finalizingNote, setFinalizingNote] = useState(null);
+	const [confirmingAction, setConfirmingAction] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [printingNote, setPrintingNote] = useState(null);
     const [showPDFModal, setShowPDFModal] = useState(false);
@@ -108,6 +108,10 @@ const DeliveryNotes = () => {
         }
     };
 
+	const requestStatusChange = (item, newStatus) => {
+		setConfirmingAction({ item, newStatus });
+	};
+
     // Acciones extra por fila según estado
     const renderExtraActions = (item) => {
         const actions = [];
@@ -116,7 +120,7 @@ const DeliveryNotes = () => {
             actions.push(
                 <button
                     key="dispatch"
-                    onClick={(e) => { e.stopPropagation(); handleStatusChange(item, 'DISPATCHED'); }}
+					onClick={(e) => { e.stopPropagation(); requestStatusChange(item, 'DISPATCHED'); }}
                     className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Marcar como Despachada"
                 >
@@ -126,7 +130,7 @@ const DeliveryNotes = () => {
             actions.push(
                 <button
                     key="cancel"
-                    onClick={(e) => { e.stopPropagation(); handleStatusChange(item, 'CANCELLED'); }}
+					onClick={(e) => { e.stopPropagation(); requestStatusChange(item, 'CANCELLED'); }}
                     className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
                     title="Cancelar nota"
                 >
@@ -135,21 +139,11 @@ const DeliveryNotes = () => {
             );
         }
 
-        if (item.status === 'DISPATCHED' && !item.paymentNotice) {
-            actions.push(
-                <button
-                    key="finalize"
-                    onClick={(e) => { e.stopPropagation(); setFinalizingNote(item); }}
-                    className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                    title="Confirmar Entrega (Genera Aviso de Cobro)"
-                >
-                    <Check size={16} />
-                </button>
-            );
+        if (item.status === 'DISPATCHED') {
             actions.push(
                 <button
                     key="cancel2"
-                    onClick={(e) => { e.stopPropagation(); handleStatusChange(item, 'CANCELLED'); }}
+					onClick={(e) => { e.stopPropagation(); requestStatusChange(item, 'CANCELLED'); }}
                     className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
                     title="Cancelar nota"
                 >
@@ -227,12 +221,23 @@ const DeliveryNotes = () => {
                 loading={deleteLoading}
             />
 
-            <FinalizeModal
-                isOpen={!!finalizingNote}
-                onClose={() => setFinalizingNote(null)}
-                note={finalizingNote}
-                onSuccess={refresh}
-            />
+			<ConfirmActionModal
+				isOpen={!!confirmingAction}
+				onClose={() => setConfirmingAction(null)}
+				onConfirm={async () => {
+					if (!confirmingAction) return;
+					await handleStatusChange(confirmingAction.item, confirmingAction.newStatus);
+					setConfirmingAction(null);
+				}}
+				title={confirmingAction?.newStatus === 'DISPATCHED' ? 'Marcar como Despachada' : 'Cancelar Nota de Entrega'}
+				message={confirmingAction?.newStatus === 'DISPATCHED'
+					? `¿Confirmas que deseas marcar esta nota como Despachada?\n\nNDE-${String(confirmingAction?.item?.number || '').padStart(5, '0')}`
+					: `¿Confirmas que deseas cancelar esta nota de entrega?\n\nNDE-${String(confirmingAction?.item?.number || '').padStart(5, '0')}`
+				}
+				confirmText={confirmingAction?.newStatus === 'DISPATCHED' ? 'Sí, despachar' : 'Sí, cancelar'}
+				cancelText="Volver"
+				isWarning={true}
+			/>
 
             {showPDFModal && printingNote && (
                 <DeliveryNotePDFModal
