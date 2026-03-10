@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { TrendingUp, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus } from 'lucide-react';
+import { TrendingUp, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Printer } from 'lucide-react';
 import { toVenezuelanFormat } from '../../utils/dateHelpers';
+import PaymentReceiptPDFModal from './PaymentReceiptPDFModal';
 
 const paymentMethods = [
     { value: 'TRANSFER', label: 'Transferencia Bancaria' },
@@ -13,6 +15,7 @@ const paymentMethods = [
 ];
 
 const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
+    const [receiptPayment, setReceiptPayment] = useState(null);
     if (!receivable) return null;
     const r = receivable;
     const pendingBalance = parseFloat(r.totalAmount) - parseFloat(r.paidAmount || 0);
@@ -106,6 +109,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Referencia</th>
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Notas</th>
                                             <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500">Monto</th>
+                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500"></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -124,6 +128,17 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">
                                                     +${parseFloat(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {p.method === 'CASH_USD' && (
+                                                        <button
+                                                            onClick={() => setReceiptPayment(p)}
+                                                            className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                                                            title="Generar Recibo de Pago"
+                                                        >
+                                                            <Printer size={16} />
+                                                        </button>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -133,6 +148,15 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Recibo de Pago PDF */}
+            <PaymentReceiptPDFModal
+                isOpen={!!receiptPayment}
+                onClose={() => setReceiptPayment(null)}
+                payment={receiptPayment}
+                clientName={client?.name}
+                receivableNumber={r.number}
+            />
         </div>,
         document.body
     );

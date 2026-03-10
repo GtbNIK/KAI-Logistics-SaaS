@@ -91,7 +91,7 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                                                         </p>
                                                     ))}
                                                     <p className="text-slate-400 text-xs mt-1 italic">
-                                                        {parseFloat(item.quantity)} unidades @ ${parseFloat(item.unitPrice || 0).toFixed(2)}
+                                                        {parseFloat(item.quantity)} {serviceName.toLowerCase().includes('door') ? 'CBM' : 'unidades'} @ ${parseFloat(item.unitPrice || 0).toFixed(2)}
                                                     </p>
                                                 </div>
                                             </div>

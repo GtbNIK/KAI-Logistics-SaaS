@@ -16,6 +16,8 @@ import receivableRoutes from './routes/receivable.routes.js';
 import deliveryNoteRoutes from './routes/delivery-note.routes.js';
 import d2dItemRoutes from './routes/d2d-item.routes.js';
 import svcProviderRoutes from './routes/svc-provider.routes.js';
+import shipmentRoutes from './routes/shipment.routes.js';
+import shippingLineRoutes from './routes/shipping-line.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -76,6 +78,10 @@ app.use('/api/d2d-items', verifyToken, d2dItemRoutes);
 
 // Catálogo de proveedores de servicio (para Cuentas por Pagar - futuro)
 app.use('/api/svc-providers', verifyToken, svcProviderRoutes);
+// Rutas de Tracking / Embarques
+app.use('/api/shipments', shipmentRoutes);
+// Catálogo de Líneas Navieras
+app.use('/api/shipping-lines', shippingLineRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

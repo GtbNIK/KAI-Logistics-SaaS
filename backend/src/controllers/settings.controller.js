@@ -87,6 +87,11 @@ export const updateSettings = async (req, res) => {
                 deleteOldFile(existing.deliveryNoteBgUrl);
                 data.deliveryNoteBgUrl = `/uploads/backgrounds/${req.files.deliveryNoteBg[0].filename}`;
             }
+            // Fondo de recibo de pago
+            if (req.files.receiptBg?.[0]) {
+                deleteOldFile(existing.receiptBgUrl);
+                data.receiptBgUrl = `/uploads/backgrounds/${req.files.receiptBg[0].filename}`;
+            }
         }
 
         // Comprobar si se solicita eliminar una imagen (sin reemplazar)
@@ -101,6 +106,10 @@ export const updateSettings = async (req, res) => {
         if (req.body.removeDeliveryNoteBg === 'true') {
             deleteOldFile(existing.deliveryNoteBgUrl);
             data.deliveryNoteBgUrl = null;
+        }
+        if (req.body.removeReceiptBg === 'true') {
+            deleteOldFile(existing.receiptBgUrl);
+            data.receiptBgUrl = null;
         }
 
         const updated = await prisma.companySettings.update({

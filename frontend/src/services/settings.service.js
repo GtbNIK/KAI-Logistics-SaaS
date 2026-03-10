@@ -25,7 +25,7 @@ const settingsService = {
 
         // Campos de texto
         Object.entries(data).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && key !== 'quoteBgUrl' && key !== 'noticeBgUrl' && key !== 'deliveryNoteBgUrl') {
+            if (value !== undefined && value !== null && key !== 'quoteBgUrl' && key !== 'noticeBgUrl' && key !== 'deliveryNoteBgUrl' && key !== 'receiptBgUrl') {
                 formData.append(key, value);
             }
         });
@@ -34,11 +34,13 @@ const settingsService = {
         if (files.quoteBg) formData.append('quoteBg', files.quoteBg);
         if (files.noticeBg) formData.append('noticeBg', files.noticeBg);
         if (files.deliveryNoteBg) formData.append('deliveryNoteBg', files.deliveryNoteBg);
+        if (files.receiptBg) formData.append('receiptBg', files.receiptBg);
 
         // Flags de eliminación
         if (removals.removeQuoteBg) formData.append('removeQuoteBg', 'true');
         if (removals.removeNoticeBg) formData.append('removeNoticeBg', 'true');
         if (removals.removeDeliveryNoteBg) formData.append('removeDeliveryNoteBg', 'true');
+        if (removals.removeReceiptBg) formData.append('removeReceiptBg', 'true');
 
         const response = await axios.put(`${API_URL}/settings`, formData, {
             withCredentials: true,

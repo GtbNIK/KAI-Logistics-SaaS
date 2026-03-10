@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Receipt } from 'lucide-react';
+import { Receipt, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import EntityTable from '../../components/shared/EntityTable';
 import { paymentNoticeConfig } from '../../config/paymentNoticeConfig';
 import PaymentNoticePDFModal from '../../components/billing/PaymentNoticePDFModal';
 import NoticeDetailModal from '../../components/billing/NoticeDetailModal';
+import CreateNoticeFormModal from '../../components/billing/CreateNoticeFormModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -50,10 +51,11 @@ const PaymentNotices = () => {
     const [viewingNotice, setViewingNotice] = useState(null);
     const [printingNotice, setPrintingNotice] = useState(null);
     const [showPDFModal, setShowPDFModal] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
     const { showError } = useToast();
     const {
         items, loading, page, setPage, totalPages, totalItems,
-        search, setSearch
+        search, setSearch, refresh
     } = usePaymentNotices();
 
     const handlePrint = async (item) => {
@@ -70,12 +72,21 @@ const PaymentNotices = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                    <Receipt className="text-primary" />
-                    Avisos de Cobro
-                </h1>
-                <p className="text-slate-500 mt-1">Documentos de cobro generados desde cotizaciones aprobadas</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <Receipt className="text-primary" />
+                        Avisos de Cobro
+                    </h1>
+                    <p className="text-slate-500 mt-1">Documentos de cobro generados desde cotizaciones o creados manualmente</p>
+                </div>
+                <button
+                    onClick={() => setIsFormOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95"
+                >
+                    <Plus size={20} />
+                    Nuevo Aviso de Cobro
+                </button>
             </div>
 
             <EntityTable
@@ -110,6 +121,12 @@ const PaymentNotices = () => {
                     notice={printingNotice}
                 />
             )}
+
+            <CreateNoticeFormModal
+                isOpen={isFormOpen}
+                onClose={() => setIsFormOpen(false)}
+                onSuccess={refresh}
+            />
         </div>
     );
 };

@@ -13,6 +13,7 @@ import PaymentNotices from './pages/billing/PaymentNotices';
 import Receivables from './pages/billing/Receivables';
 import DeliveryNotes from './pages/operations/DeliveryNotes';
 import Settings from './pages/admin/Settings';
+import Shipments from './pages/tracking/Shipments';
 import MainLayout from './layouts/MainLayout';
 
 // Componente para proteger rutas
@@ -100,6 +101,14 @@ function App() {
                                     <ProtectedRoute>
                                         <MainLayout>
                                             <Receivables />
+                                        </MainLayout>
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/dashboard/embarques" element={
+                                    <ProtectedRoute>
+                                        <MainLayout>
+                                            <Shipments />
                                         </MainLayout>
                                     </ProtectedRoute>
                                 } />

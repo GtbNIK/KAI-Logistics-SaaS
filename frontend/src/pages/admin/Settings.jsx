@@ -328,9 +328,9 @@ const Settings = () => {
     const [saving, setSaving] = useState(false);
 
     // Archivos de fondo pendientes de subir
-    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null, deliveryNoteBg: null });
+    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null });
     // Flags de eliminación de fondos
-    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false });
+    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false });
 
     // Estados usuarios
     const [users, setUsers] = useState([]);
@@ -373,8 +373,8 @@ const Settings = () => {
         try {
             await updateSettings(formData, pendingFiles, pendingRemovals);
             // Resetear estados pendientes
-            setPendingFiles({ quoteBg: null, noticeBg: null, deliveryNoteBg: null });
-            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false });
+            setPendingFiles({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null });
+            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false });
         } finally {
             setSaving(false);
         }
@@ -667,6 +667,21 @@ const Settings = () => {
                                     onRemove={() => {
                                         setPendingFiles(prev => ({ ...prev, deliveryNoteBg: null }));
                                         setPendingRemovals(prev => ({ ...prev, removeDeliveryNoteBg: true }));
+                                    }}
+                                />
+                                {/* Upload Recibo de Pago */}
+                                <PdfBackgroundUploader
+                                    label="Fondo de Recibo de Pago"
+                                    description="Se usará como fondo en el PDF de recibos de pago (Efectivo USD)"
+                                    currentUrl={pendingRemovals.removeReceiptBg ? null : formData.receiptBgUrl}
+                                    file={pendingFiles.receiptBg}
+                                    onFileChange={(f) => {
+                                        setPendingFiles(prev => ({ ...prev, receiptBg: f }));
+                                        setPendingRemovals(prev => ({ ...prev, removeReceiptBg: false }));
+                                    }}
+                                    onRemove={() => {
+                                        setPendingFiles(prev => ({ ...prev, receiptBg: null }));
+                                        setPendingRemovals(prev => ({ ...prev, removeReceiptBg: true }));
                                     }}
                                 />
                             </div>

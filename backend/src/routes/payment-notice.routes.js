@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     convertFromQuote,
+    createPaymentNotice,
     getPaymentNotices,
     getPaymentNoticeById
 } from '../controllers/payment-notice.controller.js';
@@ -17,6 +18,13 @@ router.use(verifyToken);
  * @access  Private
  */
 router.post('/from-quote/:id', convertFromQuote);
+
+/**
+ * @route   POST /api/payment-notices
+ * @desc    Crear un Aviso de Cobro directamente (sin cotización)
+ * @access  Private
+ */
+router.post('/', createPaymentNotice);
 
 /**
  * @route   GET /api/payment-notices

@@ -141,7 +141,8 @@ export const getPaymentNotices = async (req, res) => {
                     client: { select: { name: true, rifOrId: true } },
                     quote: { select: { number: true } },
                     items: true,
-                    receivable: { select: { id: true, status: true, balance: true, paidAmount: true } }
+                    receivable: { select: { id: true, status: true, balance: true, paidAmount: true } },
+                    tracking: { select: { id: true } }
                 },
                 orderBy: { createdAt: 'desc' },
                 skip,
@@ -205,5 +206,121 @@ export const getPaymentNoticeById = async (req, res) => {
     } catch (error) {
         console.error('Error in getPaymentNoticeById:', error);
         res.status(500).json({ message: 'Error al obtener aviso de cobro' });
+    }
+};
+
+/**
+ * @route   POST /api/payment-notices
+ * @desc    Crear un Aviso de Cobro directamente (sin cotización)
+ * @access  Private
+ */
+export const createPaymentNotice = async (req, res) => {
+    try {
+        const { clientId, items, notes } = req.body;
+
+        // Validaciones
+        if (!clientId) {
+            return res.status(400).json({ message: 'El cliente es requerido' });
+        }
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ message: 'Debe incluir al menos un servicio' });
+        }
+
+        // Verificar que el cliente existe
+        const client = await prisma.client.findUnique({ where: { id: clientId } });
+        if (!client) {
+            return res.status(404).json({ message: 'Cliente no encontrado' });
+        }
+
+        // Procesar items y calcular total
+        const processedItems = [];
+        let totalAmount = 0;
+
+        for (const item of items) {
+            if (!item.serviceId) {
+                return res.status(400).json({ message: 'Cada item debe tener un servicio seleccionado' });
+            }
+
+            const quantity = Number(item.quantity) || 1;
+            const unitPrice = Number(item.unitPrice) || 0;
+            const totalPrice = quantity * unitPrice;
+            totalAmount += totalPrice;
+
+            // Buscar nombres para la descripción enriquecida
+            const service = await prisma.service.findUnique({
+                where: { id: item.serviceId },
+                select: { name: true, type: true }
+            });
+
+            const ally = item.allyId
+                ? await prisma.ally.findUnique({ where: { id: item.allyId }, select: { name: true } })
+                : null;
+
+            const zone = item.zoneId
+                ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
+                : null;
+
+            // Construir descripción enriquecida: "Servicio · Aliado · Zona/Ruta"
+            const parts = [];
+            if (service?.name) parts.push(service.name);
+            if (ally?.name) parts.push(`Aliado: ${ally.name}`);
+            if (zone?.name) parts.push(`Zona: ${zone.name}`);
+            if (item.originPort || item.destinationPort) {
+                parts.push(`Ruta: ${item.originPort || 'N/A'} → ${item.destinationPort || 'N/A'}`);
+            }
+            const description = item.description || parts.join(' · ') || 'Servicio de Logística';
+
+            processedItems.push({
+                description,
+                quantity,
+                unitPrice,
+                totalPrice
+            });
+        }
+
+        if (totalAmount <= 0) {
+            return res.status(400).json({ message: 'El monto total debe ser mayor a 0' });
+        }
+
+        // Transacción: crear PaymentNotice + Items + Receivable
+        const result = await prisma.$transaction(async (tx) => {
+            const paymentNotice = await tx.paymentNotice.create({
+                data: {
+                    clientId,
+                    totalAmount,
+                    notes: notes || null,
+                    items: {
+                        create: processedItems
+                    }
+                },
+                include: {
+                    client: { select: { name: true, rifOrId: true } },
+                    items: true
+                }
+            });
+
+            // Crear Receivable asociado
+            await tx.receivable.create({
+                data: {
+                    paymentNoticeId: paymentNotice.id,
+                    clientId,
+                    totalAmount,
+                    paidAmount: 0,
+                    balance: totalAmount,
+                    status: 'PENDING'
+                }
+            });
+
+            return paymentNotice;
+        });
+
+        res.status(201).json({
+            message: 'Aviso de Cobro creado exitosamente',
+            paymentNotice: result
+        });
+
+    } catch (error) {
+        console.error('Error in createPaymentNotice:', error);
+        res.status(500).json({ message: 'Error al crear Aviso de Cobro', error: error.message });
     }
 };
