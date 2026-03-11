@@ -76,8 +76,11 @@ app.use('/api/delivery-notes', deliveryNoteRoutes);
 // Catálogo de items D2D (para Notas de Entrega)
 app.use('/api/d2d-items', verifyToken, d2dItemRoutes);
 
-// Catálogo de proveedores de servicio (para Cuentas por Pagar - futuro)
+// Catálogo de proveedores de servicio (para Cuentas por Pagar)
 app.use('/api/svc-providers', verifyToken, svcProviderRoutes);
+// Cuentas por Pagar
+import payableRoutes from './routes/payable.routes.js';
+app.use('/api/payables', payableRoutes);
 // Rutas de Tracking / Embarques
 app.use('/api/shipments', shipmentRoutes);
 // Catálogo de Líneas Navieras

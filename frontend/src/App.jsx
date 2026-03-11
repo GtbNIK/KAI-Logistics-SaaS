@@ -14,6 +14,7 @@ import Receivables from './pages/billing/Receivables';
 import DeliveryNotes from './pages/operations/DeliveryNotes';
 import Settings from './pages/admin/Settings';
 import Shipments from './pages/tracking/Shipments';
+import Payables from './pages/finance/Payables';
 import MainLayout from './layouts/MainLayout';
 
 // Componente para proteger rutas
@@ -109,6 +110,14 @@ function App() {
                                     <ProtectedRoute>
                                         <MainLayout>
                                             <Shipments />
+                                        </MainLayout>
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/dashboard/cx-pagar" element={
+                                    <ProtectedRoute>
+                                        <MainLayout>
+                                            <Payables />
                                         </MainLayout>
                                     </ProtectedRoute>
                                 } />

@@ -339,6 +339,8 @@ model SvcProvider {
 	name      String   @unique
 	createdAt DateTime @default(now())
 	updatedAt DateTime @updatedAt
+
+	payables  Payable[]
 }
 
 model PaymentNotice {
@@ -452,12 +454,18 @@ model Receivable {
 
 model Payable {
   id              String        @id @default(uuid())
+  number          Int           @unique @default(autoincrement())
   
-  allyId          String
-  ally            Ally          @relation(fields: [allyId], references: [id])
+  allyId          String?
+  ally            Ally?         @relation(fields: [allyId], references: [id])
+
+  svcProviderId   String?
+  svcProvider     SvcProvider?  @relation(fields: [svcProviderId], references: [id])
   
   description     String
   amount          Decimal       @db.Decimal(10, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  balance         Decimal       @db.Decimal(10, 2)
   status          PaymentStatus @default(PENDING)
   
   relatedOperationId String? // Optional link to PaymentNotice or Service
@@ -466,6 +474,20 @@ model Payable {
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  payments        PayableTransaction[]
+}
+
+model PayableTransaction {
+  id            String      @id @default(uuid())
+  payableId     String
+  payable       Payable     @relation(fields: [payableId], references: [id])
+  
+  amount        Decimal     @db.Decimal(10, 2)
+  date          DateTime    @default(now())
+  method        String
+  reference     String?
+  notes         String?     @db.Text
 }
 
 model PaymentTransaction {
