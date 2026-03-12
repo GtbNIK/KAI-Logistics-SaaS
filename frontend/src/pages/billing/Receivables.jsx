@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
 import { receivableConfig } from '../../config/receivableConfig';
 import ReceivableDetailModal from '../../components/billing/ReceivableDetailModal';
@@ -70,6 +72,9 @@ const Receivables = () => {
         if (r.status !== 'PAID') acc += parseFloat(r.totalAmount) - parseFloat(r.paidAmount || 0);
         return acc;
     }, 0);
+
+    // Auto-open modal if URL contains ?id=
+    useAutoOpenModal(setViewingReceivable, id => axios.get(`${API_URL}/receivables/${id}`));
 
     const handleRegisterPayment = (r) => {
         setViewingReceivable(null);

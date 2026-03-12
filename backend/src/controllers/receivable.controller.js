@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { createNotification } from './notification.controller.js';
 
 export const createReceivable = async (req, res) => {
     try {
@@ -234,6 +235,27 @@ export const registerPayment = async (req, res) => {
 
             return { payment, receipt, updatedReceivable };
         });
+
+        // Generar notificación si la CXC ha sido pagada en su totalidad
+        if (newStatus === 'PAID') {
+            await createNotification({
+                title: 'Cuenta por Cobrar Saldada',
+                message: `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada exitosamente ($${parseFloat(receivable.totalAmount).toFixed(2)}).`,
+                type: 'SUCCESS',
+                targetRoles: ['ADMIN', 'SALES'],
+                entityType: 'RECEIVABLE',
+                entityId: receivable.id
+            });
+        } else if (newStatus === 'PARTIALLY_PAID') {
+            await createNotification({
+                title: 'Abono en Cuenta por Cobrar',
+                message: `Se ha registrado un abono de $${parseFloat(paymentAmount).toFixed(2)} a la cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name}. Saldo restante: $${parseFloat(newBalance).toFixed(2)}.`,
+                type: 'INFO',
+                targetRoles: ['ADMIN'], // Sólo ADMIN
+                entityType: 'RECEIVABLE',
+                entityId: receivable.id
+            });
+        }
 
         res.status(201).json({
             message: 'Pago registrado exitosamente',

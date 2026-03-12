@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { createNotification } from './notification.controller.js';
 
 // GET /api/quotes - Listar cotizaciones
 export const getQuotes = async (req, res) => {
@@ -155,6 +156,16 @@ export const createQuote = async (req, res) => {
             }
         });
 
+        // Crear notificación para administradores
+        await createNotification({
+            title: 'Nueva Cotización',
+            message: `Cotización #${quote.number} creada para el cliente ${quote.client.name} por un total de $${totalAmount.toFixed(2)}.`,
+            type: 'INFO',
+            targetRoles: ['ADMIN'],
+            entityType: 'QUOTE',
+            entityId: quote.id
+        });
+
         res.status(201).json(quote);
     } catch (error) {
         console.error('Error creating quote:', error);
@@ -271,8 +282,20 @@ export const updateQuoteStatus = async (req, res) => {
 
         const updatedQuote = await prisma.quote.update({
             where: { id },
-            data: { status }
+            data: { status },
+            include: { client: true }
         });
+
+        if (status === 'APPROVED' && quote.status !== 'APPROVED') {
+            await createNotification({
+                title: 'Cotización Aprobada',
+                message: `La cotización COT-${String(updatedQuote.number).padStart(5, '0')} para el cliente ${updatedQuote.client.name} ha sido aprobada!.`,
+                type: 'SUCCESS',
+                targetRoles: ['ADMIN'],
+                entityType: 'QUOTE',
+                entityId: updatedQuote.id
+            });
+        }
 
         res.json(updatedQuote);
     } catch (error) {

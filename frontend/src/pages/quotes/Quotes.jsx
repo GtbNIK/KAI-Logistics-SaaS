@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, FileText, X, Package, User, Calendar, DollarSign, Loader2, Activity } from 'lucide-react';
 import quoteService from '../../services/quote.service';
 import paymentNoticeService from '../../services/paymentNotice.service';
@@ -12,6 +12,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import ChangeQuoteStatusModal from '../../components/quotes/ChangeQuoteStatusModal';
+
+import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 
 // Hook personalizado para cotizaciones
 const useQuotes = () => {
@@ -379,6 +381,9 @@ const Quotes = () => {
         allies: [],
         zones: []
     });
+
+    // Auto-open modal if URL contains ?id=
+    useAutoOpenModal(setViewingQuote);
 
     const handleCreate = () => {
         navigate('/dashboard/cotizaciones/nuevo');

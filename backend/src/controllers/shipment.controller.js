@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { createNotification } from './notification.controller.js';
 
 /**
  * @route   GET /api/shipments
@@ -221,6 +222,27 @@ export const updateShipment = async (req, res) => {
                 clientRel: { select: { id: true, name: true } },
             }
         });
+
+        if (status !== undefined && existing.status !== status) {
+            const statusTranslations = {
+                PENDING: 'Pendiente',
+                AT_ORIGIN_WAREHOUSE: 'En Almacén Origen',
+                ON_VESSEL: 'En Tránsito',
+                AT_DESTINATION_PORT: 'En Puerto Destino',
+                CUSTOMS_CLEARANCE: 'En Aduana',
+                DELIVERED: 'Entregado'
+            };
+            const translatedStatus = statusTranslations[status] || status;
+
+            await createNotification({
+                title: 'Estado de Tracking Actualizado',
+                message: `El tracking EMB-${String(shipment.number).padStart(5, '0')} ha cambiado a estado: "${translatedStatus}".`,
+                type: 'INFO',
+                targetRoles: ['ADMIN'],
+                entityType: 'SHIPMENT',
+                entityId: shipment.id
+            });
+        }
 
         res.json(shipment);
     } catch (error) {

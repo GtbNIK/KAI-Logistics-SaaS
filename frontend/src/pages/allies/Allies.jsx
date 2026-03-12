@@ -1,5 +1,6 @@
 import { UserPlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import allyService from '../../services/ally.service';
 import { allyConfig } from '../../config/allyConfig.jsx';
 import useEntityCRUD from '../../hooks/useEntityCRUD';
@@ -54,6 +55,8 @@ const Allies = () => {
         entityName: allyConfig.entityName,
         limit: 10
     });
+
+    useAutoOpenModal(openDetail, allyService.getAlly);
 
     return (
         <div className="space-y-6">

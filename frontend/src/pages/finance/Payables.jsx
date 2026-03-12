@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TrendingDown, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
 import { payableConfig } from '../../config/payableConfig';
 import PayableDetailModal from '../../components/finance/PayableDetailModal';
@@ -70,6 +72,9 @@ const Payables = () => {
         if (p.status !== 'PAID') acc += parseFloat(p.amount) - parseFloat(p.paidAmount || 0);
         return acc;
     }, 0);
+
+    // Auto-open modal if URL contains ?id=
+    useAutoOpenModal(setViewingPayable, id => axios.get(`${API_URL}/payables/${id}`));
 
     const handleRegisterPayment = (p) => {
         setViewingPayable(null);

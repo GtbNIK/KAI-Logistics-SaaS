@@ -86,6 +86,10 @@ app.use('/api/shipments', shipmentRoutes);
 // Catálogo de Líneas Navieras
 app.use('/api/shipping-lines', shippingLineRoutes);
 
+// Rutas de Notificaciones
+import notificationRoutes from './routes/notification.routes.js';
+app.use('/api/notifications', notificationRoutes);
+
 // Manejo de errores global
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -95,10 +99,15 @@ app.use((err, req, res, next) => {
     });
 });
 
+import { initPgBoss } from './workers/pg-boss.js';
+
 // Iniciar servidor
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
     console.log(`📊 Modo: ${process.env.NODE_ENV || 'development'}`);
+    
+    // Iniciar el motor de tareas recurrentes pg-boss
+    await initPgBoss();
 });
 
 export default app;

@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { createNotification } from './notification.controller.js';
 
 /**
  * @route   GET /api/payables
@@ -198,6 +199,19 @@ export const registerPayablePayment = async (req, res) => {
 
             return { payment, updatedPayable };
         });
+
+        // Generar notificación si la CXP ha sido pagada en su totalidad
+        if (newStatus === 'PAID') {
+            const beneficiary = result.updatedPayable.ally?.name || result.updatedPayable.svcProvider?.name || 'Desconocido';
+            await createNotification({
+                title: 'Cuenta por Pagar Pagada',
+                message: `La cuenta CXP-${String(payable.number).padStart(5, '0')} por $${parseFloat(payable.amount).toFixed(2)} a favor de ${beneficiary} ha sido pagada en su totalidad.`,
+                type: 'SUCCESS',
+                targetRoles: ['ADMIN'],
+                entityType: 'PAYABLE',
+                entityId: payable.id
+            });
+        }
 
         res.status(201).json({
             message: 'Pago registrado exitosamente',

@@ -1,7 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Settings, LogOut, Bell, Clock, AlertTriangle } from 'lucide-react';
+import { Settings, LogOut, Bell, Clock, AlertTriangle, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { notificationService } from '../services/notification.service';
 
 // ─── Modal de Sesión por Expirar ──────────────────────────────────────────────
 const SessionWarningModal = ({ isOpen, onClose, onLogout, minutesLeft }) => {
@@ -115,6 +116,26 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     const navigate = useNavigate();
     const { user, logout, forceLogout, sessionExpiresAt } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [showNotifications, setShowNotifications] = useState(false);
+
+    // Fetch notifications
+    const fetchNotifications = async () => {
+        try {
+            const res = await notificationService.getUnread();
+            if (res && res.data) {
+                setNotifications(res.data);
+            }
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 60000); // Poll cada 60 segs
+        return () => clearInterval(interval);
+    }, []);
 
     // Temporizador de sesión
     const handleSessionExpired = async () => {
@@ -184,10 +205,102 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                     )}
 
                     {/* Notificaciones */}
-                    <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors relative">
-                        <Bell size={20} />
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                    </button>
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors relative"
+                        >
+                            <Bell size={20} />
+                            {notifications.length > 0 && (
+                                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border-2 border-white shadow-sm">
+                                    {notifications.length > 9 ? '9+' : notifications.length}
+                                </span>
+                            )}
+                        </button>
+
+                        {showNotifications && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}></div>
+                                <div className="absolute right-0 top-full mt-2 w-96 bg-white border border-slate-100 rounded-xl shadow-2xl shadow-slate-200/50 z-50 overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in slide-in-from-top-2">
+                                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-slate-800">Notificaciones</h3>
+                                            {notifications.length > 0 && (
+                                                <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{notifications.length}</span>
+                                            )}
+                                        </div>
+                                        {notifications.length > 0 && (
+                                            <button 
+                                                onClick={async () => {
+                                                    await notificationService.markAllAsRead();
+                                                    fetchNotifications();
+                                                    setShowNotifications(false);
+                                                }}
+                                                className="text-xs text-primary font-medium hover:text-primary-dark transition-colors"
+                                            >
+                                                Marcar todas leídas
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="overflow-y-auto flex-1 p-2 custom-scrollbar">
+                                        {notifications.length === 0 ? (
+                                            <div className="p-6 text-center text-sm text-slate-500 flex flex-col items-center gap-2">
+                                                <Bell className="text-slate-300 mb-1" size={24} />
+                                                <p>No tienes notificaciones nuevas</p>
+                                            </div>
+                                        ) : (
+                                            notifications.map(notif => (
+                                                <div 
+                                                    key={notif.id} 
+                                                    className="w-full text-left p-3 hover:bg-slate-50 rounded-xl transition-all border-b border-slate-50 last:border-0 group flex items-start justify-between gap-2"
+                                                >
+                                                    {/* Clicking body redirects to the issue */}
+                                                    <div 
+                                                        className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer"
+                                                        onClick={() => {
+                                                            setShowNotifications(false);
+                                                            if (notif.entityType === 'QUOTE') navigate(`/dashboard/cotizaciones?id=${notif.entityId}`);
+                                                            else if (notif.entityType === 'RECEIVABLE') navigate(`/dashboard/cx-cobrar?id=${notif.entityId}`);
+                                                            else if (notif.entityType === 'PAYABLE') navigate(`/dashboard/cx-pagar?id=${notif.entityId}`);
+                                                            else if (notif.entityType === 'ALLY') navigate(`/dashboard/aliados?id=${notif.entityId}`);
+                                                            else if (notif.entityType === 'SHIPMENT') navigate(`/dashboard/embarques?id=${notif.entityId}`);
+                                                        }}
+                                                    >
+                                                        <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                                                            notif.type === 'SUCCESS' ? 'bg-emerald-500 shadow-emerald-500/50' :
+                                                            notif.type === 'WARNING' ? 'bg-amber-500 shadow-amber-500/50' :
+                                                            notif.type === 'ALARM' ? 'bg-red-500 shadow-red-500/50' : 'bg-blue-500 shadow-blue-500/50'
+                                                        } shadow-sm group-hover:scale-110 transition-transform`}></div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-semibold text-sm text-slate-800 leading-tight truncate">{notif.title}</p>
+                                                            <p className="text-xs text-slate-500 mt-1 leading-snug line-clamp-3">{notif.message}</p>
+                                                            <span className="text-[10px] text-slate-400 mt-1.5 font-medium block">
+                                                                {new Date(notif.createdAt).toLocaleString('es-VE', { 
+                                                                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
+                                                                })}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {/* Mark as read button */}
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            await notificationService.markAsRead(notif.id);
+                                                            fetchNotifications();
+                                                        }}
+                                                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                        title="Marcar como leída"
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
                     
                     {/* Divider */}
                     <div className="h-6 w-px bg-slate-200 mx-1"></div>

@@ -80,6 +80,7 @@ model User {
   quotes      Quote[]
   shipments   Shipment[]    @relation("ShipmentHandler") // Internal user tracking
   shipmentsAsVendedor Shipment[] @relation("ShipmentVendedor")
+  notifications Notification[]
 }
 
 // -----------------------------------------------------------------------------
@@ -488,6 +489,34 @@ model PayableTransaction {
   method        String
   reference     String?
   notes         String?     @db.Text
+}
+
+model Notification {
+  id              String   @id @default(uuid())
+  title           String
+  message         String
+  type            NotificationType @default(INFO)
+  isRead          Boolean  @default(false)
+  
+  // Si targetUserId está, la notificación es para ese usuario específico.
+  targetUserId    String?
+  targetUser      User?    @relation(fields: [targetUserId], references: [id])
+  
+  // Si la notificación es por roles (ej: ["ADMIN", "SALES"]). Si está vacío y targetUserId es null, es global.
+  targetRoles     String[] @default([])
+  
+  // Entidad relacionada para la redirección (ej: "QUOTE", "RECEIVABLE", "PAYABLE", "ALLY")
+  entityType      String?
+  entityId        String?
+  
+  createdAt       DateTime @default(now())
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ALARM
 }
 
 model PaymentTransaction {

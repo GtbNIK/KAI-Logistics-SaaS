@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { createNotification } from './notification.controller.js';
 
 // Usar global.prisma si ya existe para evitar múltiples conexiones en dev
 const prisma = global.prisma || new PrismaClient();
@@ -82,6 +83,18 @@ export const createClient = async (req, res) => {
                 assignedToId: finalAssignedToId
             }
         });
+
+        // Notificar al vendedor de la asignación del nuevo cliente
+        if (finalAssignedToId) {
+            await createNotification({
+                title: 'Nuevo Cliente Asignado',
+                message: `Se ha creado y se te ha asignado el cliente ${client.name} (${client.internalCode}).`,
+                type: 'INFO',
+                targetUserId: finalAssignedToId,
+                entityType: 'ALLY', // reutilizaremos ALLY icon o genérico de cliente si no hay
+                entityId: client.id
+            });
+        }
 
         res.status(201).json(client);
     } catch (error) {
@@ -256,6 +269,18 @@ export const updateClient = async (req, res) => {
                 name, rifOrId: normalizedRifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToId
             }
         });
+
+        // Notificar al nuevo vendedor si hubo cambio en la asignación
+        if (assignedToId && assignedToId !== existingClient.assignedToId) {
+            await createNotification({
+                title: 'Nuevo Cliente Asignado',
+                message: `Se te ha asignado el cliente ${updatedClient.name} (${updatedClient.internalCode}).`,
+                type: 'INFO',
+                targetUserId: assignedToId,
+                entityType: 'ALLY',
+                entityId: updatedClient.id
+            });
+        }
 
         res.json(updatedClient);
     } catch (error) {

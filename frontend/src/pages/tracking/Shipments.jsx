@@ -7,6 +7,7 @@ import { shipmentConfig } from '../../config/shipmentConfig';
 import ShipmentDetailModal from '../../components/tracking/ShipmentDetailModal';
 import ShipmentFormModal from '../../components/tracking/ShipmentFormModal';
 import shipmentService from '../../services/shipment.service';
+import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 
 // ── Status labels para el filtro ─────
 const STATUS_OPTIONS = [
@@ -119,6 +120,9 @@ const Shipments = () => {
         typeFilter, setTypeFilter, statusFilter, setStatusFilter,
         refresh
     } = useShipments();
+
+    // Auto-open modal if URL contains ?id=
+    useAutoOpenModal(setViewingShipment, shipmentService.getShipment);
 
     const handleCreated = () => {
         setFormModal({ open: false, shipment: null });
