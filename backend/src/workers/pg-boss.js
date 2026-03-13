@@ -30,7 +30,7 @@ export const initPgBoss = async () => {
         await boss.schedule('check-expirations', '0 6 * * *');
         
         // Auto-run para pruebas del usuario (se puede quitar después, descomentar la linea de abajo para probar las notificaciones del pg-boss)
-        await boss.send('check-expirations');
+        //await boss.send('check-expirations');
 
         return boss;
     } catch (error) {

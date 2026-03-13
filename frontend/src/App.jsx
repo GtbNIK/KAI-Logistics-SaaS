@@ -15,6 +15,7 @@ import DeliveryNotes from './pages/operations/DeliveryNotes';
 import Settings from './pages/admin/Settings';
 import Shipments from './pages/tracking/Shipments';
 import Payables from './pages/finance/Payables';
+import Dashboard from './pages/Dashboard';
 import MainLayout from './layouts/MainLayout';
 
 // Componente para proteger rutas
@@ -40,9 +41,7 @@ function App() {
                                 <Route path="/dashboard" element={
                                     <ProtectedRoute>
                                         <MainLayout>
-                                            {/* Placeholder para el Home del Dashboard */}
-                                            <h1 className="text-2xl font-bold text-primary-dark">Bienvenido al Dashboard</h1>
-                                            <p className="text-slate-600 mt-2">Selecciona un módulo del menú lateral para comenzar.</p>
+                                            <Dashboard />
                                         </MainLayout>
                                     </ProtectedRoute>
                                 } />

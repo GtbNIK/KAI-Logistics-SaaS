@@ -18,6 +18,7 @@ import d2dItemRoutes from './routes/d2d-item.routes.js';
 import svcProviderRoutes from './routes/svc-provider.routes.js';
 import shipmentRoutes from './routes/shipment.routes.js';
 import shippingLineRoutes from './routes/shipping-line.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -54,6 +55,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clients', verifyToken, clientRoutes);
 // Rutas de aliados (requiere autenticación)
 app.use('/api/allies', verifyToken, allyRoutes);
+// Dashboard y métricas (requiere autenticación)
+app.use('/api/dashboard', verifyToken, dashboardRoutes);
 // Rutas de servicios (requiere autenticación)
 app.use('/api/services', verifyToken, serviceRoutes);
 // Rutas de zonas (requiere autenticación)
