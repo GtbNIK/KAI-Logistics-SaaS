@@ -25,7 +25,7 @@ export const getDashboardSummary = async (req, res) => {
         };
         // Si es SALES, solo ve sus propias cotizaciones
         if (userRole === 'SALES') {
-            quotesQuery.where.vendedorId = userId;
+            quotesQuery.where.userId = userId;
         }
         const approvedQuotesCount = await prisma.quote.count(quotesQuery);
 
@@ -76,7 +76,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            paymentNoticesQuery.where.vendedorId = userId;
+            paymentNoticesQuery.where.client = { assignedToId: userId };
         }
         const latestPaymentNotices = await prisma.paymentNotice.findMany(paymentNoticesQuery);
 
@@ -88,7 +88,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            deliveryNotesQuery.where.vendedorId = userId;
+            deliveryNotesQuery.where.client = { assignedToId: userId };
         }
         const latestDeliveryNotes = await prisma.deliveryNote.findMany(deliveryNotesQuery);
 
@@ -99,7 +99,7 @@ export const getDashboardSummary = async (req, res) => {
             where: {
                 status: 'APPROVED',
                 createdAt: dateFilter,
-                ...(userRole === 'SALES' ? { vendedorId: userId } : {})
+                ...(userRole === 'SALES' ? { userId: userId } : {})
             },
             _count: { id: true },
             orderBy: { _count: { id: 'desc' } },
@@ -125,7 +125,7 @@ export const getDashboardSummary = async (req, res) => {
         const quotesChartQuery = {
             where: {
                 createdAt: dateFilter,
-                ...(userRole === 'SALES' ? { vendedorId: userId } : {})
+                ...(userRole === 'SALES' ? { userId: userId } : {})
             },
             select: { createdAt: true }
         };
@@ -185,29 +185,46 @@ export const getMonthlyReportData = async (req, res) => {
         // 1. Ingresos y Egresos Globales del mes
         // Ingresos -> Transacciones de CXC
         const rxTransactions = await prisma.paymentTransaction.findMany({
-            where: { createdAt: dateFilter }
+            where: { createdAt: dateFilter },
+            include: { receivable: { select: { number: true } } }
         });
         const totalIngresos = rxTransactions.reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
 
         // Egresos -> Transacciones de CXP
         const pxTransactions = await prisma.payableTransaction.findMany({
-            where: { createdAt: dateFilter }
+            where: { date: dateFilter },
+            include: { payable: { select: { number: true } } }
         });
         const totalEgresos = pxTransactions.reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
 
         // 2. Transacciones relevantes
-        // Todas las transacciones combinadas y ordenadas
         const combinedTransactions = [
-            ...rxTransactions.map(t => ({ ...t, typeStr: 'INGRESO (CXC)' })),
-            ...pxTransactions.map(t => ({ ...t, typeStr: 'EGRESO (CXP)' }))
-        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            ...rxTransactions.map(t => ({ 
+                ...t, 
+                typeStr: 'INGRESO (CXC)', 
+                recordDate: t.createdAt || t.date,
+                accountNumber: t.receivable?.number ? `CXC-${t.receivable.number}` : 'N/A'
+            })),
+            ...pxTransactions.map(t => ({ 
+                ...t, 
+                typeStr: 'EGRESO (CXP)', 
+                recordDate: t.date,
+                accountNumber: t.payable?.number ? `CXP-${t.payable.number}` : 'N/A'
+            }))
+        ].sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
+
+        // Para el formato frontal de cierre
+        const mappedTransactions = combinedTransactions.map(t => ({
+            ...t,
+            createdAt: t.recordDate
+        }));
 
         res.json({
             monthName: format(now, 'MMMM yyyy', { locale: es }),
             totalIngresos,
             totalEgresos,
             balanceNeto: totalIngresos - totalEgresos,
-            transactions: combinedTransactions
+            transactions: mappedTransactions
         });
         
     } catch (error) {

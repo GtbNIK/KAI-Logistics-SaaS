@@ -10,9 +10,12 @@ import {
     Ship, 
     CreditCard,
     ArrowRight,
-    Users
+    Users,
+    Loader2
 } from 'lucide-react';
-import ClosureReportButton from '../components/dashboard/ClosureReportButton';
+import ClosureReportButton, { generateClosurePdf } from '../components/dashboard/ClosureReportButton';
+import { isFirstDayOfMonth, isLastDayOfMonth } from 'date-fns';
+import { useToast } from '../context/ToastContext';
 
 const kpiCardClass = "bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between";
 const kpiTitleClass = "text-sm font-medium text-slate-500 uppercase tracking-wide";
@@ -65,9 +68,12 @@ const PreviewTable = ({ title, icon: Icon, items, onNavigate, renderRow, emptyMe
 const Dashboard = () => {
     const { user } = useAuth();
     const { settings } = useSettings();
+    const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
     
     const [loading, setLoading] = useState(true);
+    const [generatingReport, setGeneratingReport] = useState(false);
+    const [showReminder, setShowReminder] = useState(false);
     const [data, setData] = useState({
         metrics: {
             approvedQuotesCount: 0,
@@ -99,7 +105,27 @@ const Dashboard = () => {
         };
 
         fetchSummary();
-    }, []);
+        
+        // Modal logic for ADMIN
+        if (user?.role === 'ADMIN') {
+            const today = new Date();
+            if (isFirstDayOfMonth(today) || isLastDayOfMonth(today)) {
+                if (!sessionStorage.getItem('monthClosureReminded')) {
+                    setShowReminder(true);
+                }
+            }
+        }
+    }, [user?.role]);
+
+    const handleGenerateReminder = async () => {
+        await generateClosurePdf(settings, showSuccess, showError, setGeneratingReport);
+        closeReminder();
+    };
+
+    const closeReminder = () => {
+        sessionStorage.setItem('monthClosureReminded', 'true');
+        setShowReminder(false);
+    };
 
     if (loading) {
         return (
@@ -121,7 +147,37 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="p-6 max-w-7xl mx-auto space-y-6 relative">
+            
+            {showReminder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+                    <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center gap-3 mb-4 text-amber-500">
+                            <span className="p-2 bg-amber-50 rounded-lg"><FileText className="w-6 h-6" /></span>
+                            <h2 className="text-xl font-bold text-slate-800">¡Cierre Mensual!</h2>
+                        </div>
+                        <p className="text-slate-600 mb-6 text-sm">
+                            El momento del balance ha llegado. ¿Recordaste generar y descargar tu reporte contable del mes? Si así lo deseas, recopilaré y evaluaré todas tus estadísticas de inmediato.
+                        </p>
+                        <div className="flex justify-end gap-3 font-medium">
+                            <button 
+                                onClick={closeReminder}
+                                className="px-4 py-2 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                            >
+                                Sí, ya lo hice / Omitir
+                            </button>
+                            <button 
+                                onClick={handleGenerateReminder}
+                                disabled={generatingReport}
+                                style={{ backgroundColor: primaryColor }}
+                                className="flex items-center justify-center min-w-[130px] gap-2 px-4 py-2 text-sm text-white rounded-lg hover:brightness-110 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {generatingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generar ahora"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             
             {/* Cabecera y Botón de Reporte */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -135,16 +191,16 @@ const Dashboard = () => {
             </div>
 
             {/* Top Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${user?.role === 'ADMIN' ? '4' : '3'} gap-4`}>
                 <DashboardInfoCard 
-                    title="Cotizaciones Aprobadas" 
+                    title={user?.role === 'ADMIN' ? "Cotizaciones Aprobadas" : "Tus Cotizaciones Aprobadas"} 
                     value={metrics.approvedQuotesCount} 
                     icon={FileText}
                     colorClass="bg-blue-500 text-blue-500"
                     subtitle="Este mes"
                 />
                 
-                {user?.role === 'ADMIN' ? (
+                {user?.role === 'ADMIN' && (
                     <DashboardInfoCard 
                         title="CXC Cobradas" 
                         value={formatMoney(metrics.cxcPaidAmount)} 
@@ -152,18 +208,10 @@ const Dashboard = () => {
                         colorClass="bg-emerald-500 text-emerald-500"
                         subtitle="Ingresos confirmados este mes"
                     />
-                ) : (
-                    <DashboardInfoCard 
-                        title="Tus CXC Asignadas" 
-                        value="Revisar" 
-                        icon={TrendingUp}
-                        colorClass="bg-emerald-500 text-emerald-500"
-                        subtitle="Gestiona tus cobros"
-                    />
                 )}
 
                 <DashboardInfoCard 
-                    title="Embarques Pendientes" 
+                    title={user?.role === 'ADMIN' ? "Embarques Pendientes" : "Tus Embarques Pendientes"} 
                     value={metrics.pendingShipmentsCount} 
                     icon={Ship}
                     colorClass="bg-amber-500 text-amber-500"
@@ -191,9 +239,11 @@ const Dashboard = () => {
 
             {/* Main Chart Area */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="font-semibold text-slate-800 mb-6">Cotizaciones Creadas (Mensual)</h3>
+                <h3 className="font-semibold text-slate-800 mb-6">
+                    {user?.role === 'ADMIN' ? "Cotizaciones Creadas (Mensual)" : "Tus Cotizaciones Creadas (Mensual)"}
+                </h3>
                 <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                             <XAxis 
@@ -231,7 +281,7 @@ const Dashboard = () => {
                 
                 {/* Notas de Entrega Recientes */}
                 <PreviewTable 
-                    title="Últimas Notas de Entrega"
+                    title={user?.role === 'ADMIN' ? "Últimas Notas de Entrega" : "Tus Últimas Notas de Entrega"}
                     icon={FileText}
                     items={previews.latestDeliveryNotes}
                     primaryColor={primaryColor}
@@ -250,7 +300,7 @@ const Dashboard = () => {
 
                 {/* Top Clientes (x Cotizaciones aprobadas) */}
                 <PreviewTable 
-                    title="Top Clientes del Mes"
+                    title={user?.role === 'ADMIN' ? "Top Clientes del Mes" : "Tus Mejores Clientes (Mes)"}
                     icon={Users}
                     items={previews.topClients}
                     primaryColor={primaryColor}
@@ -275,7 +325,7 @@ const Dashboard = () => {
 
                 {/* Avisos de Cobro Recientes */}
                 <PreviewTable 
-                    title="Últimos Avisos de Cobro"
+                    title={user?.role === 'ADMIN' ? "Últimos Avisos de Cobro" : "Tus Últimos Avisos de Cobro"}
                     icon={FileText}
                     items={previews.latestPaymentNotices}
                     primaryColor={primaryColor}
