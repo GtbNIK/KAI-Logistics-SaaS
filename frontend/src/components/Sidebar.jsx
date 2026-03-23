@@ -112,7 +112,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             </div>
 
             {/* Navigation Groups */}
-            <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+            <div className="flex-1 py-6 px-3 space-y-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                 
                 {/* Dashboard Home - Item suelto */}
                 <NavLink

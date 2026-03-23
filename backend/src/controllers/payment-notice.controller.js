@@ -61,6 +61,7 @@ export const convertFromQuote = async (req, res) => {
                             }
                             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
                             return {
+                                serviceId:  item.serviceId,
                                 description,
                                 quantity:   item.quantity,
                                 unitPrice:  item.unitPrice,
@@ -271,6 +272,7 @@ export const createPaymentNotice = async (req, res) => {
             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
 
             processedItems.push({
+                serviceId: item.serviceId,
                 description,
                 quantity,
                 unitPrice,

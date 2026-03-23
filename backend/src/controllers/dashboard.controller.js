@@ -1,20 +1,33 @@
 import prisma from '../config/database.js';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, parseISO } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, eachDayOfInterval, eachMonthOfInterval, format, parseISO, isAfter, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export const getDashboardSummary = async (req, res) => {
     try {
-        const userRole = req.user.role; // 'ADMIN' o 'SALES'
+        const userRole = req.user.role;
         const userId = req.user.id;
 
         const now = new Date();
-        const startCurrentMonth = startOfMonth(now);
-        const endCurrentMonth = endOfMonth(now);
 
-        const dateFilter = {
-            gte: startCurrentMonth,
-            lte: endCurrentMonth
-        };
+        // --- Filtro de fecha global (query params) ---
+        let startDate, endDate;
+
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            // Asegurarse de que endDate sea al final del día
+            endDate.setHours(23, 59, 59, 999);
+
+            // Validación: startDate no puede ser después de endDate
+            if (isAfter(startDate, endDate)) {
+                return res.status(400).json({ message: 'La fecha inicial no puede ser posterior a la fecha final.' });
+            }
+        } else {
+            startDate = startOfMonth(now);
+            endDate = endOfMonth(now);
+        }
+
+        const dateFilter = { gte: startDate, lte: endDate };
 
         // 1. Cotizaciones Aprobadas
         const quotesQuery = {
@@ -29,21 +42,17 @@ export const getDashboardSummary = async (req, res) => {
         }
         const approvedQuotesCount = await prisma.quote.count(quotesQuery);
 
-        // 2 & 4. Cuentas por Cobrar (CXC) y Cuentas por Pagar (CXP) - Sólo ADMIN
+        // 2 & 4. CXC y CXP - Sólo ADMIN
         let cxcPaidAmount = 0;
         let cxpPendingAmount = 0;
 
         if (userRole === 'ADMIN') {
-            // Dinero recaudado este mes (Transacciones pagadas)
             const rxTransactionsThisMonth = await prisma.paymentTransaction.findMany({
-                where: {
-                    createdAt: dateFilter
-                },
+                where: { createdAt: dateFilter },
                 select: { amount: true }
             });
             cxcPaidAmount = rxTransactionsThisMonth.reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0);
 
-            // CXP Pendientes (Todo lo que no se haya pagado, creado este mes)
             const pendingPayables = await prisma.payable.findMany({
                 where: {
                     status: { not: 'PAID' },
@@ -92,8 +101,7 @@ export const getDashboardSummary = async (req, res) => {
         }
         const latestDeliveryNotes = await prisma.deliveryNote.findMany(deliveryNotesQuery);
 
-        // Top 5 Clientes (Con más cotizaciones aprobadas del mes)
-        // Para ordenar por los que más cotizan
+        // Top 5 Clientes
         const topClientsAggregation = await prisma.quote.groupBy({
             by: ['clientId'],
             where: {
@@ -115,42 +123,93 @@ export const getDashboardSummary = async (req, res) => {
 
         const topClients = topClientsAggregation.map(ag => {
             const clientInfo = clientsData.find(c => c.id === ag.clientId);
-            return {
-                ...clientInfo,
-                totalQuotes: ag._count.id
-            };
+            return { ...clientInfo, totalQuotes: ag._count.id };
         });
 
-        // --- CHART DATA: Cotizaciones creadas por día ---
+        // --- CHART DATA ---
+        // El chartRange es independiente: cuántos meses hacia atrás mostrar
+        const chartRange = parseInt(req.query.chartRange) || 1;
+        const chartStart = chartRange === 1 ? startDate : subMonths(now, chartRange);
+        const chartEnd = chartRange === 1 ? endDate : now;
+
         const quotesChartQuery = {
             where: {
-                createdAt: dateFilter,
+                createdAt: { gte: chartStart, lte: chartEnd },
                 ...(userRole === 'SALES' ? { userId: userId } : {})
             },
             select: { createdAt: true }
         };
-        const allQuotesThisMonth = await prisma.quote.findMany(quotesChartQuery);
+        const allQuotesForChart = await prisma.quote.findMany(quotesChartQuery);
 
-        // Agrupar por fecha string YYYY-MM-DD
-        const quotesByDate = allQuotesThisMonth.reduce((acc, quote) => {
-            const dateStr = format(quote.createdAt, 'yyyy-MM-dd');
-            acc[dateStr] = (acc[dateStr] || 0) + 1;
+        let chartData;
+
+        if (chartRange <= 1) {
+            // Agrupar por día
+            const quotesByDate = allQuotesForChart.reduce((acc, quote) => {
+                const dateStr = format(quote.createdAt, 'yyyy-MM-dd');
+                acc[dateStr] = (acc[dateStr] || 0) + 1;
+                return acc;
+            }, {});
+
+            const daysInRange = eachDayOfInterval({ start: chartStart, end: chartEnd });
+            chartData = daysInRange.map(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                return {
+                    dateStr,
+                    dayLabel: format(day, 'dd MMM', { locale: es }),
+                    cotizaciones: quotesByDate[dateStr] || 0
+                };
+            });
+        } else {
+            // Agrupar por mes
+            const quotesByMonth = allQuotesForChart.reduce((acc, quote) => {
+                const monthStr = format(quote.createdAt, 'yyyy-MM');
+                acc[monthStr] = (acc[monthStr] || 0) + 1;
+                return acc;
+            }, {});
+
+            const monthsInRange = eachMonthOfInterval({ start: chartStart, end: chartEnd });
+            chartData = monthsInRange.map(month => {
+                const monthStr = format(month, 'yyyy-MM');
+                return {
+                    dateStr: monthStr,
+                    dayLabel: format(month, 'MMM yyyy', { locale: es }),
+                    cotizaciones: quotesByMonth[monthStr] || 0
+                };
+            });
+        }
+
+        // --- DONUT: Distribución de servicios en Avisos de Cobro ---
+        const donutRange = parseInt(req.query.donutRange) || 1;
+        const donutStart = subMonths(now, donutRange);
+        const donutEnd = now;
+
+        // Buscamos items directamente de los Avisos de Cobro creados en ese rango
+        const serviceItems = await prisma.paymentNoticeItem.findMany({
+            where: {
+                paymentNotice: {
+                    createdAt: { gte: donutStart, lte: donutEnd }
+                }
+            },
+            include: {
+                service: { select: { type: true, name: true } }
+            }
+        });
+
+        // Agrupar por tipo de servicio, sumando totalPrice
+        const serviceMap = serviceItems.reduce((acc, item) => {
+            const key   = item.service?.type  || 'OTHER';
+            const label = item.service?.name  || key;
+            if (!acc[key]) acc[key] = { type: key, name: label, value: 0, count: 0 };
+            acc[key].value += parseFloat(item.totalPrice || 0);
+            acc[key].count += 1;
             return acc;
         }, {});
 
-        // Rellenar los días del mes actual para que la gráfica no tenga huecos
-        const daysInMonth = eachDayOfInterval({ start: startCurrentMonth, end: endCurrentMonth });
-        
-        const chartData = daysInMonth.map(day => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            return {
-                dateStr,
-                dayLabel: format(day, 'dd MMM', { locale: es }),
-                cotizaciones: quotesByDate[dateStr] || 0
-            };
-        });
+        const serviceDistribution = Object.values(serviceMap).sort((a, b) => b.value - a.value);
 
         res.json({
+            dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
             metrics: {
                 approvedQuotesCount,
                 cxcPaidAmount,
@@ -162,7 +221,8 @@ export const getDashboardSummary = async (req, res) => {
                 latestDeliveryNotes,
                 topClients
             },
-            chartData
+            chartData,
+            serviceDistribution
         });
 
     } catch (error) {
@@ -174,15 +234,30 @@ export const getDashboardSummary = async (req, res) => {
 export const getMonthlyReportData = async (req, res) => {
     try {
         if (req.user.role !== 'ADMIN') {
-            return res.status(403).json({ message: 'No autorizado para emitir cierres' });
+            return res.status(403).json({ message: 'No autorizado para emitir reportes' });
         }
 
         const now = new Date();
-        const startCurrentMonth = startOfMonth(now);
-        const endCurrentMonth = endOfMonth(now);
-        const dateFilter = { gte: startCurrentMonth, lte: endCurrentMonth };
+        let startDate, endDate;
 
-        // 1. Ingresos y Egresos Globales del mes
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            endDate.setHours(23, 59, 59, 999);
+
+            if (isAfter(startDate, endDate)) {
+                return res.status(400).json({ message: 'La fecha inicial no puede ser posterior a la fecha final.' });
+            }
+        } else {
+            startDate = startOfMonth(now);
+            endDate = endOfMonth(now);
+        }
+
+        const dateFilter = { gte: startDate, lte: endDate };
+
+        // Calcular label legible del rango
+        const rangeLabel = format(startDate, 'dd MMM yyyy', { locale: es }) + ' — ' + format(endDate, 'dd MMM yyyy', { locale: es });
+
         // Ingresos -> Transacciones de CXC
         const rxTransactions = await prisma.paymentTransaction.findMany({
             where: { createdAt: dateFilter },
@@ -197,17 +272,16 @@ export const getMonthlyReportData = async (req, res) => {
         });
         const totalEgresos = pxTransactions.reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
 
-        // 2. Transacciones relevantes
         const combinedTransactions = [
-            ...rxTransactions.map(t => ({ 
-                ...t, 
-                typeStr: 'INGRESO (CXC)', 
+            ...rxTransactions.map(t => ({
+                ...t,
+                typeStr: 'INGRESO (CXC)',
                 recordDate: t.createdAt || t.date,
                 accountNumber: t.receivable?.number ? `CXC-${t.receivable.number}` : 'N/A'
             })),
-            ...pxTransactions.map(t => ({ 
-                ...t, 
-                typeStr: 'EGRESO (CXP)', 
+            ...pxTransactions.map(t => ({
+                ...t,
+                typeStr: 'EGRESO (CXP)',
                 recordDate: t.date,
                 accountNumber: t.payable?.number ? `CXP-${t.payable.number}` : 'N/A'
             }))
@@ -220,13 +294,13 @@ export const getMonthlyReportData = async (req, res) => {
         }));
 
         res.json({
-            monthName: format(now, 'MMMM yyyy', { locale: es }),
+            rangeLabel,
             totalIngresos,
             totalEgresos,
             balanceNeto: totalIngresos - totalEgresos,
             transactions: mappedTransactions
         });
-        
+
     } catch (error) {
         console.error('Error fetching monthly report:', error);
         res.status(500).json({ message: 'Error al generar reporte mensual' });

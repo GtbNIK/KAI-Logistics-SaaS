@@ -154,8 +154,9 @@ model Service {
   isActive    Boolean     @default(true) // Soft delete
 
   // Relations
-  rates       ServiceRate[]
-  items       QuoteItem[]
+  rates             ServiceRate[]
+  items             QuoteItem[]
+  paymentNoticeItems PaymentNoticeItem[]
 }
 
 model Zone {
@@ -372,6 +373,9 @@ model PaymentNoticeItem {
   id              String   @id @default(uuid())
   paymentNoticeId String
   paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id], onDelete: Cascade)
+  
+  serviceId       String?
+  service         Service? @relation(fields: [serviceId], references: [id])
   
   description     String
   quantity        Decimal  @db.Decimal(10, 2)
