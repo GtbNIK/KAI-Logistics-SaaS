@@ -10,6 +10,7 @@ import EntityTable from '../../components/shared/EntityTable';
 import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ZoneDetailModal from '../../components/zones/ZoneDetailModal';
+import PortDetailModal from '../../components/ports/PortDetailModal';
 
 // Adaptar servicio para el hook
 const adaptedService = {
@@ -31,6 +32,7 @@ const adaptedPortService = {
 const Zones = () => {
     const { user } = useAuth();
     const [detailItem, setDetailItem] = useState(null);
+	const [portDetailItem, setPortDetailItem] = useState(null);
 	const [activeTab, setActiveTab] = useState('zones');
     
     // Hook genérico con toda la lógica CRUD
@@ -102,6 +104,10 @@ const Zones = () => {
     const handleViewDetail = (item) => {
         setDetailItem(item);
     };
+
+	const handleViewPortDetail = (item) => {
+		setPortDetailItem(item);
+	};
 
     return (
         <div className="space-y-6">
@@ -179,6 +185,12 @@ const Zones = () => {
                 onClose={() => setDetailItem(null)}
                 zone={detailItem}
             />
+
+			<PortDetailModal
+				isOpen={!!portDetailItem}
+				onClose={() => setPortDetailItem(null)}
+				port={portDetailItem}
+			/>
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -258,6 +270,7 @@ const Zones = () => {
 					onPageChange={setPortPage}
 					filterStatus={portFilterStatus}
 					onFilterStatusChange={setPortFilterStatus}
+					onView={handleViewPortDetail}
 					onEdit={openEditPortForm}
 					onDelete={openDeletePortConfirm}
 					onToggleStatus={openTogglePortConfirm}

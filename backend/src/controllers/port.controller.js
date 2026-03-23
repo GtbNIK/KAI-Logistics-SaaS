@@ -5,6 +5,21 @@ if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 
 const normalizeCode = (code) => String(code || '').trim().toUpperCase();
 
+const buildPortRateWhere = (port) => {
+	const code = String(port?.code || '').trim();
+	const name = String(port?.name || '').trim();
+
+	const tokens = [code, name].filter(Boolean);
+	return {
+		OR: tokens.flatMap((token) => ([
+			{ originPort: { equals: token, mode: 'insensitive' } },
+			{ destinationPort: { equals: token, mode: 'insensitive' } },
+			{ originPort: { contains: token, mode: 'insensitive' } },
+			{ destinationPort: { contains: token, mode: 'insensitive' } }
+		]))
+	};
+};
+
 export const createPort = async (req, res) => {
 	try {
 		const { code, name } = req.body;
@@ -58,7 +73,17 @@ export const getPorts = async (req, res) => {
 				where,
 				orderBy: { name: 'asc' }
 			});
-			return res.json({ data: ports });
+
+			const portsWithRatesCount = await Promise.all(
+				ports.map(async (port) => {
+					const ratesCount = await prisma.serviceRate.count({
+						where: buildPortRateWhere(port)
+					});
+					return { ...port, ratesCount };
+				})
+			);
+
+			return res.json({ data: portsWithRatesCount });
 		}
 
 		const total = await prisma.port.count({ where });
@@ -69,8 +94,17 @@ export const getPorts = async (req, res) => {
 			orderBy: { name: 'asc' }
 		});
 
+		const portsWithRatesCount = await Promise.all(
+			ports.map(async (port) => {
+				const ratesCount = await prisma.serviceRate.count({
+					where: buildPortRateWhere(port)
+				});
+				return { ...port, ratesCount };
+			})
+		);
+
 		res.json({
-			data: ports,
+			data: portsWithRatesCount,
 			meta: {
 				total,
 				page: parseInt(page),
@@ -92,7 +126,26 @@ export const getPort = async (req, res) => {
 			return res.status(404).json({ message: 'Puerto no encontrado' });
 		}
 
-		res.json(port);
+		const rates = await prisma.serviceRate.findMany({
+			where: buildPortRateWhere(port),
+			include: {
+				service: { select: { id: true, name: true, code: true, type: true } },
+				ally: { select: { id: true, name: true } },
+				zone: { select: { id: true, name: true, internalCode: true } }
+			},
+			orderBy: { updatedAt: 'desc' }
+		});
+
+		const formattedRates = rates.map(rate => ({
+			...rate,
+			costPrice: parseFloat(rate.costPrice),
+			salePrice: parseFloat(rate.salePrice)
+		}));
+
+		res.json({
+			...port,
+			rates: formattedRates
+		});
 	} catch (error) {
 		console.error('Error getting port:', error);
 		res.status(500).json({ message: 'Error al obtener puerto' });
