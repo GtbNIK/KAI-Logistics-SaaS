@@ -15,6 +15,7 @@ import DeliveryNotes from './pages/operations/DeliveryNotes';
 import Settings from './pages/admin/Settings';
 import Shipments from './pages/tracking/Shipments';
 import Payables from './pages/finance/Payables';
+import CashFlow from './pages/finance/CashFlow';
 import Dashboard from './pages/Dashboard';
 import MainLayout from './layouts/MainLayout';
 
@@ -117,6 +118,14 @@ function App() {
                                     <ProtectedRoute>
                                         <MainLayout>
                                             <Payables />
+                                        </MainLayout>
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/dashboard/balance" element={
+                                    <ProtectedRoute>
+                                        <MainLayout>
+                                            <CashFlow />
                                         </MainLayout>
                                     </ProtectedRoute>
                                 } />

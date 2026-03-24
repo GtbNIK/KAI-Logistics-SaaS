@@ -9,7 +9,8 @@ import {
     TrendingUp, FileText, Ship, CreditCard, ArrowRight,
     Users, Loader2, CalendarDays, X, Bell, ChevronRight
 } from 'lucide-react';
-import ClosureReportButton, { generateClosurePdf } from '../components/dashboard/ClosureReportButton';
+import ClosureReportButton from '../components/dashboard/ClosureReportButton';
+import { generateClosurePdf } from '../components/dashboard/closurePdfGenerator';
 import { isFirstDayOfMonth, isLastDayOfMonth, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useToast } from '../context/ToastContext';
 
@@ -72,15 +73,78 @@ const notifTypeDot = {
     INFO:     'bg-blue-500',
 };
 
+// ─── Helpers para el selector de fechas ─────────────────────────────────────
+const MONTHS_LABELS = [
+    'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+];
+const YEAR_OPTIONS   = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
+const getDaysInMonth = (month, year) => new Date(year, month, 0).getDate();
+const buildDateStr   = (day, month, year) =>
+    `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+// Sub-selector compacto para el modal
+const CompactDateSelector = ({ label, day, month, year, onDay, onMonth, onYear }) => {
+    const days = Array.from({ length: getDaysInMonth(month, year) }, (_, i) => i + 1);
+    return (
+        <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">{label}</label>
+            <div className="flex gap-1.5">
+                <select
+                    value={day}
+                    onChange={e => onDay(Number(e.target.value))}
+                    className="flex-1 border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 bg-white"
+                >
+                    {days.map(d => <option key={d} value={d}>{String(d).padStart(2, '0')}</option>)}
+                </select>
+                <select
+                    value={month}
+                    onChange={e => {
+                        const m = Number(e.target.value);
+                        onMonth(m);
+                        const max = getDaysInMonth(m, year);
+                        if (day > max) onDay(max);
+                    }}
+                    className="flex-[2] border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 bg-white"
+                >
+                    {MONTHS_LABELS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+                <select
+                    value={year}
+                    onChange={e => {
+                        const y = Number(e.target.value);
+                        onYear(y);
+                        const max = getDaysInMonth(month, y);
+                        if (day > max) onDay(max);
+                    }}
+                    className="flex-[1.5] border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 bg-white"
+                >
+                    {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+            </div>
+        </div>
+    );
+};
+
 // Modal de selección de rango de fechas
 const DateRangeModal = ({ onClose, onApply, primaryColor }) => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const [from, setFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-    const [to, setTo]     = useState(today);
+    const now = new Date();
+
+    const [fromDay,   setFromDay]   = useState(1);
+    const [fromMonth, setFromMonth] = useState(now.getMonth() + 1);
+    const [fromYear,  setFromYear]  = useState(now.getFullYear());
+
+    const [toDay,   setToDay]   = useState(now.getDate());
+    const [toMonth, setToMonth] = useState(now.getMonth() + 1);
+    const [toYear,  setToYear]  = useState(now.getFullYear());
+
+    const fromStr = buildDateStr(fromDay, fromMonth, fromYear);
+    const toStr   = buildDateStr(toDay,   toMonth,   toYear);
+    const isInvalid = new Date(fromStr) > new Date(toStr);
 
     const handleApply = () => {
-        if (new Date(from) > new Date(to)) return;
-        onApply(from, to);
+        if (isInvalid) return;
+        onApply(fromStr, toStr);
         onClose();
     };
 
@@ -97,23 +161,17 @@ const DateRangeModal = ({ onClose, onApply, primaryColor }) => {
                     </button>
                 </div>
                 <div className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1.5">Desde</label>
-                        <input 
-                            type="date" value={from} max={to}
-                            onChange={(e) => setFrom(e.target.value)}
-                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1.5">Hasta</label>
-                        <input 
-                            type="date" value={to} min={from} max={today}
-                            onChange={(e) => setTo(e.target.value)}
-                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                        />
-                    </div>
-                    {new Date(from) > new Date(to) && (
+                    <CompactDateSelector
+                        label="Desde"
+                        day={fromDay}   month={fromMonth}   year={fromYear}
+                        onDay={setFromDay} onMonth={setFromMonth} onYear={setFromYear}
+                    />
+                    <CompactDateSelector
+                        label="Hasta"
+                        day={toDay}   month={toMonth}   year={toYear}
+                        onDay={setToDay} onMonth={setToMonth} onYear={setToYear}
+                    />
+                    {isInvalid && (
                         <p className="text-xs text-red-500">La fecha inicial no puede ser posterior a la fecha final.</p>
                     )}
                 </div>
@@ -123,7 +181,7 @@ const DateRangeModal = ({ onClose, onApply, primaryColor }) => {
                     </button>
                     <button
                         onClick={handleApply}
-                        disabled={new Date(from) > new Date(to)}
+                        disabled={isInvalid}
                         style={{ backgroundColor: primaryColor }}
                         className="flex-1 px-4 py-2 text-sm text-white rounded-lg hover:brightness-110 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >

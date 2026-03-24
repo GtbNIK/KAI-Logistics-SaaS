@@ -17,14 +17,14 @@ router.use(verifyToken);
  * @desc    Convertir cotización en Aviso de Cobro
  * @access  Private
  */
-router.post('/from-quote/:id', convertFromQuote);
+router.post('/from-quote/:id', authorize('ADMIN', 'SALES'), convertFromQuote);
 
 /**
  * @route   POST /api/payment-notices
  * @desc    Crear un Aviso de Cobro directamente (sin cotización)
  * @access  Private
  */
-router.post('/', createPaymentNotice);
+router.post('/', authorize('ADMIN', 'SALES'), createPaymentNotice);
 
 /**
  * @route   GET /api/payment-notices

@@ -10,6 +10,8 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
 
+    const API_URL = import.meta.env.VITE_API_URL || '/api';
+
     // Configurar axios para incluir credenciales (cookies)
     axios.defaults.withCredentials = true;
 
@@ -19,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkUser = async () => {
         try {
-            const res = await axios.get('/api/auth/me');
+            const res = await axios.get(`${API_URL}/auth/me`);
             setUser(res.data.user);
 
             // Recuperar expiresAt guardado en localStorage
@@ -42,7 +44,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
-        const res = await axios.post('/api/auth/login', { email, password });
+        const res = await axios.post(`${API_URL}/auth/login`, { email, password });
         setUser(res.data.user);
 
         // Guardar fecha de expiración
@@ -57,7 +59,7 @@ export const AuthProvider = ({ children }) => {
 
     const logout = useCallback(async () => {
         try {
-            await axios.post('/api/auth/logout');
+            await axios.post(`${API_URL}/auth/logout`);
         } catch {
             // Ignorar errores de red al cerrar sesión
         }
@@ -68,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
     const forceLogout = useCallback(async () => {
         try {
-            await axios.post('/api/auth/logout');
+            await axios.post(`${API_URL}/auth/logout`);
         } catch {
             // Ignorar errores
         }

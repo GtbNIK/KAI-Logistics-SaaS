@@ -16,7 +16,8 @@ import {
     Receipt,
     Wallet,
     TrendingDown,
-    TrendingUp
+    TrendingUp,
+    Landmark
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -72,8 +73,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             id: 'finanzas',
             label: 'Finanzas',
             items: [
-                { to: '/dashboard/cx-cobrar', icon: TrendingUp, label: 'Cuentas Por Cobrar', roles: ['ADMIN'] },
-                { to: '/dashboard/cx-pagar', icon: TrendingDown, label: 'Cuentas Por Pagar', roles: ['ADMIN'] },
+                { to: '/dashboard/cx-cobrar', icon: TrendingUp,   label: 'Cuentas Por Cobrar', roles: ['ADMIN'] },
+                { to: '/dashboard/cx-pagar',  icon: TrendingDown, label: 'Cuentas Por Pagar',  roles: ['ADMIN'] },
+                { to: '/dashboard/balance',   icon: Landmark,     label: 'Balance',             roles: ['ADMIN'] },
             ]
         },
     ];

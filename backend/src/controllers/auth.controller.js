@@ -120,10 +120,11 @@ export const login = async (req, res) => {
         });
 
         // Enviar token en cookie (httpOnly para seguridad)
+        const isProduction = process.env.NODE_ENV === 'production';
         res.cookie('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'strict',
             maxAge: 60 * 60 * 1000 // 1 hora
         });
 
