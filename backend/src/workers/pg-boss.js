@@ -41,9 +41,10 @@ export const initPgBoss = async () => {
 const registerWorkers = async () => {
     // Asegurar que la cola de expiraciones existe antes de empezar a trabajar con ella.
     try {
-        await boss.createQueue('check-expirations');
+        // Enviar un job vacío con retardo para asegurar que el motor cree la estructura en la DB si no existe.
+        await boss.send('check-expirations', {}, { startAfter: 60 * 60 * 24 * 365 }); 
     } catch (e) {
-        // En caso de que ya exista, ignora el error de creación (codigo "23505" de Postgres tipicamente)
+        console.warn('Advertencia al verificar la cola:', e.message);
     }
 
     // Definimos qué pasa cuando se emite el job 'check-expirations'
