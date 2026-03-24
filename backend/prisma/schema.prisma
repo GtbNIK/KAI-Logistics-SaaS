@@ -45,6 +45,13 @@ enum PaymentStatus {
   PAID
 }
 
+enum DeliveryNoteStatus {
+  DRAFT
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
 enum ShipmentStatus {
   PENDING
   AT_ORIGIN_WAREHOUSE
@@ -64,6 +71,7 @@ model User {
   password  String   // Hashed
   name      String
   role      UserRole
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -71,6 +79,8 @@ model User {
   clients     Client[]      @relation("UserClients") // Portfolio of clients for Sales reps
   quotes      Quote[]
   shipments   Shipment[]    @relation("ShipmentHandler") // Internal user tracking
+  shipmentsAsVendedor Shipment[] @relation("ShipmentVendedor")
+  notifications Notification[]
 }
 
 // -----------------------------------------------------------------------------
@@ -83,11 +93,18 @@ model Client {
   name           String
   rifOrId        String   @unique // RIF o Cédula
   email          String
-  phone          String
+  phone          String   @unique // Teléfono único por cliente
   address        String
   deliveryAddress String
   contactPerson  String
   referencePoint String
+  
+  // Nuevos campos solicitados
+  clientDetails    String?  // Descripción de lo que hace o pide comúnmente
+  deactivationNote String?  @db.Text // Nota al desactivar
+  
+  isActive       Boolean  @default(true) // Para inactivar clientes
+  deletedAt      DateTime? // Soft delete
   
   assignedToId   String?
   assignedTo     User?    @relation("UserClients", fields: [assignedToId], references: [id])
@@ -100,20 +117,28 @@ model Client {
   paymentNotices PaymentNotice[]
   receivables    Receivable[]
   deliveryNotes  DeliveryNote[]
+  receipts       PaymentReceipt[] // Recibos de pago
+  shipments      Shipment[]       @relation("ShipmentClient")
 }
 
 model Ally {
-  id          String   @id @default(uuid())
-  name        String
-  contactInfo String
-  address     String
+  id             String    @id @default(uuid())
+  internalCode   String    @unique // ALL-0001
+  name           String
+  rifOrId        String    @unique // RIF o Cédula (normalizado)
+  contactInfo    String
+  address        String
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive       Boolean   @default(true)
+  deletedAt      DateTime?
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
-  serviceRates ServiceRate[]
-  payables     Payable[]
+  serviceRates   ServiceRate[]
+  payables       Payable[]
+  quoteItems     QuoteItem[]
 }
 
 // -----------------------------------------------------------------------------
@@ -126,19 +151,47 @@ model Service {
   name        String
   type        ServiceType
   notes       String?     // Notas adicionales del servicio
+  isActive    Boolean     @default(true) // Soft delete
 
   // Relations
-  rates       ServiceRate[]
-  items       QuoteItem[]
+  rates             ServiceRate[]
+  items             QuoteItem[]
+  paymentNoticeItems PaymentNoticeItem[]
 }
 
 model Zone {
-  id          String   @id @default(uuid())
-  name        String   // e.g., "Zona 1 - Centro", "Zona 2 - Periferia"
-  description String?
+  id           String   @id @default(uuid())
+  internalCode String   @unique // Código interno: ZON-0001
+  name         String   // e.g., "Zona 1 - Centro", "Zona 2 - Periferia"
+  description  String?
+  isActive     Boolean  @default(true) // Soft delete
 
   // Relations
-  rates       ServiceRate[]
+  rates        ServiceRate[]
+  quoteItems   QuoteItem[]
+}
+
+model Port {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ShippingLine {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  code      String?    // Código opcional (ej: MSC, CMA, COSCO)
+  isActive  Boolean    @default(true)
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  shipments Shipment[]
 }
 
 // The "Tarifario": Intersection of Ally, Service, and Zone
@@ -154,7 +207,14 @@ model ServiceRate {
   zoneId    String?  // Optional: some services might not be zone-dependent
   zone      Zone?    @relation(fields: [zoneId], references: [id])
 
-  price     Decimal  @db.Decimal(10, 2)
+  // Pricing dual (costo del aliado vs precio de venta)
+  costPrice Decimal  @db.Decimal(10, 2) // Precio de compra al aliado
+  salePrice Decimal  @db.Decimal(10, 2) // Precio de venta al cliente
+  
+  // Campos para servicios marítimos/aéreos
+  originPort       String?
+  destinationPort  String?
+  shippingLine     String? // Línea naviera o aérea
   
   // Validity Period (prices change frequently)
   validFrom DateTime @default(now())
@@ -186,6 +246,7 @@ model Quote {
 
   totalAmount Decimal     @db.Decimal(10, 2)
   notes       String?
+  showNotesToClient Boolean @default(true) // Controla si las notas son visibles en el PDF
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -193,6 +254,7 @@ model Quote {
   // Relations
   items           QuoteItem[]
   paymentNotice   PaymentNotice? // Convert to order
+  deliveryNotes   DeliveryNote[]
 }
 
 model QuoteItem {
@@ -204,43 +266,89 @@ model QuoteItem {
   service       Service  @relation(fields: [serviceId], references: [id])
   
   // Snapshot of price calculation at the moment of quote
-  quantity      Int      @default(1)
+  quantity      Decimal  @db.Decimal(10, 2)
   unitPrice     Decimal  @db.Decimal(10, 2)
   totalPrice    Decimal  @db.Decimal(10, 2)
   
   // Metadata for the item
   description   String?
+
+  // Details responsible for the price
+  allyId        String?
+  ally          Ally?    @relation(fields: [allyId], references: [id])
+  
+  zoneId        String?
+  zone          Zone?    @relation(fields: [zoneId], references: [id])
+  
+  originPort    String?
+  destinationPort String?
 }
 
 model DeliveryNote {
-  id              String   @id @default(uuid())
-  number          Int      @unique @default(autoincrement())
+  id              String             @id @default(uuid())
+  number          Int                @unique @default(autoincrement())
   
-  date            DateTime @default(now())
+  date            DateTime           @default(now())
+  status          DeliveryNoteStatus @default(DRAFT)
+
+	warehouseNumber String
   
   clientId        String
-  client          Client   @relation(fields: [clientId], references: [id])
+  client          Client             @relation(fields: [clientId], references: [id])
   
-  // Delivery info (NO internal pricing/ally info visible to client)
-  deliveredTo     String?
-  deliveryAddress String?
+  quoteId         String?            // Cotización de origen (opcional)
+  quote           Quote?             @relation(fields: [quoteId], references: [id])
   
-  isClosed        Boolean  @default(false)
+  // Delivery info
+  deliveredTo     String?            // Persona que recibe
+  deliveryAddress String?            // Dirección puntual de entrega
+  notes           String?            @db.Text
   
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?          // Soft delete
+  
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
   
   // Relations
-  paymentNotice   PaymentNotice? // DeliveryNote generates PaymentNotice
+  items           DeliveryNoteItem[]
+}
+
+model DeliveryNoteItem {
+  id              String       @id @default(uuid())
+  deliveryNoteId  String
+  deliveryNote    DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  
+  d2dItemId        String?
+  d2dItem          D2DItem?     @relation(fields: [d2dItemId], references: [id])
+
+  description     String
+  quantity        Decimal      @db.Decimal(10, 2)
+	weight          Decimal?     @db.Decimal(10, 2)
+	cbm             Decimal?     @db.Decimal(10, 3)
+}
+
+model D2DItem {
+	id          String   @id @default(uuid())
+	description String   @unique
+	createdAt   DateTime @default(now())
+	updatedAt   DateTime @updatedAt
+
+	deliveryNoteItems DeliveryNoteItem[]
+}
+
+model SvcProvider {
+	id        String   @id @default(uuid())
+	name      String   @unique
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+
+	payables  Payable[]
 }
 
 model PaymentNotice {
   id              String   @id @default(uuid())
   number          Int      @unique @default(autoincrement())
   issueDate       DateTime @default(now())
-  
-  deliveryNoteId  String?  @unique
-  deliveryNote    DeliveryNote? @relation(fields: [deliveryNoteId], references: [id])
   
   quoteId         String?  @unique
   quote           Quote?   @relation(fields: [quoteId], references: [id])
@@ -250,27 +358,57 @@ model PaymentNotice {
 
   // General
   totalAmount     Decimal  @db.Decimal(10, 2)
+  notes           String?  @db.Text
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   // Relations
+  items           PaymentNoticeItem[]
   tracking        Shipment?
   receivable      Receivable?
 }
 
+model PaymentNoticeItem {
+  id              String   @id @default(uuid())
+  paymentNoticeId String
+  paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id], onDelete: Cascade)
+  
+  serviceId       String?
+  service         Service? @relation(fields: [serviceId], references: [id])
+  
+  description     String
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(10, 2)
+  totalPrice      Decimal  @db.Decimal(10, 2)
+}
+
 model Shipment {
   id              String   @id @default(uuid())
+  number          Int      @unique @default(autoincrement())
   
-  paymentNoticeId String   @unique
-  paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id])
+  paymentNoticeId String?  @unique
+  paymentNotice   PaymentNotice? @relation(fields: [paymentNoticeId], references: [id])
+
+  type            String   // "FCL" o "D2D"
   
   // Common fields
-  blNumber        String?  // BL Number (not container)
-  shippingLine    String?
+  blNumber        String?
+  bookingNumber   String?
+  shippingLine    String?  // Legado / texto libre
+  shippingLineId  String?
+  shippingLineRel ShippingLine? @relation(fields: [shippingLineId], references: [id])
   status          ShipmentStatus @default(PENDING)
-  currentLocation String?
-  clientName      String?  // Cliente asociado
+  currentLocation String?  // Para futura vista pública de tracking
+
+  // Cliente (FK + nombre denormalizado)
+  clientId        String?
+  clientRel       Client?  @relation("ShipmentClient", fields: [clientId], references: [id])
+  clientName      String?  // Denormalizado para fácil acceso
+
+  // Vendedor asignado (manual)
+  vendedorId      String?
+  vendedor        User?    @relation("ShipmentVendedor", fields: [vendedorId], references: [id])
   
   // FCL Specific
   containerType   String?  // Tipo de contenedor
@@ -288,6 +426,7 @@ model Shipment {
   updatedById     String
   updatedBy       User     @relation("ShipmentHandler", fields: [updatedById], references: [id])
 
+  createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
 
@@ -297,12 +436,15 @@ model Shipment {
 
 model Receivable {
   id              String        @id @default(uuid())
+  number          Int           @unique @default(autoincrement())
   
-  paymentNoticeId String        @unique
-  paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id])
+  paymentNoticeId String?       @unique
+  paymentNotice   PaymentNotice? @relation(fields: [paymentNoticeId], references: [id])
   
   clientId        String
   client          Client        @relation(fields: [clientId], references: [id])
+
+  manualNotes     String?       @db.Text
   
   totalAmount     Decimal       @db.Decimal(10, 2)
   paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
@@ -317,12 +459,18 @@ model Receivable {
 
 model Payable {
   id              String        @id @default(uuid())
+  number          Int           @unique @default(autoincrement())
   
-  allyId          String
-  ally            Ally          @relation(fields: [allyId], references: [id])
+  allyId          String?
+  ally            Ally?         @relation(fields: [allyId], references: [id])
+
+  svcProviderId   String?
+  svcProvider     SvcProvider?  @relation(fields: [svcProviderId], references: [id])
   
   description     String
   amount          Decimal       @db.Decimal(10, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  balance         Decimal       @db.Decimal(10, 2)
   status          PaymentStatus @default(PENDING)
   
   relatedOperationId String? // Optional link to PaymentNotice or Service
@@ -331,6 +479,48 @@ model Payable {
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  payments        PayableTransaction[]
+}
+
+model PayableTransaction {
+  id            String      @id @default(uuid())
+  payableId     String
+  payable       Payable     @relation(fields: [payableId], references: [id])
+  
+  amount        Decimal     @db.Decimal(10, 2)
+  date          DateTime    @default(now())
+  method        String
+  reference     String?
+  notes         String?     @db.Text
+}
+
+model Notification {
+  id              String   @id @default(uuid())
+  title           String
+  message         String
+  type            NotificationType @default(INFO)
+  isRead          Boolean  @default(false)
+  
+  // Si targetUserId está, la notificación es para ese usuario específico.
+  targetUserId    String?
+  targetUser      User?    @relation(fields: [targetUserId], references: [id])
+  
+  // Si la notificación es por roles (ej: ["ADMIN", "SALES"]). Si está vacío y targetUserId es null, es global.
+  targetRoles     String[] @default([])
+  
+  // Entidad relacionada para la redirección (ej: "QUOTE", "RECEIVABLE", "PAYABLE", "ALLY")
+  entityType      String?
+  entityId        String?
+  
+  createdAt       DateTime @default(now())
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ALARM
 }
 
 model PaymentTransaction {
@@ -340,10 +530,32 @@ model PaymentTransaction {
   
   amount        Decimal     @db.Decimal(10, 2)
   date          DateTime    @default(now())
-  method        String?     // Transfer, Zelle, Cash
+  method        String      // "EFECTIVO USD", "TRANSFERENCIA", "TRANSFERENCIA INTERNACIONAL", "PAGO MÓVIL", "BINANCE (USDT)", "ZELLE", "OTRO"
   reference     String?
+  notes         String?     @db.Text // Notas adicionales del pago
+  
+  receipt       PaymentReceipt? // Relación inversa
   
   createdAt     DateTime    @default(now())
+}
+
+model PaymentReceipt {
+  id                   String             @id @default(uuid())
+  receiptNumber        Int                @unique @default(autoincrement())
+  
+  paymentTransactionId String             @unique
+  paymentTransaction   PaymentTransaction @relation(fields: [paymentTransactionId], references: [id])
+  
+  clientId             String
+  client               Client             @relation(fields: [clientId], references: [id])
+  
+  amount               Decimal            @db.Decimal(10, 2)
+  paymentMethod        String             // "EFECTIVO USD" unicamente
+  reference            String?
+  
+  issuedBy             String             // Nombre del usuario que registró el pago
+  
+  createdAt            DateTime           @default(now())
 }
 
 // -----------------------------------------------------------------------------
@@ -365,6 +577,15 @@ model CompanySettings {
   // Document Info (Used for automated PDF Headers/Footers)
   headerText  String?
   footerText  String?
+
+  // PDF Background Images (rutas de archivos subidos)
+  quoteBgUrl          String?  // Fondo del PDF de cotizaciones
+  noticeBgUrl         String?  // Fondo del PDF de avisos de cobro
+  deliveryNoteBgUrl   String?  // Fondo del PDF de notas de entrega
+  receiptBgUrl        String?  // Fondo del PDF de recibos de pago
+
+  // Texto de información de pago para el PDF de Avisos de Cobro
+  paymentInfo String?  // Ej: "Banco: Banesco\nCuenta: 0134-...\nTitular: Empresa C.A."
   
   updatedAt   DateTime @updatedAt
 }

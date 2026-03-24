@@ -8,10 +8,11 @@ export default {
         extend: {
             colors: {
                 primary: {
-                    dark: '#1F3042',  // Azul oscuro
-                    light: '#4A90E2', // Azul claro
+                    DEFAULT: 'rgb(var(--color-primary-dark) / <alpha-value>)',
+                    dark: 'rgb(var(--color-primary-dark) / <alpha-value>)',
+                    light: 'rgb(var(--color-primary-light) / <alpha-value>)',
                 },
-                secondary: '#F58927', // Naranja
+                secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
             },
         },
     },
