@@ -1,0 +1,20 @@
+{
+  "short_name": "ERP Import Services",
+  "name": "Sistema ERP - Import Services C.A.",
+  "icons": [
+    {
+      "src": "/2.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/2.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0ea5e9",
+  "background_color": "#ffffff"
+}
