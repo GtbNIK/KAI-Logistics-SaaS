@@ -26,7 +26,7 @@ export default function Login() {
             <div 
                 className="absolute inset-0 z-0 bg-cover bg-center"
                 style={{ 
-                    backgroundImage: 'url("/fondo_login.jpeg")',
+                    backgroundImage: 'url("/fondo_login.webp")',
                     filter: 'brightness(0.6)' // Oscurecer para mejor contraste
                 }}
             />
@@ -42,7 +42,7 @@ export default function Login() {
                         className="h-20 mb-4 drop-shadow-md"
                     />
                     <div className="text-center text-white">
-                        <h1 className="text-2xl font-bold tracking-wide">Import Services</h1>
+                        <h1 className="text-2xl font-bold tracking-wide">ERP - Import Services</h1>
                         <p className="text-blue-200 text-sm font-light tracking-widest uppercase mt-1">
                             Inicio de Sesión
                         </p>

@@ -128,8 +128,8 @@ app.use((err, req, res, next) => {
 import { initPgBoss } from './workers/pg-boss.js';
 
 // Iniciar servidor
-app.listen(PORT, async () => {
-    console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`✅ Servidor corriendo en http://0.0.0.0:${PORT}`);
     console.log(`📊 Modo: ${process.env.NODE_ENV || 'development'}`);
     
     // Iniciar el motor de tareas recurrentes pg-boss
