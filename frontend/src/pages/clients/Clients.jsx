@@ -247,7 +247,7 @@ const Clients = () => {
                 showToggle={user?.role === 'ADMIN'}
                 codeColor={clientConfig.codeColor}
                 extraFilters={
-                    users.length > 0 && (
+                    user?.role === 'ADMIN' && users.length > 0 && (
                         <select
                             value={customFilters.assignedToId || ''}
                             onChange={(e) => setCustomFilters(

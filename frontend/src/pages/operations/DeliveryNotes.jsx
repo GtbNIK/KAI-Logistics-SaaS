@@ -166,13 +166,13 @@ const DeliveryNotes = () => {
                     </h1>
                     <p className="text-slate-500 mt-1">Gestión de entregas y cierre de operaciones logísticas</p>
                 </div>
-                <button
-                    onClick={() => { setEditingNote(null); setIsFormOpen(true); }}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
-                >
-                    <Plus size={20} />
-                    Nueva Nota
-                </button>
+                    <button
+                        onClick={() => { setEditingNote(null); setIsFormOpen(true); }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
+                    >
+                        <Plus size={20} />
+                        Nueva Nota
+                    </button>
             </div>
 
             <EntityTable

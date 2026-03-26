@@ -5,6 +5,7 @@
   "description": "Backend ERP Import Services",
   "main": "src/server.js",
   "scripts": {
+    "build": "prisma generate && prisma db push --accept-data-loss",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "migrate:dev": "prisma migrate dev",
@@ -17,7 +18,7 @@
     "logistics",
     "backend"
   ],
-  "author": "Neil",
+  "author": "NIKdev",
   "license": "ISC",
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = '/api/zones';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = `${BASE_URL}/zones`;
 
 const zoneService = {
     getAll: async (params = {}) => {

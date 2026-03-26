@@ -160,8 +160,14 @@ export const login = async (req, res) => {
  */
 export const logout = async (req, res) => {
     try {
-        // Limpiar cookie
-        res.clearCookie('token');
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        // Limpiar cookie con las mismas opciones que al crearla (reemplazando maxAge)
+        res.clearCookie('token', {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'strict'
+        });
 
         res.json({
             message: 'Sesión cerrada exitosamente'

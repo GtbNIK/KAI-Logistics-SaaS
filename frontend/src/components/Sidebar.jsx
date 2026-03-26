@@ -64,7 +64,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                         { to: '/dashboard/cotizaciones', label: 'Ver Cotizaciones' }
                     ]
                 },
-                { to: '/dashboard/nota-entrega', icon: ScrollText, label: 'Nota de Entrega', roles: ['ADMIN'] },
+                { to: '/dashboard/nota-entrega', icon: ScrollText, label: 'Nota de Entrega', roles: ['ADMIN', 'SALES'] },
                 { to: '/dashboard/aviso-cobro', icon: Receipt, label: 'Aviso de Cobro', roles: ['ADMIN', 'SALES'] },
                 { to: '/dashboard/embarques', icon: Container, label: 'Tracking', roles: ['ADMIN', 'SALES'] },
             ]
