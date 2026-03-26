@@ -18,7 +18,7 @@ router.use(verifyToken);
  * @route   POST /api/delivery-notes
  * @desc    Crear nueva nota de entrega
  */
-router.post('/', authorize('ADMIN'), createDeliveryNote);
+router.post('/', authorize('ADMIN', 'SALES'), createDeliveryNote);
 
 /**
  * @route   GET /api/delivery-notes
@@ -36,13 +36,13 @@ router.get('/:id', authorize('ADMIN', 'SALES'), getDeliveryNoteById);
  * @route   PUT /api/delivery-notes/:id
  * @desc    Actualizar nota de entrega (solo DRAFT)
  */
-router.put('/:id', authorize('ADMIN'), updateDeliveryNote);
+router.put('/:id', authorize('ADMIN', 'SALES'), updateDeliveryNote);
 
 /**
  * @route   PATCH /api/delivery-notes/:id/status
  * @desc    Cambiar estado de la nota
  */
-router.patch('/:id/status', authorize('ADMIN'), updateDeliveryNoteStatus);
+router.patch('/:id/status', authorize('ADMIN', 'SALES'), updateDeliveryNoteStatus);
 
 /**
  * @route   DELETE /api/delivery-notes/:id
