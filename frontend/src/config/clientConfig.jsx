@@ -172,6 +172,7 @@ export const clientConfig = {
             title: 'Asignación',
             icon: User,
             columns: 1,
+            showForRoles: ['ADMIN'], // Solo visible para ADMIN
             fields: [
                 {
                     name: 'assignedToId',

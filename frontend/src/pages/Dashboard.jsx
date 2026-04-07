@@ -519,7 +519,7 @@ const Dashboard = () => {
                             : 'grid-cols-1'
                     }`}>
                         {/* Línea: Cotizaciones Creadas */}
-                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[400px]">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
                                 <h3 className="font-semibold text-slate-800">
                                     {user?.role === 'ADMIN' ? "Cotizaciones Creadas" : "Tus Cotizaciones Creadas"}

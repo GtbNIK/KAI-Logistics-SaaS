@@ -51,6 +51,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         type: 'FCL',
         paymentNoticeId: '',
         blNumber: '',
+        whNumber: '',      // Warehouse Number para D2D
         bookingNumber: '',
         shippingLineId: '',
         status: 'PENDING',
@@ -106,6 +107,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 type: shipment.type || 'FCL',
                 paymentNoticeId: shipment.paymentNoticeId || '',
                 blNumber: shipment.blNumber || '',
+                whNumber: shipment.whNumber || '',      // Warehouse Number para D2D
                 bookingNumber: shipment.bookingNumber || '',
                 shippingLineId: shipment.shippingLineId || '',
                 status: shipment.status || 'PENDING',
@@ -392,11 +394,16 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Nro. BL</label>
-                                    <input type="text" value={form.blNumber}
-                                        onChange={e => handleChange('blNumber', e.target.value)}
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                                        {form.type === 'D2D' ? 'Nro. Warehouse' : 'Nro. BL'}
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        value={form.type === 'D2D' ? form.whNumber : form.blNumber}
+                                        onChange={e => handleChange(form.type === 'D2D' ? 'whNumber' : 'blNumber', e.target.value)}
                                         className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-sky-200"
-                                        placeholder="BL-000..." />
+                                        placeholder={form.type === 'D2D' ? 'WH-000...' : 'BL-000...'} 
+                                    />
                                 </div>
                                 {isFCL && (
                                     <div>

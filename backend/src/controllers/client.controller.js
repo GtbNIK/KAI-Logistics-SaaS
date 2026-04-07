@@ -65,8 +65,8 @@ export const createClient = async (req, res) => {
 
         const internalCode = await generateInternalCode();
         
-        // Si no se proporciona assignedToId, usar el usuario actual
-        const finalAssignedToId = assignedToId || req.user.id;
+        // Si no se proporciona assignedToId o si es SALES, usar el usuario actual
+        const finalAssignedToId = (req.user.role === 'SALES') ? req.user.id : (assignedToId || req.user.id);
 
         const client = await prisma.client.create({
             data: {
@@ -80,7 +80,12 @@ export const createClient = async (req, res) => {
                 contactPerson,
                 referencePoint,
                 clientDetails,
-                assignedToId: finalAssignedToId
+                assignedToId: finalAssignedToId,
+                updatedById: req.user.id
+            },
+            include: {
+                assignedTo: { select: { name: true, email: true } },
+                updatedBy: { select: { name: true, email: true } }
             }
         });
 
@@ -156,7 +161,10 @@ export const getClients = async (req, res) => {
              const clients = await prisma.client.findMany({
                 where,
                 orderBy: { name: 'asc' },
-                include: { assignedTo: { select: { name: true, email: true } } }
+                include: {
+                    assignedTo: { select: { name: true, email: true } },
+                    updatedBy: { select: { name: true, email: true } }
+                }
             });
             return res.json({ data: clients });
         }
@@ -172,7 +180,8 @@ export const getClients = async (req, res) => {
             include: {
                 assignedTo: {
                     select: { name: true, email: true }
-                }
+                },
+                updatedBy: { select: { name: true, email: true } }
             }
         });
 
@@ -195,14 +204,17 @@ export const getClient = async (req, res) => {
         const { id } = req.params;
         const client = await prisma.client.findUnique({
             where: { id },
-            include: { assignedTo: true }
+            include: {
+                assignedTo: true,
+                updatedBy: { select: { name: true, email: true } }
+            }
         });
 
         if (!client) {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
 
-        // Seguridad: Si es ventas, verificar que sea suyo
+        // Seguridad: Si es ventas, verificar que sea suyo o permitir creación
         if (req.user.role === 'SALES' && client.assignedToId !== req.user.id) {
             return res.status(403).json({ message: 'No tienes permiso para ver este cliente' });
         }
@@ -226,7 +238,7 @@ export const updateClient = async (req, res) => {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
 
-        // Seguridad
+        // Seguridad: SALES puede editar clientes
         if (req.user.role === 'SALES' && existingClient.assignedToId !== req.user.id) {
             return res.status(403).json({ message: 'No tienes permiso para editar este cliente' });
         }
@@ -263,21 +275,39 @@ export const updateClient = async (req, res) => {
             }
         }
 
+        const finalAssignedToId = (req.user.role === 'ADMIN')
+            ? (assignedToId !== undefined ? assignedToId : existingClient.assignedToId)
+            : existingClient.assignedToId;
+
         const updatedClient = await prisma.client.update({
             where: { id },
             data: {
-                name, rifOrId: normalizedRifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToId
+                name,
+                rifOrId: normalizedRifOrId,
+                email,
+                phone,
+                address,
+                deliveryAddress,
+                contactPerson,
+                referencePoint,
+                clientDetails,
+                assignedToId: finalAssignedToId,
+                updatedById: req.user.id
+            },
+            include: {
+                assignedTo: { select: { name: true, email: true } },
+                updatedBy: { select: { name: true, email: true } }
             }
         });
 
         // Notificar al nuevo vendedor si hubo cambio en la asignación
-        if (assignedToId && assignedToId !== existingClient.assignedToId) {
+        if (req.user.role === 'ADMIN' && finalAssignedToId && finalAssignedToId !== existingClient.assignedToId) {
             await createNotification({
                 title: 'Nuevo Cliente Asignado',
                 message: `Se te ha asignado el cliente ${updatedClient.name} (${updatedClient.internalCode}).`,
                 type: 'INFO',
-                targetUserId: assignedToId,
-                entityType: 'ALLY',
+                targetUserId: finalAssignedToId,
+                entityType: 'ALLY', // reutilizaremos ALLY icon o genérico de cliente si no hay
                 entityId: updatedClient.id
             });
         }

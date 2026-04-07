@@ -29,7 +29,9 @@ export const createPort = async (req, res) => {
 			return res.status(400).json({ message: 'El código es requerido' });
 		}
 
-		const existing = await prisma.port.findUnique({ where: { code: finalCode } });
+		const existing = await prisma.port.findFirst({ 
+			where: { code: { equals: finalCode, mode: 'insensitive' } }
+		});
 		if (existing) {
 			return res.status(400).json({ message: 'Ya existe un puerto con ese código' });
 		}
@@ -168,8 +170,10 @@ export const updatePort = async (req, res) => {
 		}
 
 		if (finalCode !== existingPort.code) {
-			const duplicate = await prisma.port.findUnique({ where: { code: finalCode } });
-			if (duplicate) {
+			const existing = await prisma.port.findFirst({ 
+				where: { code: { equals: finalCode, mode: 'insensitive' } }
+			});
+			if (existing) {
 				return res.status(400).json({ message: 'Ya existe un puerto con ese código' });
 			}
 		}

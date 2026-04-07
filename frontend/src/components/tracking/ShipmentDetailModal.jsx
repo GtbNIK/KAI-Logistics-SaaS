@@ -100,7 +100,7 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                                 Información General
                             </h3>
-                            <InfoRow icon={FileText} label="Nro. BL" value={s.blNumber} mono />
+                            <InfoRow icon={FileText} label={isFCL ? "Nro. BL" : "Nro. Warehouse"} value={isFCL ? s.blNumber : s.whNumber} mono />
                             {isFCL && <InfoRow icon={FileText} label="Nro. Booking" value={s.bookingNumber} mono />}
                             <InfoRow icon={Anchor} label="Línea Naviera" value={shippingLineName} />
                             <InfoRow icon={User} label="Cliente" value={s.clientName || s.clientRel?.name} />
