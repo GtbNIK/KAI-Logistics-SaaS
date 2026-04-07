@@ -6,16 +6,16 @@ if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 const normalizeCode = (code) => String(code || '').trim().toUpperCase();
 
 const buildPortRateWhere = (port) => {
-	const code = String(port?.code || '').trim();
-	const name = String(port?.name || '').trim();
+	const code = String(port?.code || '').trim().toUpperCase();
+	const name = String(port?.name || '').trim().toUpperCase();
 
 	const tokens = [code, name].filter(Boolean);
 	return {
 		OR: tokens.flatMap((token) => ([
-			{ originPort: { equals: token, mode: 'insensitive' } },
-			{ destinationPort: { equals: token, mode: 'insensitive' } },
-			{ originPort: { contains: token, mode: 'insensitive' } },
-			{ destinationPort: { contains: token, mode: 'insensitive' } }
+			{ code: { equals: token, mode: 'insensitive' } },
+			{ name: { equals: token, mode: 'insensitive' } },
+			{ code: { contains: token, mode: 'insensitive' } },
+			{ name: { contains: token, mode: 'insensitive' } }
 		]))
 	};
 };
@@ -29,7 +29,9 @@ export const createPort = async (req, res) => {
 			return res.status(400).json({ message: 'El código es requerido' });
 		}
 
-		const existing = await prisma.port.findUnique({ where: { code: finalCode } });
+		const existing = await prisma.port.findFirst({ 
+			where: { code: { equals: finalCode, mode: 'insensitive' } }
+		});
 		if (existing) {
 			return res.status(400).json({ message: 'Ya existe un puerto con ese código' });
 		}
@@ -168,8 +170,10 @@ export const updatePort = async (req, res) => {
 		}
 
 		if (finalCode !== existingPort.code) {
-			const duplicate = await prisma.port.findUnique({ where: { code: finalCode } });
-			if (duplicate) {
+			const existing = await prisma.port.findFirst({ 
+				where: { code: { equals: finalCode, mode: 'insensitive' } }
+			});
+			if (existing) {
 				return res.status(400).json({ message: 'Ya existe un puerto con ese código' });
 			}
 		}
