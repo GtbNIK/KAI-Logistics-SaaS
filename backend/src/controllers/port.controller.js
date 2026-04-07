@@ -6,16 +6,16 @@ if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 const normalizeCode = (code) => String(code || '').trim().toUpperCase();
 
 const buildPortRateWhere = (port) => {
-	const code = String(port?.code || '').trim().toUpperCase();
-	const name = String(port?.name || '').trim().toUpperCase();
+	const code = String(port?.code || '').trim();
+	const name = String(port?.name || '').trim();
 
 	const tokens = [code, name].filter(Boolean);
 	return {
 		OR: tokens.flatMap((token) => ([
-			{ code: { equals: token, mode: 'insensitive' } },
-			{ name: { equals: token, mode: 'insensitive' } },
-			{ code: { contains: token, mode: 'insensitive' } },
-			{ name: { contains: token, mode: 'insensitive' } }
+			{ originPort: { equals: token, mode: 'insensitive' } },
+			{ destinationPort: { equals: token, mode: 'insensitive' } },
+			{ originPort: { contains: token, mode: 'insensitive' } },
+			{ destinationPort: { contains: token, mode: 'insensitive' } }
 		]))
 	};
 };
