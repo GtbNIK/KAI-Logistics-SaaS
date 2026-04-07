@@ -89,7 +89,7 @@ export const getShipment = async (req, res) => {
 export const createShipment = async (req, res) => {
     try {
         const {
-            paymentNoticeId, type, blNumber, bookingNumber,
+            paymentNoticeId, type, blNumber, whNumber, bookingNumber,
             shippingLineId, clientId, clientName,
             vendedorId, currentLocation,
             containerType, containerQty, originPort, destPort, etd, eta,
@@ -125,6 +125,7 @@ export const createShipment = async (req, res) => {
         const data = {
             type,
             blNumber: blNumber || null,
+            whNumber: whNumber || null,
             bookingNumber: bookingNumber || null,
             shippingLineId: resolvedShippingLineId,
             clientId: resolvedClientId,
@@ -181,7 +182,7 @@ export const updateShipment = async (req, res) => {
     try {
         const { id } = req.params;
         const {
-            blNumber, bookingNumber, shippingLineId, status,
+            blNumber, whNumber, bookingNumber, shippingLineId, status,
             clientId, clientName, vendedorId, currentLocation,
             containerType, containerQty, originPort, destPort, etd, eta,
             weight, quantity, cbm
@@ -196,6 +197,7 @@ export const updateShipment = async (req, res) => {
 
         // Campos comunes (solo si se envían)
         if (blNumber !== undefined) data.blNumber = blNumber || null;
+        if (whNumber !== undefined) data.whNumber = whNumber || null;
         if (bookingNumber !== undefined) data.bookingNumber = bookingNumber || null;
         if (shippingLineId !== undefined) data.shippingLineId = shippingLineId || null;
         if (status !== undefined) data.status = status;

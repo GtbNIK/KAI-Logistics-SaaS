@@ -30,6 +30,9 @@ const Clients = () => {
     
     // Cargar usuarios para el selector de asignación
     useEffect(() => {
+        if (user?.role !== 'ADMIN') {
+            return;
+        }
         const fetchUsers = async () => {
             try {
                 const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/users`);
@@ -62,7 +65,12 @@ const Clients = () => {
             }
         };
         fetchUsers();
-    }, []);
+    }, [user?.role]);
+
+    const sectionsForUser = configWithUsers.formSections.filter(section => {
+        if (!section.showForRoles) return true;
+        return section.showForRoles.includes(user?.role);
+    });
     
     // Hook genérico con toda la lógica CRUD
     const {
@@ -152,7 +160,7 @@ const Clients = () => {
                 entityData={selectedItem}
                 service={adaptedService}
                 entityName={clientConfig.entityName}
-                sections={configWithUsers.formSections}
+                sections={sectionsForUser}
             />
             
             <ClientDetailModal
@@ -193,9 +201,9 @@ const Clients = () => {
                     <p className="text-slate-500 text-sm mt-1">Administra tu cartera de clientes y prospectos</p>
                 </div>
                 
-                {/* Botones de acción - Ocultar para rol SALES */}
-                {user?.role === 'ADMIN' && (
-                    <div className="flex gap-3">
+                {/* Botones de acción - ADMIN y SALES pueden crear clientes */}
+                <div className="flex gap-3">
+                    {(user?.role === 'ADMIN') && (
                         <button 
                             onClick={handleExportExcel}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95"
@@ -204,6 +212,8 @@ const Clients = () => {
                             <FileUp size={20} />
                             Exportar
                         </button>
+                    )}
+                    {(user?.role === 'ADMIN') && (
                         <button 
                             onClick={() => setIsImportOpen(true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
@@ -212,6 +222,8 @@ const Clients = () => {
                             <FileDown size={20} />
                             Importar
                         </button>
+                    )}
+                    {(user?.role === 'SALES' || user?.role === 'ADMIN') && (
                         <button 
                             onClick={openCreateForm}
                             className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
@@ -219,8 +231,8 @@ const Clients = () => {
                             <UserPlus size={20} />
                             Nuevo Cliente
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* Tabla genérica */}
@@ -243,7 +255,7 @@ const Clients = () => {
                 entityName={clientConfig.entityName}
                 entityNamePlural={clientConfig.entityNamePlural}
                 canDelete={user?.role === 'ADMIN'}
-                canEdit={user?.role === 'ADMIN'}
+                canEdit={user?.role === 'ADMIN' || user?.role === 'SALES'}
                 showToggle={user?.role === 'ADMIN'}
                 codeColor={clientConfig.codeColor}
                 extraFilters={

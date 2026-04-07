@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle } from 'lucide-react';
+import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle, Clock } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -32,6 +32,16 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
+        });
+    };
+
+    const formatDateTime = (dateString) => {
+        return new Date(dateString).toLocaleString('es-VE', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         });
     };
 
@@ -194,6 +204,16 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                                 <div>
                                     <p className="text-xs text-slate-400 mb-1">Fecha de Registro</p>
                                     <p className="font-medium text-slate-800">{formatDate(client.createdAt)}</p>
+                                </div>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
+                                <Clock className="text-slate-400 mt-0.5" size={18} />
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Última actualización</p>
+                                    <p className="font-medium text-slate-800">{formatDateTime(client.updatedAt)}</p>
+                                    {client.updatedBy?.name && (
+                                        <p className="text-xs text-slate-500 mt-1">por {client.updatedBy.name}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>

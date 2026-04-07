@@ -492,7 +492,7 @@ const CreateQuote = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
                 
                 {/* Left Panel: Form */}
-                <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col overflow-hidden min-h-[900px]">
                     <div className="mb-4">
                         <h2 className="text-lg font-semibold text-slate-800 mb-1">Configuración</h2>
                         <p className="text-sm text-slate-500">
@@ -592,12 +592,12 @@ const CreateQuote = () => {
                 </div>
 
                 {/* Right Panel: Preview */}
-                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 text-white flex flex-col relative overflow-hidden">
+                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 text-white flex flex-col relative overflow-hidden m-2 min-h-[900px]">
                     {/* Background decoration */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
 
-                    <div className="relative z-10 flex-1 flex flex-col min-h-0">
+                    <div className="relative z-10 flex-1 flex flex-col">
                         <h2 className="text-xl font-bold mb-1">Vista Previa</h2>
                         <p className="text-slate-400 text-sm mb-4">Resumen de la cotización</p>
 
