@@ -10,6 +10,7 @@ import portService from '../../services/port.service';
 import quoteService from '../../services/quote.service';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -280,6 +281,7 @@ import { useParams } from 'react-router-dom';
 const CreateQuote = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { showError, showSuccess, showWarning } = useToast();
     
     // Estados de carga
@@ -492,7 +494,7 @@ const CreateQuote = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
                 
                 {/* Left Panel: Form */}
-                <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col overflow-hidden min-h-[900px]">
+                <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col overflow-hidden min-h-[1000px]">
                     <div className="mb-4">
                         <h2 className="text-lg font-semibold text-slate-800 mb-1">Configuración</h2>
                         <p className="text-sm text-slate-500">
@@ -517,7 +519,7 @@ const CreateQuote = () => {
                     </div>
 
 					{/* Items */}
-					<div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+					<div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent min-h-[250px]">
 						{items.map((item, index) => (
 							<QuoteItemRow
 								key={item.id}
@@ -592,7 +594,7 @@ const CreateQuote = () => {
                 </div>
 
                 {/* Right Panel: Preview */}
-                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 text-white flex flex-col relative overflow-hidden m-2 min-h-[900px]">
+                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 text-white flex flex-col relative overflow-hidden min-h-[1000px]">
                     {/* Background decoration */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
@@ -657,11 +659,6 @@ const CreateQuote = () => {
                                                         Dirección: {selectedClient.data.address}
                                                     </p>
                                                 )}
-                                                {selectedClient?.data?.assignedTo && (
-                                                    <p className="text-xs text-slate-600">
-                                                        Vendedor: {selectedClient.data.assignedTo.name}
-                                                    </p>
-                                                )}
                                             </>
                                         );
                                     })()}
@@ -671,7 +668,7 @@ const CreateQuote = () => {
 
                         {/* Divisor de servicios - Fijo */}
                         <div className="mb-3">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-2 ">
                                 <Package size={16} className="text-white" />
                                 <span className="font-bold text-sm text-white">Servicios en la cotización:</span>
                             </div>
@@ -760,12 +757,13 @@ const CreateQuote = () => {
                 onClose={() => setShowPDFModal(false)}
                 quote={{
                     client: clients.find(c => c.value === clientId),
+                    user,
                     items,
                     total,
                     notes,
                     showNotesToClient,
-                    number: nextQuoteNumber, // Número estimado
-                    validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000) // 15 días
+                    number: nextQuoteNumber,
+                    validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
                 }}
                 services={services}
                 allies={allies}

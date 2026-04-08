@@ -36,10 +36,12 @@ const Clients = () => {
         const fetchUsers = async () => {
             try {
                 const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/users`);
-                const userOptions = response.data.users.map(u => ({
-                    value: u.id,
-                    label: `${u.name} (${u.role})`
-                }));
+                const userOptions = response.data.users
+                    .filter(u => u.role !== 'ADMIN')
+                    .map(u => ({
+                        value: u.id,
+                        label: `${u.name} (${u.role})`
+                    }));
                 
                 // Actualizar clientConfig con los usuarios cargados
                 const updatedConfig = {
@@ -49,7 +51,7 @@ const Clients = () => {
                             return {
                                 ...section,
                                 fields: section.fields.map(field => 
-                                    field.name === 'assignedToId' 
+                                    field.name === 'assignedToIds' 
                                         ? { ...field, options: userOptions }
                                         : field
                                 )

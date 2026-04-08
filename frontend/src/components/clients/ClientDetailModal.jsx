@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle, Clock } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const ClientDetailModal = ({ isOpen, onClose, client }) => {
+    const { user } = useAuth();
     const [receivablesSummary, setReceivablesSummary] = useState(null);
     const [loadingReceivables, setLoadingReceivables] = useState(false);
 
@@ -164,10 +166,12 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                                 <p className="text-xs text-slate-400 mb-1">Dirección Fiscal</p>
                                 <p className="font-medium text-slate-800">{client.address}</p>
                             </div>
-                            <div className="p-4 bg-slate-50 rounded-xl">
-                                <p className="text-xs text-slate-400 mb-1">Dirección de Entrega</p>
-                                <p className="font-medium text-slate-800">{client.deliveryAddress}</p>
-                            </div>
+                            {client.deliveryAddress && (
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                    <p className="text-xs text-slate-400 mb-1">Dirección de Entrega</p>
+                                    <p className="font-medium text-slate-800">{client.deliveryAddress}</p>
+                                </div>
+                            )}
                             {client.referencePoint && (
                                 <div className="p-4 bg-slate-50 rounded-xl">
                                     <p className="text-xs text-slate-400 mb-1">Punto de Referencia</p>
@@ -195,10 +199,24 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                             <UserCheck size={14} /> Asignación
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 bg-slate-50 rounded-xl">
-                                <p className="text-xs text-slate-400 mb-1">Vendedor Asignado</p>
-                                <p className="font-medium text-slate-800">{client.assignedTo?.name || 'Sin asignar'}</p>
-                            </div>
+                            {/* Solo ADMIN ve quiénes son los vendedores asignados */}
+                            {user?.role !== 'SALES' && (
+                                <div className="p-4 bg-slate-50 rounded-xl md:col-span-2">
+                                    <p className="text-xs text-slate-400 mb-2">Vendedores Asignados</p>
+                                    {client.assignedUsers && client.assignedUsers.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {client.assignedUsers.map(u => (
+                                                <span key={u.id} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-sm font-medium">
+                                                    <UserCheck size={13} />
+                                                    {u.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="font-medium text-slate-500 italic text-sm">Sin asignar</p>
+                                    )}
+                                </div>
+                            )}
                             <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
                                 <Calendar className="text-slate-400 mt-0.5" size={18} />
                                 <div>

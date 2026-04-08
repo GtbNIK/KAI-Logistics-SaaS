@@ -36,7 +36,7 @@ const generateInternalCode = async () => {
 
 export const createClient = async (req, res) => {
     try {
-        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToId } = req.body;
+        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToIds } = req.body;
         
         // Normalizar RIF/Cédula
         const normalizedRifOrId = normalizeRifOrId(rifOrId);
@@ -65,8 +65,15 @@ export const createClient = async (req, res) => {
 
         const internalCode = await generateInternalCode();
         
-        // Si no se proporciona assignedToId o si es SALES, usar el usuario actual
-        const finalAssignedToId = (req.user.role === 'SALES') ? req.user.id : (assignedToId || req.user.id);
+        // Si no se proporciona assignedToIds o si es SALES, usar el usuario actual
+        let finalAssignedToIds = [];
+        if (req.user.role === 'SALES') {
+            finalAssignedToIds = [req.user.id];
+        } else {
+            finalAssignedToIds = (assignedToIds && Array.isArray(assignedToIds) && assignedToIds.length > 0) 
+                                 ? assignedToIds 
+                                 : [req.user.id];
+        }
 
         const client = await prisma.client.create({
             data: {
@@ -80,25 +87,29 @@ export const createClient = async (req, res) => {
                 contactPerson,
                 referencePoint,
                 clientDetails,
-                assignedToId: finalAssignedToId,
+                assignedUsers: {
+                    connect: finalAssignedToIds.map(id => ({ id }))
+                },
                 updatedById: req.user.id
             },
             include: {
-                assignedTo: { select: { name: true, email: true } },
+                assignedUsers: { select: { id: true, name: true, email: true } },
                 updatedBy: { select: { name: true, email: true } }
             }
         });
 
-        // Notificar al vendedor de la asignación del nuevo cliente
-        if (finalAssignedToId) {
-            await createNotification({
-                title: 'Nuevo Cliente Asignado',
-                message: `Se ha creado y se te ha asignado el cliente ${client.name} (${client.internalCode}).`,
-                type: 'INFO',
-                targetUserId: finalAssignedToId,
-                entityType: 'CLIENT',
-                entityId: client.id
-            });
+        // Notificar a los vendedores de la asignación del nuevo cliente
+        for (const userId of finalAssignedToIds) {
+            if (userId !== req.user.id) { // Solo notificar si se lo asignamos a otra persona
+                await createNotification({
+                    title: 'Nuevo Cliente Asignado',
+                    message: `Se ha creado y se te ha asignado el cliente ${client.name} (${client.internalCode}).`,
+                    type: 'INFO',
+                    targetUserId: userId,
+                    entityType: 'CLIENT',
+                    entityId: client.id
+                });
+            }
         }
 
         res.status(201).json(client);
@@ -151,9 +162,9 @@ export const getClients = async (req, res) => {
 
         // SALES siempre ve solo sus clientes. ADMIN puede filtrar por vendedor
         if (isSales) {
-            where.assignedToId = req.user.id;
+            where.assignedUsers = { some: { id: req.user.id } };
         } else if (assignedToId) {
-            where.assignedToId = assignedToId;
+            where.assignedUsers = { some: { id: assignedToId } };
         }
 
         // Si all=true, devolver sin paginación (para selects)
@@ -162,7 +173,7 @@ export const getClients = async (req, res) => {
                 where,
                 orderBy: { name: 'asc' },
                 include: {
-                    assignedTo: { select: { name: true, email: true } },
+                    assignedUsers: { select: { id: true, name: true, email: true } },
                     updatedBy: { select: { name: true, email: true } }
                 }
             });
@@ -178,8 +189,8 @@ export const getClients = async (req, res) => {
             take,
             orderBy: { createdAt: 'desc' },
             include: {
-                assignedTo: {
-                    select: { name: true, email: true }
+                assignedUsers: {
+                    select: { id: true, name: true, email: true }
                 },
                 updatedBy: { select: { name: true, email: true } }
             }
@@ -205,7 +216,7 @@ export const getClient = async (req, res) => {
         const client = await prisma.client.findUnique({
             where: { id },
             include: {
-                assignedTo: true,
+                assignedUsers: { select: { id: true, name: true, email: true } },
                 updatedBy: { select: { name: true, email: true } }
             }
         });
@@ -214,8 +225,8 @@ export const getClient = async (req, res) => {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
 
-        // Seguridad: Si es ventas, verificar que sea suyo o permitir creación
-        if (req.user.role === 'SALES' && client.assignedToId !== req.user.id) {
+        // Seguridad: Si es ventas, verificar que sea suyo
+        if (req.user.role === 'SALES' && !client.assignedUsers.some(u => u.id === req.user.id)) {
             return res.status(403).json({ message: 'No tienes permiso para ver este cliente' });
         }
 
@@ -228,18 +239,21 @@ export const getClient = async (req, res) => {
 export const updateClient = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToId } = req.body;
+        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToIds } = req.body;
 
         // Normalizar RIF/Cédula
         const normalizedRifOrId = normalizeRifOrId(rifOrId);
 
-        const existingClient = await prisma.client.findUnique({ where: { id } });
+        const existingClient = await prisma.client.findUnique({ 
+            where: { id },
+            include: { assignedUsers: { select: { id: true } } }
+        });
         if (!existingClient) {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
 
         // Seguridad: SALES puede editar clientes
-        if (req.user.role === 'SALES' && existingClient.assignedToId !== req.user.id) {
+        if (req.user.role === 'SALES' && !existingClient.assignedUsers.some(u => u.id === req.user.id)) {
             return res.status(403).json({ message: 'No tienes permiso para editar este cliente' });
         }
 
@@ -275,9 +289,15 @@ export const updateClient = async (req, res) => {
             }
         }
 
-        const finalAssignedToId = (req.user.role === 'ADMIN')
-            ? (assignedToId !== undefined ? assignedToId : existingClient.assignedToId)
-            : existingClient.assignedToId;
+        let assignedUsersData = undefined;
+        if (req.user.role === 'ADMIN' && assignedToIds !== undefined) {
+             // Si pasaron un array (incluso vacío), actualizamos
+             if (Array.isArray(assignedToIds)) {
+                 assignedUsersData = {
+                     set: assignedToIds.map(id => ({ id }))
+                 };
+             }
+        }
 
         const updatedClient = await prisma.client.update({
             where: { id },
@@ -291,25 +311,32 @@ export const updateClient = async (req, res) => {
                 contactPerson,
                 referencePoint,
                 clientDetails,
-                assignedToId: finalAssignedToId,
+                ...(assignedUsersData ? { assignedUsers: assignedUsersData } : {}),
                 updatedById: req.user.id
             },
             include: {
-                assignedTo: { select: { name: true, email: true } },
+                assignedUsers: { select: { id: true, name: true, email: true } },
                 updatedBy: { select: { name: true, email: true } }
             }
         });
 
-        // Notificar al nuevo vendedor si hubo cambio en la asignación
-        if (req.user.role === 'ADMIN' && finalAssignedToId && finalAssignedToId !== existingClient.assignedToId) {
-            await createNotification({
-                title: 'Nuevo Cliente Asignado',
-                message: `Se te ha asignado el cliente ${updatedClient.name} (${updatedClient.internalCode}).`,
-                type: 'INFO',
-                targetUserId: finalAssignedToId,
-                entityType: 'CLIENT',
-                entityId: updatedClient.id
-            });
+        // Notificar a nuevos vendedores si hubo cambio en la asignación
+        if (req.user.role === 'ADMIN' && assignedToIds !== undefined && Array.isArray(assignedToIds)) {
+            const oldUserIds = existingClient.assignedUsers.map(u => u.id);
+            const newAssignedIds = assignedToIds.filter(id => !oldUserIds.includes(id));
+            
+            for (const userId of newAssignedIds) {
+                if (userId !== req.user.id) {
+                    await createNotification({
+                        title: 'Nuevo Cliente Asignado',
+                        message: `Se te ha asignado el cliente ${updatedClient.name} (${updatedClient.internalCode}).`,
+                        type: 'INFO',
+                        targetUserId: userId,
+                        entityType: 'CLIENT',
+                        entityId: updatedClient.id
+                    });
+                }
+            }
         }
 
         res.json(updatedClient);
@@ -347,7 +374,7 @@ export const toggleClientStatus = async (req, res) => {
         
         const existingClient = await prisma.client.findUnique({ 
             where: { id },
-            select: { isActive: true, assignedToId: true }
+            select: { isActive: true, assignedUsers: { select: { id: true } } }
         });
 
         if (!existingClient) {
@@ -355,7 +382,7 @@ export const toggleClientStatus = async (req, res) => {
         }
 
         // Seguridad: Ventas solo puede cambiar estado de sus clientes
-        if (req.user.role === 'SALES' && existingClient.assignedToId !== req.user.id) {
+        if (req.user.role === 'SALES' && !existingClient.assignedUsers.some(u => u.id === req.user.id)) {
             return res.status(403).json({ message: 'No tienes permiso para modificar este cliente' });
         }
 
@@ -389,8 +416,11 @@ export const getClientReceivablesSummary = async (req, res) => {
 
         // Verificar acceso SALES: solo puede ver sus clientes
         if (req.user.role === 'SALES') {
-            const client = await prisma.client.findUnique({ where: { id }, select: { assignedToId: true } });
-            if (!client || client.assignedToId !== req.user.id) {
+            const client = await prisma.client.findUnique({ 
+                where: { id }, 
+                select: { assignedUsers: { select: { id: true } } } 
+            });
+            if (!client || !client.assignedUsers.some(u => u.id === req.user.id)) {
                 return res.status(403).json({ message: 'No tienes acceso a este cliente' });
             }
         }

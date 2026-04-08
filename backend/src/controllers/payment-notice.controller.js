@@ -119,7 +119,7 @@ export const getPaymentNotices = async (req, res) => {
 
         // Si es SALES, solo ver avisos de sus clientes asignados
         if (isSales) {
-            where.client = { assignedToId: req.user.id };
+            where.client = { assignedUsers: { some: { id: req.user.id } } };
         }
 
         if (search) {
@@ -131,7 +131,7 @@ export const getPaymentNotices = async (req, res) => {
             };
             // Combinar filtro de SALES con búsqueda
             where = isSales
-                ? { AND: [{ client: { assignedToId: req.user.id } }, searchConditions] }
+                ? { AND: [{ client: { assignedUsers: { some: { id: req.user.id } } } }, searchConditions] }
                 : searchConditions;
         }
 
@@ -179,7 +179,7 @@ export const getPaymentNoticeById = async (req, res) => {
         const notice = await prisma.paymentNotice.findUnique({
             where: { id },
             include: {
-                client: true,
+                client: { include: { assignedUsers: { select: { id: true } } } },
                 items: true,
                 quote: {
                     select: { number: true }
@@ -199,7 +199,7 @@ export const getPaymentNoticeById = async (req, res) => {
         }
 
         // Si es rol de ventas, verificar que el aviso pertenezca a un cliente asignado
-        if (req.user.role === 'SALES' && notice.client.assignedToId !== req.user.id) {
+        if (req.user.role === 'SALES' && !notice.client.assignedUsers.some(u => u.id === req.user.id)) {
             return res.status(403).json({ message: 'No tienes permisos para ver el aviso de cobro de este cliente' });
         }
 
