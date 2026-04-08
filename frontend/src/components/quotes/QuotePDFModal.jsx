@@ -209,8 +209,9 @@ const QuotePDFModal = ({
                 yPos += 4;
             }
             
-            if (quote.client?.data?.assignedTo) {
-                doc.text(`Vendedor: ${quote.client.data.assignedTo.name}`, margin, yPos);
+            // Vendedor: usamos el autor de la cotización (Opción A)
+            if (quote.user?.name) {
+                doc.text(`Vendedor: ${quote.user.name}`, margin, yPos);
                 yPos += 4;
             }
             
@@ -414,8 +415,9 @@ const QuotePDFModal = ({
                                         {quote.client?.data?.address && (
                                             <p className="text-xs text-slate-600">Dirección: {quote.client.data.address}</p>
                                         )}
-                                        {quote.client?.data?.assignedTo && (
-                                            <p className="text-xs text-slate-600">Vendedor: {quote.client.data.assignedTo.name}</p>
+                                        {/* Vendedor: autor de la cotización */}
+                                        {quote.user?.name && (
+                                            <p className="text-xs text-slate-600">Vendedor: {quote.user.name}</p>
                                         )}
                                     </div>
                                 </div>

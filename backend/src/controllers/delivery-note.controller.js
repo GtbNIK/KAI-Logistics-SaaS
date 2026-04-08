@@ -19,7 +19,7 @@ export const getDeliveryNotes = async (req, res) => {
 
         // Filtrar por clientes asignados si es vendedor
         if (isSales) {
-            where.client = { assignedToId: req.user.id };
+            where.client = { assignedUsers: { some: { id: req.user.id } } };
         }
 
         // Filtro por estado
@@ -39,7 +39,7 @@ export const getDeliveryNotes = async (req, res) => {
 
             if (isSales) {
                 where.AND = [
-                    { client: { assignedToId: req.user.id } },
+                    { client: { assignedUsers: { some: { id: req.user.id } } } },
                     searchConditions
                 ];
                 delete where.client;
@@ -82,7 +82,7 @@ export const getDeliveryNoteById = async (req, res) => {
         const note = await prisma.deliveryNote.findUnique({
             where: { id },
             include: {
-                client: true,
+                client: { include: { assignedUsers: { select: { id: true } } } },
                 quote: { select: { number: true } },
                 items: true,
             }
@@ -93,7 +93,7 @@ export const getDeliveryNoteById = async (req, res) => {
         }
 
         // Restricción SALES
-        if (req.user.role === 'SALES' && note.client.assignedToId !== req.user.id) {
+        if (req.user.role === 'SALES' && !note.client.assignedUsers.some(u => u.id === req.user.id)) {
             return res.status(403).json({ message: 'No tienes acceso a esta nota de entrega' });
         }
 

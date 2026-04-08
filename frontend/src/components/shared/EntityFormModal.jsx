@@ -41,7 +41,15 @@ const EntityFormModal = ({
                 const initialData = {};
                 sections.forEach(section => {
                     section.fields.forEach(field => {
-                        initialData[field.name] = entityData[field.name] || '';
+                        if (field.type === 'multiselect') {
+                            // Extraer IDs del array de objetos (ej. assignedUsers -> assignedToIds)
+                            const arrayData = entityData.assignedUsers;
+                            initialData[field.name] = Array.isArray(arrayData)
+                                ? arrayData.map(u => u.id)
+                                : [];
+                        } else {
+                            initialData[field.name] = entityData[field.name] || '';
+                        }
                     });
                 });
                 setFormData(initialData);
@@ -50,7 +58,7 @@ const EntityFormModal = ({
                 const initialData = {};
                 sections.forEach(section => {
                     section.fields.forEach(field => {
-                        initialData[field.name] = field.defaultValue || '';
+                        initialData[field.name] = field.type === 'multiselect' ? [] : (field.defaultValue || '');
                     });
                 });
                 setFormData(initialData);
@@ -161,6 +169,30 @@ const EntityFormModal = ({
                                                     <option key={i} value={opt.value}>{opt.label}</option>
                                                 ))}
                                             </select>
+                                        ) : field.type === 'multiselect' ? (
+                                            <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl max-h-40 overflow-y-auto">
+                                                {field.options?.length > 0 ? (
+                                                    field.options.map(opt => (
+                                                        <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer hover:bg-white p-1.5 rounded-lg transition-colors">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={(formData[field.name] || []).includes(opt.value)}
+                                                                onChange={() => {
+                                                                    const current = formData[field.name] || [];
+                                                                    const next = current.includes(opt.value)
+                                                                        ? current.filter(v => v !== opt.value)
+                                                                        : [...current, opt.value];
+                                                                    setFormData(prev => ({ ...prev, [field.name]: next }));
+                                                                }}
+                                                                className="w-4 h-4 rounded accent-orange-500"
+                                                            />
+                                                            <span className="text-sm text-slate-700">{opt.label}</span>
+                                                        </label>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-xs text-slate-400 italic">No hay opciones disponibles</p>
+                                                )}
+                                            </div>
                                         ) : field.type === 'phone' ? (
                                             <div className="phone-input-container w-full">
                                                 {/* No renderizar PhoneInput hasta que formData tenga valor en modo edición */}

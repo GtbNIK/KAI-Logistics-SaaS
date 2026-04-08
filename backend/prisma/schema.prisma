@@ -76,12 +76,12 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  clients     Client[]      @relation("UserClients") // Portfolio of clients for Sales reps
-  updatedClients Client[]   @relation("ClientUpdatedBy")
-  quotes      Quote[]
-  shipments   Shipment[]    @relation("ShipmentHandler") // Internal user tracking
+  clients          Client[]      @relation("UserClients") // Portfolio of clients for Sales reps
+  updatedClients   Client[]      @relation("ClientUpdatedBy")
+  quotes           Quote[]
+  shipments        Shipment[]    @relation("ShipmentHandler") // Internal user tracking
   shipmentsAsVendedor Shipment[] @relation("ShipmentVendedor")
-  notifications Notification[]
+  notifications    Notification[]
 }
 
 // -----------------------------------------------------------------------------
@@ -107,8 +107,7 @@ model Client {
   isActive       Boolean  @default(true) // Para inactivar clientes
   deletedAt      DateTime? // Soft delete
   
-  assignedToId   String?
-  assignedTo     User?    @relation("UserClients", fields: [assignedToId], references: [id])
+  assignedUsers  User[]   @relation("UserClients")
 
   updatedById    String?
   updatedBy      User?    @relation("ClientUpdatedBy", fields: [updatedById], references: [id])

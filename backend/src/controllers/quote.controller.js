@@ -73,7 +73,7 @@ export const getQuote = async (req, res) => {
             include: {
                 client: {
                     include: {
-                        assignedTo: {
+                        assignedUsers: {
                             select: { id: true, name: true, email: true }
                         }
                     }

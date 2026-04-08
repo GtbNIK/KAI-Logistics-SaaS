@@ -576,6 +576,7 @@ const Quotes = () => {
                     quote={{
                         client: pdfData.clients.find(c => c.value === printingQuote.clientId),
                         clientName: printingQuote.client?.name,
+                        user: printingQuote.user,
                         items: printingQuote.items.map(item => ({
                             ...item,
                             quantity: parseFloat(item.quantity),
