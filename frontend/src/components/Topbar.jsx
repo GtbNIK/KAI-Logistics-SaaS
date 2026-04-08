@@ -1,114 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Settings, LogOut, Bell, Clock, AlertTriangle, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Settings, LogOut, Bell, Clock, X } from 'lucide-react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { notificationService } from '../services/notification.service';
+import useSessionTimer from '../hooks/useSessionTimer';
 
-// ─── Modal de Sesión por Expirar ──────────────────────────────────────────────
-const SessionWarningModal = ({ isOpen, onClose, onLogout, minutesLeft }) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-in fade-in zoom-in-95">
-                {/* Header */}
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-amber-50/50">
-                    <div className="p-2 bg-amber-100 rounded-xl">
-                        <AlertTriangle className="text-amber-600" size={22} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800">Sesión por expirar</h3>
-                        <p className="text-xs text-amber-600 font-medium">Acción requerida</p>
-                    </div>
-                </div>
-
-                {/* Body */}
-                <div className="p-6 space-y-4">
-                    <p className="text-slate-600 text-sm leading-relaxed">
-                        Tu sesión expirará en aproximadamente <strong className="text-amber-600">{minutesLeft} minutos</strong>.
-                        Por seguridad, deberás iniciar sesión nuevamente.
-                    </p>
-                    <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-700">
-                        💡 Guarda cualquier trabajo en progreso antes de que la sesión se cierre automáticamente.
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm"
-                    >
-                        Entendido
-                    </button>
-                    <button
-                        onClick={onLogout}
-                        className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all active:scale-95 text-sm"
-                    >
-                        <LogOut size={16} />
-                        Cerrar Sesión Ahora
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ─── Hook del Temporizador de Sesión ──────────────────────────────────────────
-const useSessionTimer = (sessionExpiresAt, onExpired) => {
-    const [secondsLeft, setSecondsLeft] = useState(null);
-    const [showWarning, setShowWarning] = useState(false);
-    const [warningDismissed, setWarningDismissed] = useState(false);
-
-    useEffect(() => {
-        if (!sessionExpiresAt) {
-            setSecondsLeft(null);
-            return;
-        }
-
-        const calculate = () => {
-            const now = new Date();
-            const expires = new Date(sessionExpiresAt);
-            const diff = Math.max(0, Math.floor((expires - now) / 1000));
-            return diff;
-        };
-
-        // Calcular inmediatamente
-        setSecondsLeft(calculate());
-
-        const interval = setInterval(() => {
-            const remaining = calculate();
-            setSecondsLeft(remaining);
-
-            // 10 minutos = 600 segundos
-            if (remaining <= 600 && remaining > 0 && !warningDismissed) {
-                setShowWarning(true);
-            }
-
-            // Sesión expirada
-            if (remaining <= 0) {
-                clearInterval(interval);
-                onExpired();
-            }
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [sessionExpiresAt, warningDismissed, onExpired]);
-
-    const dismissWarning = () => {
-        setShowWarning(false);
-        setWarningDismissed(true);
-    };
-
-    const formatTime = (totalSeconds) => {
-        if (totalSeconds === null) return '--:--';
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    };
-
-    return { secondsLeft, formattedTime: formatTime(secondsLeft), showWarning, dismissWarning };
-};
+// [bundle-dynamic-imports] Cargar de forma diferida el modal para reducir tamaño de bundle del navbar
+const SessionWarningModal = lazy(() => import('./SessionWarningModal'));
 
 // ─── Componente Topbar ────────────────────────────────────────────────────────
 const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
@@ -119,8 +17,8 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
 
-    // Fetch notifications
-    const fetchNotifications = async () => {
+    // [rerender-dependencies] Fetch notifications en useCallback
+    const fetchNotifications = useCallback(async () => {
         try {
             const res = await notificationService.getUnread();
             if (res && res.data) {
@@ -129,31 +27,32 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
         } catch (error) {
             console.error('Error fetching notifications:', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 60000); // Poll cada 60 segs
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchNotifications]);
 
-    // Temporizador de sesión
-    const handleSessionExpired = async () => {
+    // [rerender-dependencies] previene fuga de useEffect de intervalos envolviendo handle en useCallback
+    const handleSessionExpired = useCallback(async () => {
         await forceLogout();
         navigate('/login', { replace: true });
-    };
+    }, [forceLogout, navigate]);
 
+    // Hook modularizado importado
     const { secondsLeft, formattedTime, showWarning, dismissWarning } = useSessionTimer(
         sessionExpiresAt,
         handleSessionExpired
     );
 
-    // Logout manual
-    const handleLogout = async () => {
+    // [rerender-dependencies] Logout memorizado
+    const handleLogout = useCallback(async () => {
         setShowProfileMenu(false);
         await logout();
         navigate('/login', { replace: true });
-    };
+    }, [logout, navigate]);
 
     // Determinar color del timer según urgencia
     const getTimerColor = () => {
@@ -192,8 +91,8 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
 
                 {/* Right: Actions & Profile */}
                 <div className="flex items-center gap-4">
-                    {/* Temporizador de sesión */}
-                    {secondsLeft !== null && (
+                    {/* [rendering-conditional-render] ternario en vez de && */}
+                    {secondsLeft !== null ? (
                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100 ${getTimerColor()} transition-colors`}
                             title="Tiempo restante de sesión"
                         >
@@ -202,34 +101,37 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                 {formattedTime}
                             </span>
                         </div>
-                    )}
+                    ) : null}
 
                     {/* Notificaciones */}
                     <div className="relative">
                         <button 
-                            onClick={() => setShowNotifications(!showNotifications)}
+                            /* [rerender-functional-setstate] prevState en setter */
+                            onClick={() => setShowNotifications(prev => !prev)}
                             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors relative"
                         >
                             <Bell size={20} />
-                            {notifications.length > 0 && (
+                            {/* [rendering-conditional-render] ternario en vez de && */}
+                            {notifications.length > 0 ? (
                                 <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border-2 border-white shadow-sm">
                                     {notifications.length > 9 ? '9+' : notifications.length}
                                 </span>
-                            )}
+                            ) : null}
                         </button>
 
-                        {showNotifications && (
+                        {/* [rendering-conditional-render] ternario en vez de && */}
+                        {showNotifications ? (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}></div>
                                 <div className="absolute right-0 top-full mt-2 w-96 bg-white border border-slate-100 rounded-xl shadow-2xl shadow-slate-200/50 z-50 overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in slide-in-from-top-2">
                                     <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm">
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-semibold text-slate-800">Notificaciones</h3>
-                                            {notifications.length > 0 && (
+                                            {notifications.length > 0 ? (
                                                 <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{notifications.length}</span>
-                                            )}
+                                            ) : null}
                                         </div>
-                                        {notifications.length > 0 && (
+                                        {notifications.length > 0 ? (
                                             <button 
                                                 onClick={async () => {
                                                     await notificationService.markAllAsRead();
@@ -240,7 +142,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                             >
                                                 Marcar todas leídas
                                             </button>
-                                        )}
+                                        ) : null}
                                     </div>
                                     <div className="overflow-y-auto flex-1 p-2 custom-scrollbar">
                                         {notifications.length === 0 ? (
@@ -260,6 +162,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                                         onClick={() => {
                                                             setShowNotifications(false);
                                                             if (notif.entityType === 'QUOTE') navigate(`/dashboard/cotizaciones?id=${notif.entityId}`);
+                                                            else if (notif.entityType === 'CLIENT') navigate(`/dashboard/clientes?id=${notif.entityId}`);
                                                             else if (notif.entityType === 'RECEIVABLE') navigate(`/dashboard/cx-cobrar?id=${notif.entityId}`);
                                                             else if (notif.entityType === 'PAYABLE') navigate(`/dashboard/cx-pagar?id=${notif.entityId}`);
                                                             else if (notif.entityType === 'ALLY') navigate(`/dashboard/aliados?id=${notif.entityId}`);
@@ -299,14 +202,15 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                     </div>
                                 </div>
                             </>
-                        )}
+                        ) : null}
                     </div>
                     
                     {/* Divider */}
                     <div className="h-6 w-px bg-slate-200 mx-1"></div>
 
                     {/* Config Button (Solo Admin) */}
-                    {user?.role === 'ADMIN' && (
+                    {/* [rendering-conditional-render] ternario en vez de && */}
+                    {user?.role === 'ADMIN' ? (
                         <button 
                             onClick={() => navigate('/dashboard/configuracion')}
                             className={`
@@ -321,12 +225,13 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                             <Settings size={18} />
                             <span className="hidden md:inline">Configuración</span>
                         </button>
-                    )}
+                    ) : null}
 
                     {/* User Profile */}
                     <div className="relative">
                         <button 
-                            onClick={() => setShowProfileMenu(!showProfileMenu)}
+                            /* [rerender-functional-setstate] */
+                            onClick={() => setShowProfileMenu(prev => !prev)}
                             className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
                         >
                             <div className="text-right hidden md:block">
@@ -339,7 +244,8 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                         </button>
 
                         {/* Dropdown Menu */}
-                        {showProfileMenu && (
+                        {/* [rendering-conditional-render] ternario en vez de && */}
+                        {showProfileMenu ? (
                             <>
                                 <div 
                                     className="fixed inset-0 z-40" 
@@ -363,18 +269,20 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                     </button>
                                 </div>
                             </>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </header>
 
-            {/* Modal de advertencia de sesión */}
-            <SessionWarningModal
-                isOpen={showWarning}
-                onClose={dismissWarning}
-                onLogout={handleLogout}
-                minutesLeft={secondsLeft !== null ? Math.ceil(secondsLeft / 60) : 10}
-            />
+            {/* Modal de advertencia de sesión envuelto en Suspense por el lazy import */}
+            <Suspense fallback={null}>
+                <SessionWarningModal
+                    isOpen={showWarning}
+                    onClose={dismissWarning}
+                    onLogout={handleLogout}
+                    minutesLeft={secondsLeft !== null ? Math.ceil(secondsLeft / 60) : 10}
+                />
+            </Suspense>
         </>
     );
 };

@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+import defaultTheme from 'tailwindcss/defaultTheme';
+
 export default {
     content: [
         "./index.html",
@@ -6,6 +8,9 @@ export default {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
+            },
             colors: {
                 primary: {
                     DEFAULT: 'rgb(var(--color-primary-dark) / <alpha-value>)',
@@ -16,5 +21,5 @@ export default {
             },
         },
     },
-    plugins: [],
+    plugins: [require("tailwindcss-animate")],
 }

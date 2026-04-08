@@ -96,7 +96,7 @@ export const createClient = async (req, res) => {
                 message: `Se ha creado y se te ha asignado el cliente ${client.name} (${client.internalCode}).`,
                 type: 'INFO',
                 targetUserId: finalAssignedToId,
-                entityType: 'ALLY', // reutilizaremos ALLY icon o genérico de cliente si no hay
+                entityType: 'CLIENT',
                 entityId: client.id
             });
         }
@@ -307,7 +307,7 @@ export const updateClient = async (req, res) => {
                 message: `Se te ha asignado el cliente ${updatedClient.name} (${updatedClient.internalCode}).`,
                 type: 'INFO',
                 targetUserId: finalAssignedToId,
-                entityType: 'ALLY', // reutilizaremos ALLY icon o genérico de cliente si no hay
+                entityType: 'CLIENT',
                 entityId: updatedClient.id
             });
         }

@@ -7,3 +7,7 @@ dist/
 .DS_Store
 prisma/migrations/
 !prisma/migrations/.gitkeep
+
+# AI Agents & Skills
+.agents/
+skills-lock.json

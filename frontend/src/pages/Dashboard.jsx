@@ -14,45 +14,44 @@ import { generateClosurePdf } from '../components/dashboard/closurePdfGenerator'
 import { isFirstDayOfMonth, isLastDayOfMonth, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useToast } from '../context/ToastContext';
 
-const kpiCardClass = "bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between";
-const kpiTitleClass = "text-sm font-medium text-slate-500 uppercase tracking-wide";
-
-const DashboardInfoCard = ({ title, value, icon: Icon, colorClass, subtitle }) => (
-    <div className={kpiCardClass}>
+const DashboardInfoCard = ({ title, value, icon: Icon, colorClass, subtitle, delayClass = "" }) => (
+    <div className={`bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group ${delayClass} animate-in fade-in-0 slide-in-from-bottom-4 fill-mode-backwards duration-700`}>
         <div className="flex justify-between items-start">
             <div>
-                <p className={kpiTitleClass}>{title}</p>
-                <h3 className="text-3xl font-bold text-slate-800 mt-2">{value}</h3>
-                {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em]">{title}</p>
+                <h3 className="text-[2.5rem] leading-none font-extrabold text-slate-800 mt-4 tracking-tight group-hover:scale-[1.02] origin-left transition-transform duration-300">{value}</h3>
+                {subtitle && <p className="text-xs text-slate-400 mt-3 font-medium">{subtitle}</p>}
             </div>
-            <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
-                <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
+            <div className={`p-3.5 rounded-xl ${colorClass.split(' ')[0]} bg-opacity-10 ring-1 ring-inset ring-black/5`}>
+                <Icon className={`w-6 h-6 ${colorClass.split(' ')[1]}`} strokeWidth={2.5} />
             </div>
         </div>
     </div>
 );
 
-const PreviewTable = ({ title, icon: Icon, items, onNavigate, renderRow, emptyMessage, primaryColor }) => (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                <Icon className="w-4 h-4 text-slate-400" />
+const PreviewTable = ({ title, icon: Icon, items, onNavigate, renderRow, emptyMessage, primaryColor, delayClass = "" }) => (
+    <div className={`bg-white rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 overflow-hidden flex flex-col h-full ${delayClass} animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700`}>
+        <div className="px-6 py-5 border-b border-slate-100/60 bg-transparent flex justify-between items-center">
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 tracking-wide">
+                <div className="p-2 bg-slate-50 rounded-xl">
+                    <Icon className="w-4 h-4 text-slate-500" strokeWidth={2.5} />
+                </div>
                 {title}
             </h3>
         </div>
         <div className="flex-1 overflow-auto">
             {items && items.length > 0 ? (
-                <div className="divide-y divide-slate-100">{items.map(renderRow)}</div>
+                <div className="divide-y divide-slate-50/80">{items.map(renderRow)}</div>
             ) : (
-                <div className="p-8 text-center text-slate-400 text-sm">
+                <div className="p-10 text-center text-slate-400 text-sm font-medium">
                     {emptyMessage || "No hay datos para mostrar."}
                 </div>
             )}
         </div>
         <button 
             onClick={onNavigate}
-            style={{ backgroundColor: primaryColor || '#0ea5e9', color: '#fff' }}
-            className="p-3 w-full text-sm font-medium hover:brightness-110 transition-all flex items-center justify-center gap-2 mt-auto"
+            style={{ backgroundColor: primaryColor || '#0ea5e9' }}
+            className="m-3 p-3.5 rounded-xl text-sm font-bold text-white hover:brightness-110 transition-all flex items-center justify-center gap-2 mt-auto shadow-sm shadow-black/5"
         >
             Ver módulo completo <ArrowRight className="w-4 h-4" />
         </button>
@@ -304,6 +303,7 @@ const Dashboard = () => {
 
     const navigateFromNotif = (notif) => {
         if (notif.entityType === 'QUOTE')       navigate(`/dashboard/cotizaciones?id=${notif.entityId}`);
+        else if (notif.entityType === 'CLIENT')     navigate(`/dashboard/clientes?id=${notif.entityId}`);
         else if (notif.entityType === 'RECEIVABLE') navigate(`/dashboard/cx-cobrar?id=${notif.entityId}`);
         else if (notif.entityType === 'PAYABLE')    navigate(`/dashboard/cx-pagar?id=${notif.entityId}`);
         else if (notif.entityType === 'ALLY')       navigate(`/dashboard/aliados?id=${notif.entityId}`);
@@ -383,11 +383,11 @@ const Dashboard = () => {
             )}
             
             {/* ── Cabecera ────────────────────────────────── */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 animate-in fade-in-0 slide-in-from-top-4 fill-mode-backwards duration-700">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Resumen Operativo</h1>
-                    <p className="text-slate-500 text-sm mt-0.5">
-                        Métricas y rendimiento · <span className="font-medium text-slate-600">{rangeLabel}</span>
+                    <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Resumen Operativo</h1>
+                    <p className="text-slate-500 text-sm mt-1.5 font-medium">
+                        Métricas y rendimiento · <span className="font-bold text-slate-700">{rangeLabel}</span>
                     </p>
                 </div>
 
@@ -431,10 +431,11 @@ const Dashboard = () => {
             {!loading && (
                 <>
                     {/* ── Fila 1: KPIs y Actividad Reciente ── */}
-                    <div className={`grid gap-5 items-stretch ${user?.role === 'ADMIN' ? 'xl:grid-cols-[1fr_300px] 2xl:grid-cols-[1fr_340px]' : 'grid-cols-1'}`}>
+                    <div className={`grid gap-6 items-stretch ${user?.role === 'ADMIN' ? 'xl:grid-cols-[1fr_320px] 2xl:grid-cols-[1fr_360px]' : 'grid-cols-1'}`}>
                         {/* Columna Izquierda: KPIs */}
-                        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${user?.role === 'ADMIN' ? '2' : '3'} 2xl:grid-cols-${user?.role === 'ADMIN' ? '4' : '3'} gap-4`}>
+                        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${user?.role === 'ADMIN' ? '2' : '3'} 2xl:grid-cols-${user?.role === 'ADMIN' ? '4' : '3'} gap-6`}>
                             <DashboardInfoCard 
+                                delayClass="[animation-delay:100ms]"
                                 title={user?.role === 'ADMIN' ? "Cotizaciones Aprobadas" : "Tus Cotizaciones Aprobadas"} 
                                 value={metrics.approvedQuotesCount} 
                                 icon={FileText} colorClass="bg-blue-500 text-blue-500"
@@ -442,12 +443,14 @@ const Dashboard = () => {
                             />
                             {user?.role === 'ADMIN' && (
                                 <DashboardInfoCard 
+                                    delayClass="[animation-delay:200ms]"
                                     title="Ingresos CXC Cobradas" value={formatMoney(metrics.cxcPaidAmount)} 
                                     icon={TrendingUp} colorClass="bg-emerald-500 text-emerald-500"
                                     subtitle="Ingresos confirmados"
                                 />
                             )}
                             <DashboardInfoCard 
+                                delayClass="[animation-delay:300ms]"
                                 title={user?.role === 'ADMIN' ? "Embarques Pendientes" : "Tus Embarques Pendientes"} 
                                 value={metrics.pendingShipmentsCount} 
                                 icon={Ship} colorClass="bg-amber-500 text-amber-500"
@@ -455,12 +458,14 @@ const Dashboard = () => {
                             />
                             {user?.role === 'ADMIN' ? (
                                 <DashboardInfoCard 
+                                    delayClass="[animation-delay:400ms]"
                                     title="CXP pendientes" value={formatMoney(metrics.cxpPendingAmount)} 
                                     icon={CreditCard} colorClass="bg-rose-500 text-rose-500"
                                     subtitle="Deuda pendiente"
                                 />
                             ) : (
                                 <DashboardInfoCard 
+                                    delayClass="[animation-delay:200ms]"
                                     title="Rendimiento Global" value="Óptimo" 
                                     icon={TrendingUp} colorClass="bg-primary text-primary"
                                     subtitle="Métricas operativas en verde"
@@ -470,21 +475,23 @@ const Dashboard = () => {
 
                         {/* Columna Derecha: Panel de Actividad Reciente (solo ADMIN) */}
                         {user?.role === 'ADMIN' && (
-                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden max-h-[800px] xl:max-h-none h-full">
-                                <div className="px-4 py-4 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0">
-                                    <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                                        <Bell className="w-4 h-4 text-slate-400" />
+                            <div className="bg-white rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col overflow-hidden max-h-[800px] xl:max-h-none h-full animate-in fade-in-0 slide-in-from-right-4 fill-mode-backwards duration-700 [animation-delay:400ms]">
+                                <div className="px-6 py-5 border-b border-slate-100/60 bg-transparent flex items-center justify-between shrink-0">
+                                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 tracking-wide">
+                                        <div className="p-2 bg-slate-50 rounded-xl">
+                                            <Bell className="w-4 h-4 text-slate-500" strokeWidth={2.5} />
+                                        </div>
                                         Actividad Reciente
                                     </h3>
                                     {notifications.length > 0 && (
-                                        <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                        <span className="bg-slate-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
                                             {notifications.length}
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex-1 overflow-y-auto divide-y divide-slate-50 custom-scrollbar">
+                                <div className="flex-1 overflow-y-auto divide-y divide-slate-50/80 custom-scrollbar">
                                     {notifications.length === 0 ? (
-                                        <div className="p-8 text-center text-sm text-slate-400 flex flex-col items-center gap-2">
+                                        <div className="p-8 text-center text-sm text-slate-400 flex flex-col items-center gap-2 font-medium">
                                             <Bell className="w-6 h-6 text-slate-300" />
                                             <p>Sin actividad reciente</p>
                                         </div>
@@ -492,19 +499,19 @@ const Dashboard = () => {
                                         <button
                                             key={notif.id}
                                             onClick={() => navigateFromNotif(notif)}
-                                            className="w-full text-left p-3 hover:bg-slate-50 transition-colors flex items-start gap-3 group"
+                                            className="w-full text-left p-4 hover:bg-slate-50/80 transition-colors flex items-start gap-3 group"
                                         >
                                             <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${notifTypeDot[notif.type] || 'bg-blue-500'}`} />
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-xs text-slate-800 leading-tight truncate">{notif.title}</p>
-                                                <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2 leading-snug">{notif.message}</p>
-                                                <span className="text-[10px] text-slate-400 mt-1 block">
+                                                <p className="font-bold text-xs text-slate-800 leading-tight truncate">{notif.title}</p>
+                                                <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-snug font-medium">{notif.message}</p>
+                                                <span className="text-[10px] text-slate-400 mt-1.5 block font-bold tracking-wider">
                                                     {new Date(notif.createdAt).toLocaleString('es-VE', {
                                                         day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-                                                    })}
+                                                    }).toUpperCase()}
                                                 </span>
                                             </div>
-                                            <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 shrink-0 mt-1 transition-colors" />
+                                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 shrink-0 mt-1 transition-colors" />
                                         </button>
                                     ))}
                                 </div>
@@ -513,15 +520,18 @@ const Dashboard = () => {
                     </div>
 
                     {/* ── Fila 2: Gráficas ──────────────────── */}
-                    <div className={`grid gap-5 items-stretch ${
+                    <div className={`grid gap-6 items-stretch ${
                         user?.role === 'ADMIN' 
-                            ? 'grid-cols-1 lg:grid-cols-[1fr_300px] 2xl:grid-cols-[1fr_400px]' 
+                            ? 'grid-cols-1 lg:grid-cols-[1fr_320px] 2xl:grid-cols-[1fr_400px]' 
                             : 'grid-cols-1'
                     }`}>
                         {/* Línea: Cotizaciones Creadas */}
-                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[400px]">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
-                                <h3 className="font-semibold text-slate-800">
+                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col min-h-[400px] animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700 [animation-delay:500ms]">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                    <div className="p-2 bg-slate-50 rounded-xl">
+                                        <TrendingUp className="w-4 h-4 text-slate-500" strokeWidth={2.5} />
+                                    </div>
                                     {user?.role === 'ADMIN' ? "Cotizaciones Creadas" : "Tus Cotizaciones Creadas"}
                                 </h3>
                                 <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
@@ -569,9 +579,14 @@ const Dashboard = () => {
 
                         {/* Donut: Distribución de servicios en Avisos de Cobro */}
                         {user?.role === 'ADMIN' && (
-                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col" ref={donutChartRef}>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="font-semibold text-slate-800 text-sm">Servicios en A.C.</h3>
+                            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700 [animation-delay:600ms]" ref={donutChartRef}>
+                                <div className="flex justify-between items-center mb-5">
+                                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                        <div className="p-2 bg-slate-50 rounded-xl">
+                                            <FileText className="w-4 h-4 text-slate-500" strokeWidth={2.5} />
+                                        </div>
+                                        Servicios en A.C.
+                                    </h3>
                                     <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
                                         {CHART_RANGE_OPTIONS.map(opt => (
                                             <button
@@ -650,8 +665,9 @@ const Dashboard = () => {
                     </div>
 
                     {/* ── Preview Tables ───────────────────────── */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                         <PreviewTable 
+                            delayClass="[animation-delay:700ms]"
                             title={user?.role === 'ADMIN' ? "Últimas Notas de Entrega" : "Tus Últimas Notas de Entrega"}
                             icon={FileText} items={previews.latestDeliveryNotes} primaryColor={primaryColor}
                             onNavigate={() => navigate('/dashboard/nota-entrega')}
@@ -667,6 +683,7 @@ const Dashboard = () => {
                             )}
                         />
                         <PreviewTable 
+                            delayClass="[animation-delay:800ms]"
                             title={user?.role === 'ADMIN' ? "Top Clientes" : "Tus Mejores Clientes"}
                             icon={Users} items={previews.topClients} primaryColor={primaryColor}
                             onNavigate={() => navigate('/dashboard/clientes')}
@@ -686,6 +703,7 @@ const Dashboard = () => {
                             )}
                         />
                         <PreviewTable 
+                            delayClass="[animation-delay:900ms]"
                             title={user?.role === 'ADMIN' ? "Últimos Avisos de Cobro" : "Tus Últimos Avisos de Cobro"}
                             icon={FileText} items={previews.latestPaymentNotices} primaryColor={primaryColor}
                             onNavigate={() => navigate('/dashboard/aviso-cobro')}
