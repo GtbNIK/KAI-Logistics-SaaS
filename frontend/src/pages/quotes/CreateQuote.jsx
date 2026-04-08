@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Select from 'react-select';
-import { FileText, Save, ArrowLeft, Loader2, Plus, Trash2, Package, FileDown, Truck, MapPin, Ship, Plane } from 'lucide-react';
+import CreatableSelect from 'react-select/creatable';
+import { 
+    X, Save, Plus, Trash2, Package, Calculator, 
+    ArrowRight, Loader2, MapPin, Anchor, FileDown,
+    CalendarDays, ArrowLeft, Truck, Ship, Plane
+} from 'lucide-react';
 import clientService from '../../services/client.service';
 import serviceService from '../../services/service.service';
 import allyService from '../../services/ally.service';
@@ -11,6 +16,10 @@ import quoteService from '../../services/quote.service';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import DatePicker from '../../components/shared/DatePicker';
+import QuickCreateServiceModal from '../../components/quotes/QuickCreateServiceModal';
+import QuickCreatePortModal from '../../components/quotes/QuickCreatePortModal';
+import QuickCreateZoneModal from '../../components/quotes/QuickCreateZoneModal';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -24,7 +33,8 @@ const QuoteItemRow = ({
     onUpdate, 
     onRemove, 
     canRemove,
-    onRateFound
+    onRateFound,
+    onQuickCreate
 }) => {
     const [searchingRate, setSearchingRate] = useState(false);
     const [foundRate, setFoundRate] = useState(null);
@@ -35,8 +45,11 @@ const QuoteItemRow = ({
     const isLandService = ['DOOR_TO_DOOR', 'WAREHOUSE', 'CUSTOMS', 'OTHER'].includes(serviceType);
     const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
 
+    const isInitialLoad = useRef(true);
+
     // Buscar tarifa cuando cambian las selecciones
     useEffect(() => {
+        let isMounted = true;
         const fetchRate = async () => {
             if (!item.serviceId || !item.allyId) {
                 setFoundRate(null);
@@ -54,25 +67,43 @@ const QuoteItemRow = ({
                     destinationPort: item.destinationPort || undefined
                 });
 
+                if (!isMounted) return;
+
                 if (result.found && result.rate) {
                     setFoundRate(result.rate);
-                    onUpdate(index, { unitPrice: result.rate.salePrice });
+                    // Solo actualizar el precio si NO es la carga inicial o si el precio está en 0
+                    // IMPORTANTE: Si es carga inicial, respetamos el unitPrice que venga en el item (de la cotización cargada)
+                    if (!isInitialLoad.current || !item.unitPrice || parseFloat(item.unitPrice) === 0) {
+                        onUpdate(index, { unitPrice: result.rate.salePrice });
+                    }
                     onRateFound(index, result.rate);
                 } else {
                     setFoundRate(null);
-                    onUpdate(index, { unitPrice: 0 });
+                    // Solo poner a 0 si NO es la carga inicial
+                    if (!isInitialLoad.current) {
+                        onUpdate(index, { unitPrice: 0 });
+                    }
                     onRateFound(index, null);
                 }
-            } catch {
+            } catch (error) {
+                if (!isMounted) return;
+                console.error("Error al buscar tarifa:", error);
                 setFoundRate(null);
-                onUpdate(index, { unitPrice: 0 });
+                if (!isInitialLoad.current) {
+                    onUpdate(index, { unitPrice: 0 });
+                }
                 onRateFound(index, null);
             } finally {
-                setSearchingRate(false);
+                if (isMounted) {
+                    setSearchingRate(false);
+                    // Solo marcamos que dejó de ser carga inicial después del primer fetch exitoso/fallido
+                    isInitialLoad.current = false;
+                }
             }
         };
 
         fetchRate();
+        return () => { isMounted = false; };
     }, [item.serviceId, item.allyId, item.zoneId, item.originPort, item.destinationPort]);
 
     const subtotal = (item.quantity || 0) * (item.unitPrice || 0);
@@ -105,22 +136,34 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Servicio</label>
                     <Select
-                        options={services}
+                        options={[...services, { value: 'NEW', label: '+ Crear nuevo servicio', isAction: true }]}
                         value={services.find(s => s.value === item.serviceId)}
                         isLoading={loadingData}
                         placeholder="Servicio..."
-                        onChange={(opt) => onUpdate(index, { 
-                            serviceId: opt?.value, 
-                            zoneId: null, 
-                            originPort: '', 
-                            destinationPort: '' 
-                        })}
+                        onChange={(opt) => {
+                            if (opt?.value === 'NEW') {
+                                onQuickCreate('SERVICE', index);
+                                return;
+                            }
+                            onUpdate(index, { 
+                                serviceId: opt?.value, 
+                                zoneId: null, 
+                                originPort: '', 
+                                destinationPort: '' 
+                            });
+                        }}
                         className="text-sm"
                         menuPortalTarget={document.body}
                         menuPosition="fixed"
                         styles={{ 
-                            control: (base) => ({ ...base, minHeight: '36px' }),
-                            menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                            control: (base) => ({ ...base, minHeight: '36px', borderRadius: '12px' }),
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                            option: (base, state) => ({
+                                ...base,
+                                color: state.data.isAction ? '#12284bff' : base.color,
+                                fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                             })
                         }}
                     />
                 </div>
@@ -138,30 +181,41 @@ const QuoteItemRow = ({
                         menuPortalTarget={document.body}
                         menuPosition="fixed"
                         styles={{ 
-                            control: (base) => ({ ...base, minHeight: '36px' }),
+                            control: (base) => ({ ...base, minHeight: '36px', borderRadius: '12px' }),
                             menuPortal: (base) => ({ ...base, zIndex: 9999 })
                         }}
                     />
                 </div>
             </div>
 
-            {/* Fila 2: Zona o Puertos */}
             {isLandService && (
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Zona de Destino</label>
                     <Select
-                        options={zones}
+                        options={[...zones, { value: 'NEW', label: '+ Crear nueva zona', isAction: true }]}
                         value={zones.find(z => z.value === item.zoneId)}
                         isLoading={loadingData}
                         placeholder="Zona..."
-                        onChange={(opt) => onUpdate(index, { zoneId: opt?.value })}
+                        onChange={(opt) => {
+                            if (opt?.value === 'NEW') {
+                                onQuickCreate('ZONE', index);
+                                return;
+                            }
+                            onUpdate(index, { zoneId: opt?.value });
+                        }}
                         isClearable
                         className="text-sm"
                         menuPortalTarget={document.body}
                         menuPosition="fixed"
                         styles={{ 
-                            control: (base) => ({ ...base, minHeight: '36px' }),
-                            menuPortal: (base) => ({ ...base, zIndex: 9999 })
+                            control: (base) => ({ ...base, minHeight: '36px', borderRadius: '12px' }),
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                            option: (base, state) => ({
+                                ...base,
+                                color: state.data.isAction ? '#12284bff' : base.color,
+                                fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                             })
                         }}
                     />
                 </div>
@@ -172,36 +226,60 @@ const QuoteItemRow = ({
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Origen</label>
 						<Select
-							options={ports}
+							options={[...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }]}
 							value={ports.find(p => p.label === item.originPort)}
 							isLoading={loadingData}
 							placeholder="Puerto..."
-							onChange={(opt) => onUpdate(index, { originPort: opt?.label || '' })}
+                            onChange={(opt) => {
+                                if (opt?.value === 'NEW') {
+                                    onQuickCreate('PORT_ORIGIN', index);
+                                    return;
+                                }
+                                onUpdate(index, { originPort: opt?.label || '' });
+                            }}
 							isClearable
 							className="text-sm"
 							menuPortalTarget={document.body}
 							menuPosition="fixed"
 							styles={{
-								control: (base) => ({ ...base, minHeight: '36px' }),
-								menuPortal: (base) => ({ ...base, zIndex: 9999 })
+								control: (base) => ({ ...base, minHeight: '36px', borderRadius: '12px' }),
+								menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                option: (base, state) => ({
+                                    ...base,
+                                    color: state.data.isAction ? '#12284bff' : base.color,
+                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                 })
 							}}
 						/>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Destino</label>
 						<Select
-							options={ports}
+							options={[...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }]}
 							value={ports.find(p => p.label === item.destinationPort)}
 							isLoading={loadingData}
 							placeholder="Puerto..."
-							onChange={(opt) => onUpdate(index, { destinationPort: opt?.label || '' })}
+                            onChange={(opt) => {
+                                if (opt?.value === 'NEW') {
+                                    onQuickCreate('PORT_DESTINATION', index);
+                                    return;
+                                }
+                                onUpdate(index, { destinationPort: opt?.label || '' });
+                            }}
 							isClearable
 							className="text-sm"
 							menuPortalTarget={document.body}
 							menuPosition="fixed"
 							styles={{
-								control: (base) => ({ ...base, minHeight: '36px' }),
-								menuPortal: (base) => ({ ...base, zIndex: 9999 })
+								control: (base) => ({ ...base, minHeight: '36px', borderRadius: '12px' }),
+								menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                option: (base, state) => ({
+                                    ...base,
+                                    color: state.data.isAction ? '#12284bff' : base.color,
+                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                 })
 							}}
 						/>
                     </div>
@@ -275,40 +353,36 @@ const QuoteItemRow = ({
     );
 };
 
-import { useParams } from 'react-router-dom';
-
-// Componente principal
 const CreateQuote = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const { showError, showSuccess, showWarning } = useToast();
     
-    // Estados de carga
     const [loadingData, setLoadingData] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-
-    // Datos para selectores
     const [clients, setClients] = useState([]);
     const [services, setServices] = useState([]);
     const [allies, setAllies] = useState([]);
     const [zones, setZones] = useState([]);
 	const [ports, setPorts] = useState([]);
 
-    // Estado del formulario
     const [clientId, setClientId] = useState(null);
     const [notes, setNotes] = useState('');
     const [showNotesToClient, setShowNotesToClient] = useState(true);
-    const [nextQuoteNumber, setNextQuoteNumber] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [showPDFModal, setShowPDFModal] = useState(false);
+    const [nextQuoteNumber, setNextQuoteNumber] = useState(1);
+    
+    const [validUntil, setValidUntil] = useState(
+        new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    );
+
+    const [quickCreateType, setQuickCreateType] = useState(null);
+    const [quickCreateRowIndex, setQuickCreateRowIndex] = useState(null);
     const [items, setItems] = useState([createEmptyItem()]);
     
     // Tarifas encontradas por item
     const [itemRates, setItemRates] = useState({});
-    
-    // Estado para el modal de PDF
-    const [showPDFModal, setShowPDFModal] = useState(false);
-
-    // Debounce para búsqueda de clientes
     const [clientInputValue, setClientInputValue] = useState('');
     const [filteredClients, setFilteredClients] = useState([]);
 
@@ -326,7 +400,7 @@ const CreateQuote = () => {
 
     function createEmptyItem() {
         return {
-            id: Date.now(), // ID temporal para key
+            id: Date.now(),
             serviceId: null,
             allyId: null,
             zoneId: null,
@@ -338,7 +412,6 @@ const CreateQuote = () => {
         };
     }
 
-    // Cargar datos iniciales
     useEffect(() => {
         const loadData = async () => {
             setLoadingData(true);
@@ -364,6 +437,7 @@ const CreateQuote = () => {
                     setNotes(quote.notes || '');
                     setShowNotesToClient(quote.showNotesToClient);
                     setNextQuoteNumber(quote.number);
+                    setValidUntil(new Date(quote.validUntil).toISOString().split('T')[0]);
                     
                     const mappedItems = quote.items.map(item => ({
                         id: item.id,
@@ -445,7 +519,7 @@ const CreateQuote = () => {
         try {
             const payload = {
                 clientId,
-                validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 días
+                validUntil: new Date(validUntil),
                 notes,
                 showNotesToClient,
                 items: validItems.map(item => ({
@@ -534,6 +608,10 @@ const CreateQuote = () => {
 								onRemove={removeItem}
 								canRemove={items.length > 1}
 								onRateFound={handleRateFound}
+								onQuickCreate={(type, idx) => {
+                                    setQuickCreateType(type);
+                                    setQuickCreateRowIndex(idx);
+                                }}
 							/>
 						))}
 					</div>
@@ -569,27 +647,35 @@ const CreateQuote = () => {
                         />
                     </div>
 
-                    {/* Botones de acción */}
-                    <div className="mt-4 flex gap-3">
-                        {/* Botón Vista Previa PDF */}
-                        <button
-                            onClick={() => setShowPDFModal(true)}
-                            disabled={!clientId || items.every(i => !i.serviceId)}
-                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-4 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            <FileDown size={20} />
-                            Ver PDF
-                        </button>
-                        
+                    <div className="mt-4 flex flex-wrap gap-3">
+                        <div className="w-full sm:w-auto">
+                            <DatePicker 
+                                label="Válida hasta"
+                                value={validUntil}
+                                onChange={setValidUntil}
+                            />
+                        </div>
+
+                        <div className="flex gap-3 flex-1">
+                            <button
+                                onClick={() => setShowPDFModal(true)}
+                                disabled={!clientId || items.every(i => !i.serviceId)}
+                                className="flex-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-medium py-2.5 px-4 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                            >
+                                <FileDown size={18} className="text-slate-400" />
+                                <span className="text-sm">Ver PDF</span>
+                            </button>
+                            
                         {/* Botón Guardar */}
-                        <button
-                            onClick={handleSubmit}
-                            disabled={submitting || !clientId || items.every(i => !i.serviceId)}
-                            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-orange-500/30 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {submitting ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                            Guardar
-                        </button>
+                            <button
+                                onClick={handleSubmit}
+                                disabled={submitting || !clientId || items.every(i => !i.serviceId)}
+                                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-orange-500/30 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {submitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                <span className="text-sm">Guardar</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -614,59 +700,8 @@ const CreateQuote = () => {
                             <p className="font-medium text-black mb-2">
                                 {clients.find(c => c.value === clientId)?.label || 'Sin seleccionar'}
                             </p>
-                            
-                            {/* Dos columnas para la info del cliente */}
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                                {/* Columna 1 */}
-                                <div className="space-y-1">
-                                    {(() => {
-                                        const selectedClient = clients.find(c => c.value === clientId);
-                                        return (
-                                            <>
-                                                {selectedClient?.data?.rifOrId && (
-                                                    <p className="text-xs text-slate-600">
-                                                        RIF/Cédula: {selectedClient.data.rifOrId}
-                                                    </p>
-                                                )}
-                                                {selectedClient?.data?.contactPerson && (
-                                                    <p className="text-xs text-slate-600">
-                                                        Contacto: {selectedClient.data.contactPerson}
-                                                    </p>
-                                                )}
-                                                {selectedClient?.data?.phone && (
-                                                    <p className="text-xs text-slate-600">
-                                                        Teléfono: {selectedClient.data.phone}
-                                                    </p>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                                
-                                {/* Columna 2 */}
-                                <div className="space-y-1">
-                                    {(() => {
-                                        const selectedClient = clients.find(c => c.value === clientId);
-                                        return (
-                                            <>
-                                                {selectedClient?.data?.email && (
-                                                    <p className="text-xs text-slate-600">
-                                                        Email: {selectedClient.data.email}
-                                                    </p>
-                                                )}
-                                                {selectedClient?.data?.address && (
-                                                    <p className="text-xs text-slate-600">
-                                                        Dirección: {selectedClient.data.address}
-                                                    </p>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
                         </div>
 
-                        {/* Divisor de servicios - Fijo */}
                         <div className="mb-3">
                             <div className="flex items-center gap-2 mb-2 ">
                                 <Package size={16} className="text-white" />
@@ -677,7 +712,7 @@ const CreateQuote = () => {
 
                         {/* Lista de items - Scrolleable */}
                         <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
-                            {items.filter(i => i.serviceId).map((item, index) => {
+                            {items.filter(i => i.serviceId).map((item, idx) => {
                                 const service = services.find(s => s.value === item.serviceId);
                                 const ally = allies.find(a => a.value === item.allyId);
                                 const zone = zones.find(z => z.value === item.zoneId);
@@ -763,11 +798,43 @@ const CreateQuote = () => {
                     notes,
                     showNotesToClient,
                     number: nextQuoteNumber,
-                    validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+                    validUntil: new Date(validUntil)
                 }}
                 services={services}
                 allies={allies}
                 zones={zones}
+            />
+
+            {/* Modales de Creación Rápida */}
+            <QuickCreateServiceModal 
+                isOpen={quickCreateType === 'SERVICE'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newService) => {
+                    setServices(prev => [...prev, newService].sort((a, b) => a.label.localeCompare(b.label)));
+                    updateItem(quickCreateRowIndex, { serviceId: newService.value });
+                }}
+            />
+
+            <QuickCreatePortModal 
+                isOpen={quickCreateType === 'PORT_ORIGIN' || quickCreateType === 'PORT_DESTINATION'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newPort) => {
+                    setPorts(prev => [...prev, newPort].sort((a, b) => a.label.localeCompare(b.label)));
+                    if (quickCreateType === 'PORT_ORIGIN') {
+                        updateItem(quickCreateRowIndex, { originPort: newPort.label });
+                    } else {
+                        updateItem(quickCreateRowIndex, { destinationPort: newPort.label });
+                    }
+                }}
+            />
+
+            <QuickCreateZoneModal 
+                isOpen={quickCreateType === 'ZONE'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newZone) => {
+                    setZones(prev => [...prev, newZone].sort((a, b) => a.label.localeCompare(b.label)));
+                    updateItem(quickCreateRowIndex, { zoneId: newZone.value });
+                }}
             />
         </div>
     );
