@@ -4,8 +4,6 @@ import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-router.use(verifyToken); // Todas las rutas requieren autenticación
-
 router.post('/', authorize('ADMIN', 'SALES'), clientController.createClient);
 router.get('/', authorize('ADMIN', 'SALES'), clientController.getClients);
 // Ruta específica ANTES de /:id para evitar conflictos
