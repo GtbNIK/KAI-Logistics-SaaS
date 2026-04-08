@@ -11,16 +11,9 @@ export const verifyToken = async (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
-        const user = await prisma.user.findUnique({
-            where: { id: decoded.id },
-            select: { id: true, email: true, name: true, role: true }
-        });
-
-        if (!user) {
-            return res.status(401).json({ message: 'Usuario no encontrado' });
-        }
-
-        req.user = user;
+        // Asignamos directamente la data del token para no saturar el pool de conexiones de la BD
+        req.user = decoded;
+        
         next();
     } catch (error) {
         console.error('Error verifying token:', error);
