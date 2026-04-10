@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Container, Package } from 'lucide-react';
 import Select from 'react-select';
-import CreatableSelect from 'react-select/creatable';
 import shipmentService from '../../services/shipment.service';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import QuickCreatePortModal from '../shared/QuickCreatePortModal';
+import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
 
 const STATUS_OPTIONS = [
     { value: 'PENDING', label: 'Pendiente' },
@@ -33,8 +35,10 @@ const selectStyles = {
 const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     const isEdit = !!shipment;
     const { showSuccess, showError } = useToast();
+    const { user } = useAuth();
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [quickCreateType, setQuickCreateType] = useState(null);
 
     // Catálogos
     const [availableNotices, setAvailableNotices] = useState([]);
@@ -157,30 +161,6 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         }));
     };
 
-    // Creación de nueva línea naviera
-    const handleCreateShippingLine = async (inputValue) => {
-        try {
-            const newOption = await shipmentService.createShippingLine(inputValue);
-            setShippingLines([...shippingLines, newOption]);
-            handleChange('shippingLineId', newOption.id);
-            showSuccess('Línea creada', `Se ha agregado ${inputValue} a las líneas navieras`);
-        } catch (error) {
-            showError('Error', error.response?.data?.message || 'No se pudo crear la línea naviera');
-        }
-    };
-
-    // Creación de nuevo puerto en línea
-    const handleCreatePort = async (inputValue, field) => {
-        try {
-            const newPort = await shipmentService.createPort(inputValue);
-            setPorts(prev => [...prev, newPort]);
-            handleChange(field, newPort.name); // guardamos el nombre del puerto
-            showSuccess('Puerto creado', `Se agregó "${inputValue}" al catálogo de puertos`);
-        } catch (error) {
-            // Si falla la creación (ej. puerto duplicado), igual lo usamos como texto libre
-            handleChange(field, inputValue);
-        }
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -238,9 +218,18 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
 
     const userOptions = users.map(u => ({ value: u.id, label: u.name }));
     const clientOptions = clients.map(c => ({ value: c.id, label: `${c.name} — ${c.rifOrId}`, rawName: c.name }));
-    const shippingLineOptions = shippingLines.map(sl => ({ value: sl.id, label: sl.name }));
-    // Puertos: guardamos el nombre como value para compatibilidad con datos anteriores (string)
-    const portOptions = ports.map(p => ({ value: p.name, label: p.name }));
+    
+    // Opciones de líneas navieras con "Agregar nuevo" solo para ADMIN
+    const baseShippingLineOptions = shippingLines.map(sl => ({ value: sl.id, label: sl.name }));
+    const shippingLineOptions = user?.role === 'ADMIN'
+        ? [...baseShippingLineOptions, { value: 'NEW', label: '+ Agregar nueva línea naviera', isAction: true }]
+        : baseShippingLineOptions;
+    
+    // Opciones de puertos con "Agregar nuevo" solo para ADMIN
+    const basePortOptions = ports.map(p => ({ value: p.name, label: p.name }));
+    const portOptions = user?.role === 'ADMIN'
+        ? [...basePortOptions, { value: 'NEW', label: '+ Agregar nuevo puerto', isAction: true }]
+        : basePortOptions;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
@@ -419,18 +408,27 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1">Línea Naviera / Aérea</label>
-                                    <CreatableSelect
+                                    <Select
                                         options={shippingLineOptions}
-                                        value={shippingLineOptions.find(o => o.value === form.shippingLineId) || null}
-                                        onChange={opt => handleChange('shippingLineId', opt?.value || '')}
-                                        onCreateOption={handleCreateShippingLine}
-                                        placeholder="Escribe para buscar o crear..."
-                                        formatCreateLabel={(inputValue) => `Crear "${inputValue}"`}
-                                        noOptionsMessage={({ inputValue }) =>
-                                            inputValue ? `Sin resultados para "${inputValue}"` : 'Escribe el nombre de la línea para crearla'
-                                        }
+                                        value={baseShippingLineOptions.find(o => o.value === form.shippingLineId) || null}
+                                        onChange={(opt) => {
+                                            if (opt?.value === 'NEW') {
+                                                setQuickCreateType('SHIPPING_LINE');
+                                                return;
+                                            }
+                                            handleChange('shippingLineId', opt?.value || '');
+                                        }}
+                                        placeholder="Seleccionar línea naviera..."
                                         isClearable
-                                        styles={selectStyles}
+                                        styles={{
+                                            ...selectStyles,
+                                            option: (base, state) => ({
+                                                ...base,
+                                                color: state.data.isAction ? '#12284bff' : base.color,
+                                                fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                            })
+                                        }}
                                         menuPortalTarget={document.body}
                                         menuPosition="fixed"
                                     />
@@ -481,32 +479,54 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen</label>
-                                            <CreatableSelect
+                                            <Select
                                                 options={portOptions}
-                                                value={form.originPort ? { value: form.originPort, label: form.originPort } : null}
-                                                onChange={opt => handleChange('originPort', opt?.value || '')}
-                                                onCreateOption={(val) => handleCreatePort(val, 'originPort')}
-                                                placeholder="Seleccionar o crear..."
-                                                formatCreateLabel={(v) => `Crear "${v}"`}
-                                                noOptionsMessage={({ inputValue }) => inputValue ? `Sin resultados` : 'Escribe el nombre del puerto'}
+                                                value={basePortOptions.find(o => o.value === form.originPort) || null}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') {
+                                                        setQuickCreateType('PORT_ORIGIN');
+                                                        return;
+                                                    }
+                                                    handleChange('originPort', opt?.value || '');
+                                                }}
+                                                placeholder="Seleccionar puerto..."
                                                 isClearable
-                                                styles={selectStyles}
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
                                                 menuPortalTarget={document.body}
                                                 menuPosition="fixed"
                                             />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Destino</label>
-                                            <CreatableSelect
+                                            <Select
                                                 options={portOptions}
-                                                value={form.destPort ? { value: form.destPort, label: form.destPort } : null}
-                                                onChange={opt => handleChange('destPort', opt?.value || '')}
-                                                onCreateOption={(val) => handleCreatePort(val, 'destPort')}
-                                                placeholder="Seleccionar o crear..."
-                                                formatCreateLabel={(v) => `Crear "${v}"`}
-                                                noOptionsMessage={({ inputValue }) => inputValue ? `Sin resultados` : 'Escribe el nombre del puerto'}
+                                                value={basePortOptions.find(o => o.value === form.destPort) || null}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') {
+                                                        setQuickCreateType('PORT_DESTINATION');
+                                                        return;
+                                                    }
+                                                    handleChange('destPort', opt?.value || '');
+                                                }}
+                                                placeholder="Seleccionar puerto..."
                                                 isClearable
-                                                styles={selectStyles}
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
                                                 menuPortalTarget={document.body}
                                                 menuPosition="fixed"
                                             />
@@ -537,16 +557,27 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     </h4>
                                     <div>
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen</label>
-                                        <CreatableSelect
+                                        <Select
                                             options={portOptions}
-                                            value={form.originPort ? { value: form.originPort, label: form.originPort } : null}
-                                            onChange={opt => handleChange('originPort', opt?.value || '')}
-                                            onCreateOption={(val) => handleCreatePort(val, 'originPort')}
-                                            placeholder="Seleccionar o crear..."
-                                            formatCreateLabel={(v) => `Crear "${v}"`}
-                                            noOptionsMessage={({ inputValue }) => inputValue ? `Sin resultados` : 'Escribe el nombre del puerto'}
+                                            value={basePortOptions.find(o => o.value === form.originPort) || null}
+                                            onChange={(opt) => {
+                                                if (opt?.value === 'NEW') {
+                                                    setQuickCreateType('PORT_ORIGIN');
+                                                    return;
+                                                }
+                                                handleChange('originPort', opt?.value || '');
+                                            }}
+                                            placeholder="Seleccionar puerto..."
                                             isClearable
-                                            styles={selectStyles}
+                                            styles={{
+                                                ...selectStyles,
+                                                option: (base, state) => ({
+                                                    ...base,
+                                                    color: state.data.isAction ? '#12284bff' : base.color,
+                                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                })
+                                            }}
                                             menuPortalTarget={document.body}
                                             menuPosition="fixed"
                                         />
@@ -595,6 +626,31 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Quick Create Modals */}
+            <QuickCreatePortModal
+                isOpen={quickCreateType === 'PORT_ORIGIN' || quickCreateType === 'PORT_DESTINATION'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newPort) => {
+                    setPorts(prev => [...prev, { name: newPort.label, id: newPort.value }].sort((a, b) => a.name.localeCompare(b.name)));
+                    if (quickCreateType === 'PORT_ORIGIN') {
+                        handleChange('originPort', newPort.label);
+                    } else if (quickCreateType === 'PORT_DESTINATION') {
+                        handleChange('destPort', newPort.label);
+                    }
+                    setQuickCreateType(null);
+                }}
+            />
+
+            <QuickCreateShippingLineModal
+                isOpen={quickCreateType === 'SHIPPING_LINE'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newLine) => {
+                    setShippingLines(prev => [...prev, { id: newLine.value, name: newLine.label }].sort((a, b) => a.name.localeCompare(b.name)));
+                    handleChange('shippingLineId', newLine.value);
+                    setQuickCreateType(null);
+                }}
+            />
         </div>,
         document.body
     );

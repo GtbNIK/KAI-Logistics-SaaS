@@ -28,7 +28,7 @@ const QuickCreatePortModal = ({ isOpen, onClose, onSuccess }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4" onClick={(e) => e.stopPropagation()}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <h3 className="font-bold text-slate-800 flex items-center gap-2">

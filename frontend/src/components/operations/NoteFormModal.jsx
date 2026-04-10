@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom';
 import { ScrollText, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import Select from 'react-select';
-import CreatableSelect from 'react-select/creatable';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
+    const { user } = useAuth();
     const [clients, setClients] = useState([]);
     const [clientId, setClientId] = useState('');
     const [deliveredTo, setDeliveredTo] = useState('');
@@ -19,6 +21,8 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
 	const [d2dItems, setD2dItems] = useState([]);
     const [saving, setSaving] = useState(false);
     const { showSuccess, showError } = useToast();
+    const [quickCreateModalOpen, setQuickCreateModalOpen] = useState(false);
+    const [currentItemIndex, setCurrentItemIndex] = useState(null);
 
     const [clientInputValue, setClientInputValue] = useState('');
     const [filteredClients, setFilteredClients] = useState([]);
@@ -83,14 +87,11 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
 	const addItem = () => setItems([...items, { d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
     const removeItem = (index) => { if (items.length > 1) setItems(items.filter((_, i) => i !== index)); };
 
-	const d2dItemOptions = d2dItems.map(i => ({ value: i.id, label: i.description }));
-
-	const createD2DItem = async (description) => {
-		const res = await axios.post(`${API_URL}/d2d-items`, { description }, { withCredentials: true });
-		const created = res.data;
-		setD2dItems((prev) => [...prev, created].sort((a, b) => String(a.description).localeCompare(String(b.description), 'es')));
-		return created;
-	};
+	// Opciones de D2D items con "Agregar nuevo" solo para ADMIN
+	const baseD2dItemOptions = d2dItems.map(i => ({ value: i.id, label: i.description }));
+	const d2dItemOptions = user?.role === 'ADMIN'
+		? [...baseD2dItemOptions, { value: 'NEW', label: '+ Agregar nuevo item', isAction: true }]
+		: baseD2dItemOptions;
 
     const handleSubmit = async (e) => {
         e?.preventDefault();
@@ -209,32 +210,29 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                                         </button>
                                     )}
                                 </div>
-                                <CreatableSelect
+                                <Select
                                     options={d2dItemOptions}
-                                    value={item.d2dItemId
-                                        ? d2dItemOptions.find(o => o.value === item.d2dItemId) || { value: item.d2dItemId, label: item.description }
-                                        : (item.description ? { value: null, label: item.description } : null)
-                                    }
+                                    value={baseD2dItemOptions.find(o => o.value === item.d2dItemId) || null}
                                     placeholder="Descripción del servicio *"
                                     isClearable
-                                    formatCreateLabel={(inputValue) => `Crear "${inputValue}"`}
                                     onChange={(opt) => {
+                                        if (opt?.value === 'NEW') {
+                                            setCurrentItemIndex(idx);
+                                            setQuickCreateModalOpen(true);
+                                            return;
+                                        }
                                         updateItem(idx, 'd2dItemId', opt?.value || null);
                                         updateItem(idx, 'description', opt?.label || '');
-                                    }}
-                                    onCreateOption={async (inputValue) => {
-                                        try {
-                                            const created = await createD2DItem(inputValue);
-                                            updateItem(idx, 'd2dItemId', created.id);
-                                            updateItem(idx, 'description', created.description);
-                                            showSuccess('Creado', 'Item agregado al catálogo');
-                                        } catch (err) {
-                                            showError('Error', err.response?.data?.message || 'No se pudo crear el item');
-                                        }
                                     }}
                                     styles={{
                                         control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px' }),
                                         menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', zIndex: 50 }),
+                                        option: (base, state) => ({
+                                            ...base,
+                                            color: state.data.isAction ? '#12284bff' : base.color,
+                                            fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                            borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                        })
                                     }}
                                 />
                                 <div className="grid grid-cols-3 gap-3">
@@ -273,6 +271,24 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Quick Create Modal */}
+            <QuickCreateD2DItemModal
+                isOpen={quickCreateModalOpen}
+                onClose={() => {
+                    setQuickCreateModalOpen(false);
+                    setCurrentItemIndex(null);
+                }}
+                onSuccess={(newItem) => {
+                    setD2dItems(prev => [...prev, { id: newItem.value, description: newItem.label }].sort((a, b) => a.description.localeCompare(b.description)));
+                    if (currentItemIndex !== null) {
+                        updateItem(currentItemIndex, 'd2dItemId', newItem.value);
+                        updateItem(currentItemIndex, 'description', newItem.label);
+                    }
+                    setQuickCreateModalOpen(false);
+                    setCurrentItemIndex(null);
+                }}
+            />
         </div>,
         document.body
     );

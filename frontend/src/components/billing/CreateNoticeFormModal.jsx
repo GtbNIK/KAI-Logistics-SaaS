@@ -4,6 +4,8 @@ import { Receipt, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import QuickCreateServiceModal from '../shared/QuickCreateServiceModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -49,6 +51,9 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [notes, setNotes] = useState('');
     const [items, setItems] = useState([emptyItem()]);
     const [saving, setSaving] = useState(false);
+    const { user } = useAuth();
+    const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+    const [currentItemIndex, setCurrentItemIndex] = useState(null);
     const { showSuccess, showError } = useToast();
 
     // ── Opciones de selects ──
@@ -63,10 +68,15 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
         return clientOptions.filter(c => c.label.toLowerCase().includes(search));
     }, [clientOptions, clientInputValue]);
 
-    const serviceOptions = useMemo(() =>
+    const baseServiceOptions = useMemo(() =>
         (services || []).filter(s => s.isActive).map(s => ({ value: s.id, label: s.name, type: s.type })),
         [services]
     );
+    const serviceOptions = useMemo(() => (
+        user?.role === 'ADMIN'
+            ? [...baseServiceOptions, { value: 'NEW', label: '+ Agregar nuevo servicio', isAction: true }]
+            : baseServiceOptions
+    ), [baseServiceOptions, user]);
 
     const allyOptions = useMemo(() =>
         (allies || []).filter(a => a.isActive !== false).map(a => ({ value: a.id, label: a.name })),
@@ -267,13 +277,28 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                                             <label className="text-xs text-slate-500 mb-1 block">Servicio *</label>
                                             <Select
                                                 options={serviceOptions}
-                                                value={serviceOptions.find(o => o.value === item.serviceId) || null}
+                                                value={baseServiceOptions.find(o => o.value === item.serviceId) || null}
                                                 placeholder="Selecciona un servicio..."
-                                                onChange={(opt) => updateItem(idx, 'serviceId', opt?.value || '')}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') {
+                                                        setCurrentItemIndex(idx);
+                                                        setQuickCreateOpen(true);
+                                                        return;
+                                                    }
+                                                    updateItem(idx, 'serviceId', opt?.value || '');
+                                                }}
                                                 isClearable
                                                 menuPortalTarget={document.body}
                                                 menuPosition="fixed"
-                                                styles={selectStyles}
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
                                             />
                                         </div>
 
@@ -394,6 +419,23 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                         {saving ? <><Loader2 className="animate-spin" size={18} /> Guardando...</> : <><Check size={18} /> Crear Aviso de Cobro</>}
                     </button>
                 </div>
+
+                {/* Quick Create Service Modal */}
+                <QuickCreateServiceModal
+                    isOpen={quickCreateOpen}
+                    onClose={() => { setQuickCreateOpen(false); setCurrentItemIndex(null); }}
+                    onSuccess={(newService) => {
+                        // Actualizar catálogo local de servicios
+                        setServices(prev => [...prev, { id: newService.value, name: newService.label, type: newService.data?.type }]
+                            .sort((a, b) => a.name.localeCompare(b.name)));
+                        // Seleccionar automáticamente en el item correspondiente
+                        if (currentItemIndex !== null) {
+                            updateItem(currentItemIndex, 'serviceId', newService.value);
+                        }
+                        setQuickCreateOpen(false);
+                        setCurrentItemIndex(null);
+                    }}
+                />
             </div>
         </div>,
         document.body
@@ -401,3 +443,8 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
 };
 
 export default CreateNoticeFormModal;
+ 
+// Quick create modal montado junto al formulario
+// Nota: se monta dentro del mismo portal del modal principal, pero su overlay detiene la propagación
+// para no cerrar el modal padre.
+CreateNoticeFormModal.QuickCreate = () => null;
