@@ -17,9 +17,9 @@ import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import DatePicker from '../../components/shared/DatePicker';
-import QuickCreateServiceModal from '../../components/quotes/QuickCreateServiceModal';
-import QuickCreatePortModal from '../../components/quotes/QuickCreatePortModal';
-import QuickCreateZoneModal from '../../components/quotes/QuickCreateZoneModal';
+import QuickCreateServiceModal from '../../components/shared/QuickCreateServiceModal';
+import QuickCreatePortModal from '../../components/shared/QuickCreatePortModal';
+import QuickCreateZoneModal from '../../components/shared/QuickCreateZoneModal';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -34,7 +34,8 @@ const QuoteItemRow = ({
     onRemove, 
     canRemove,
     onRateFound,
-    onQuickCreate
+    onQuickCreate,
+    userRole
 }) => {
     const [searchingRate, setSearchingRate] = useState(false);
     const [foundRate, setFoundRate] = useState(null);
@@ -136,7 +137,7 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Servicio</label>
                     <Select
-                        options={[...services, { value: 'NEW', label: '+ Crear nuevo servicio', isAction: true }]}
+                        options={userRole === 'ADMIN' ? [...services, { value: 'NEW', label: '+ Crear nuevo servicio', isAction: true }] : services}
                         value={services.find(s => s.value === item.serviceId)}
                         isLoading={loadingData}
                         placeholder="Servicio..."
@@ -192,7 +193,7 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Zona de Destino</label>
                     <Select
-                        options={[...zones, { value: 'NEW', label: '+ Crear nueva zona', isAction: true }]}
+                        options={userRole === 'ADMIN' ? [...zones, { value: 'NEW', label: '+ Crear nueva zona', isAction: true }] : zones}
                         value={zones.find(z => z.value === item.zoneId)}
                         isLoading={loadingData}
                         placeholder="Zona..."
@@ -226,7 +227,7 @@ const QuoteItemRow = ({
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Origen</label>
 						<Select
-							options={[...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }]}
+							options={userRole === 'ADMIN' ? [...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }] : ports}
 							value={ports.find(p => p.label === item.originPort)}
 							isLoading={loadingData}
 							placeholder="Puerto..."
@@ -256,7 +257,7 @@ const QuoteItemRow = ({
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Destino</label>
 						<Select
-							options={[...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }]}
+							options={userRole === 'ADMIN' ? [...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }] : ports}
 							value={ports.find(p => p.label === item.destinationPort)}
 							isLoading={loadingData}
 							placeholder="Puerto..."
@@ -612,6 +613,7 @@ const CreateQuote = () => {
                                     setQuickCreateType(type);
                                     setQuickCreateRowIndex(idx);
                                 }}
+								userRole={user?.role}
 							/>
 						))}
 					</div>
