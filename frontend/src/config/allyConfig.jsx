@@ -63,6 +63,15 @@ export const allyConfig = {
             columns: 2,
             fields: [
                 {
+                    name: 'internalCode',
+                    label: 'Código Interno',
+                    type: 'text',
+                    required: false,
+                    placeholder: 'Ej. ALL-0001 (opcional)',
+                    icon: FileText,
+                    hint: 'Si no se especifica, se generará automáticamente'
+                },
+                {
                     name: 'name',
                     label: 'Razón Social / Nombre',
                     type: 'text',
@@ -71,20 +80,12 @@ export const allyConfig = {
                     icon: User
                 },
                 {
-                    name: 'internalCode',
-                    label: 'Código Interno',
-                    type: 'text',
-                    required: false,
-                    placeholder: 'Ej. ALL-0001 (opcional)',
-                    icon: FileText,
-                    helpText: 'Si no se especifica, se generará automáticamente'
-                },
-                {
                     name: 'rifOrId',
                     label: 'RIF / Cédula',
                     type: 'text',
                     required: false,
                     maxLength: 10,
+                    rows: 2,
                     placeholder: 'Ej. J-12345678-9',
                     icon: FileText
                 }

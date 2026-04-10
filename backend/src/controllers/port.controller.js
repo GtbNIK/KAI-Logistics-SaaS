@@ -12,8 +12,8 @@ const buildPortRateWhere = (port) => {
 	const tokens = [code, name].filter(Boolean);
 	return {
 		OR: tokens.flatMap((token) => ([
-			{ originPort: { equals: token, mode: 'insensitive' } },
-			{ destinationPort: { equals: token, mode: 'insensitive' } },
+			{ originPort: { equals: token } },
+			{ destinationPort: { equals: token } },
 			{ originPort: { contains: token, mode: 'insensitive' } },
 			{ destinationPort: { contains: token, mode: 'insensitive' } }
 		]))

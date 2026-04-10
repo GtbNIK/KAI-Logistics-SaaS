@@ -244,7 +244,7 @@ const Dashboard = () => {
     const fetchNotifications = async () => {
         try {
             const res = await notificationService.getUnread();
-            if (res?.data) setNotifications(res.data.slice(0, 8));
+            if (res?.data) setNotifications(res.data.slice(0, 4));
         } catch (err) {
             console.error('Error cargando notificaciones:', err);
         }

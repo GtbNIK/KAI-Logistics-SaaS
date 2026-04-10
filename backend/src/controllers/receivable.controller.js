@@ -174,6 +174,16 @@ export const registerPayment = async (req, res) => {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
         }
 
+        // Obtener nombre del usuario que registra el pago
+        let issuedBy = req.user?.name;
+        if (!issuedBy) {
+            const user = await prisma.user.findUnique({
+                where: { id: req.user?.id },
+                select: { name: true }
+            });
+            issuedBy = user?.name || 'Sistema';
+        }
+
         if (receivable.status === 'PAID') {
             return res.status(400).json({ message: 'Esta cuenta ya está pagada en su totalidad' });
         }
@@ -219,7 +229,7 @@ export const registerPayment = async (req, res) => {
                     amount: paymentAmount,
                     paymentMethod: method,
                     reference,
-                    issuedBy: req.user.name // require auth middleware
+                    issuedBy
                 }
             });
 
