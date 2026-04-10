@@ -27,6 +27,52 @@ const getJsPdfImageFormatFromUrl = (url) => {
     return null;
 };
 
+const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/jpeg', quality);
+};
+
+const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/png');
+};
+
 /**
  * Modal para vista previa y generación de PDF de nota de entrega
  */
@@ -52,6 +98,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
     const noteDate = new Date(note.date || note.createdAt).toLocaleDateString('es-VE');
     const items = (note.items || []).map(item => ({
         description: item.description || 'Item',
+        allyCode: item.ally?.internalCode || '-',
         quantity: Number(item.quantity) || 0,
         weight: item.weight != null ? Number(item.weight) : null,
 		cbm: item.cbm != null ? Number(item.cbm) : null
@@ -85,8 +132,8 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                         bgImg.src = `${API_BASE}${deliveryNoteBgUrl}`;
                     });
 
-                    const bgFormat = getJsPdfImageFormatFromUrl(deliveryNoteBgUrl) || 'JPEG';
-                    doc.addImage(bgImg, bgFormat, 0, 0, pageWidth, pageHeight);
+                    const bgJpeg = await imageToJpegDataUrl(bgImg, { maxWidth: 1600, maxHeight: 1600, quality: 0.65 });
+                    doc.addImage(bgJpeg, 'JPEG', 0, 0, pageWidth, pageHeight);
                 } catch (err) {
                     console.warn('No se pudo cargar el fondo del PDF:', err);
                 }
@@ -102,7 +149,8 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
             });
             const logoWidth = 50;
             const logoHeight = 13.5;
-            doc.addImage(img, 'PNG', margin, yPos, logoWidth, logoHeight);
+            const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
+            doc.addImage(logoPng, 'PNG', margin, yPos, logoWidth, logoHeight);
 
             // ── Título ──
             doc.setFontSize(22);
@@ -202,6 +250,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
             const tableData = items.map((item, i) => [
                 i + 1,
                 item.description,
+                item.allyCode,
                 item.quantity,
 				item.weight != null ? `${item.weight.toFixed(2)} KG` : '—',
 				item.cbm != null ? item.cbm.toFixed(3) : '—'
@@ -209,7 +258,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
 
             autoTable(doc, {
                 startY: yPos,
-				head: [['#', 'Descripción', 'Cant.', 'Peso', 'CBM']],
+				head: [['#', 'Descripción', 'Aliado', 'Cant.', 'Peso', 'CBM']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -222,9 +271,10 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
-                    2: { cellWidth: 15, halign: 'center' },
-                    3: { cellWidth: 25, halign: 'right' },
-                    4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+					2: { cellWidth: 22, halign: 'left' },
+                    3: { cellWidth: 15, halign: 'center' },
+                    4: { cellWidth: 25, halign: 'right' },
+                    5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
                 },
                 margin: { left: margin, right: margin }
             });

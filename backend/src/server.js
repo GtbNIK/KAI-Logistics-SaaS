@@ -58,7 +58,20 @@ const loginLimiter = rateLimit({
 
 // Servir archivos estáticos (imágenes subidas)
 import { UPLOADS_DIR } from './config/upload.js';
-app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/uploads', (req, res, next) => {
+    const origin = req.headers.origin;
+    const allowed = allowedOrigins;
+
+    if (origin && allowed.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+}, express.static(UPLOADS_DIR));
 
 // Rutas de prueba
 app.get('/api/health', (req, res) => {

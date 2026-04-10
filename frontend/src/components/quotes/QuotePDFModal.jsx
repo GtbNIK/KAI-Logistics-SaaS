@@ -35,6 +35,52 @@ const getJsPdfImageFormatFromUrl = (url) => {
     return null;
 };
 
+const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/jpeg', quality);
+};
+
+const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/png');
+};
+
 /**
  * Modal para vista previa y generación de PDF de cotización
  */
@@ -70,6 +116,7 @@ const QuotePDFModal = ({
         return quote.items.filter(item => item.serviceId).map(item => {
             const service = services.find(s => s.value === item.serviceId);
             const zone = zones.find(z => z.value === item.zoneId);
+            const ally = allies.find(a => a.value === item.allyId);
             const serviceType = service?.data?.type;
             const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
             
@@ -82,6 +129,8 @@ const QuotePDFModal = ({
 
             return {
                 service: service?.label || 'Servicio',
+                allyName: ally?.label || '-',
+                allyCode: ally?.data?.internalCode || '-',
                 destination,
                 quantity: Number(item.quantity) || 0,
                 unitPrice: Number(item.unitPrice) || 0,
@@ -112,8 +161,8 @@ const QuotePDFModal = ({
                         bgImg.src = `${API_BASE}${quoteBgUrl}`;
                     });
 
-                    const bgFormat = getJsPdfImageFormatFromUrl(quoteBgUrl) || 'JPEG';
-                    doc.addImage(bgImg, bgFormat, 0, 0, pageWidth, pageHeight);
+                    const bgJpeg = await imageToJpegDataUrl(bgImg, { maxWidth: 1600, maxHeight: 1600, quality: 0.65 });
+                    doc.addImage(bgJpeg, 'JPEG', 0, 0, pageWidth, pageHeight);
                 } catch (err) {
                     console.warn('No se pudo cargar el fondo del PDF:', err);
                 }
@@ -134,7 +183,8 @@ const QuotePDFModal = ({
             // Mantener proporción si es posible, pero aquí forzamos un tamaño razonable
             const logoWidth = 50; 
             const logoHeight = 13.5;
-            doc.addImage(img, 'PNG', margin, yPos, logoWidth, logoHeight);
+            const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
+            doc.addImage(logoPng, 'PNG', margin, yPos, logoWidth, logoHeight);
 
 
             // Título de la cotización (arriba a la derecha)
@@ -258,6 +308,7 @@ const QuotePDFModal = ({
             const tableData = items.map((item, index) => [
                 index + 1,
                 item.service,
+                item.allyCode,
                 item.destination,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
@@ -266,7 +317,7 @@ const QuotePDFModal = ({
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Ruta / Zona', quantityLabel, 'P. Unit.', 'Subtotal']],
+                head: [['#', 'Servicio', 'Aliado', 'Ruta / Zona', quantityLabel, 'P. Unit.', 'Subtotal']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -441,6 +492,7 @@ const QuotePDFModal = ({
                                     <tr style={{ backgroundColor: primaryColor }} className="text-white">
                                         <th className="py-2 px-3 text-left font-medium">#</th>
                                         <th className="py-2 px-3 text-left font-medium">Servicio</th>
+                                        <th className="py-2 px-3 text-left font-medium">Aliado</th>
                                         <th className="py-2 px-3 text-left font-medium">Ruta / Zona</th>
                                         <th className="py-2 px-3 text-center font-medium">Cant.</th>
                                         <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
@@ -452,6 +504,7 @@ const QuotePDFModal = ({
                                         <tr key={index} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
                                             <td className="py-2 px-3 text-center">{index + 1}</td>
                                             <td className="py-2 px-3">{item.service}</td>
+                                            <td className="py-2 px-3">{item.allyCode}</td>
                                             <td className="py-2 px-3">{item.destination}</td>
                                             <td className="py-2 px-3 text-center">{item.quantity}</td>
                                             <td className="py-2 px-3 text-right">${(Number(item.unitPrice) || 0).toFixed(2)}</td>

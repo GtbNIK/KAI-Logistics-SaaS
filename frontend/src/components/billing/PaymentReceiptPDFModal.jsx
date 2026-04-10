@@ -23,6 +23,52 @@ const getJsPdfImageFormatFromUrl = (url) => {
     return null;
 };
 
+const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/jpeg', quality);
+};
+
+const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/png');
+};
+
 /**
  * Modal para generar y previsualizar el recibo de pago PDF
  * Solo aplica para pagos con método CASH_USD (Efectivo USD)
@@ -62,17 +108,15 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                 try {
                     const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
                     const bgFullUrl = receiptBgUrl.startsWith('http') ? receiptBgUrl : `${API_BASE}${receiptBgUrl}`;
-                    const format = getJsPdfImageFormatFromUrl(bgFullUrl);
-                    if (format) {
-                        const bgImg = new Image();
-                        bgImg.crossOrigin = 'anonymous';
-                        await new Promise((resolve, reject) => {
-                            bgImg.onload = resolve;
-                            bgImg.onerror = reject;
-                            bgImg.src = bgFullUrl;
-                        });
-                        doc.addImage(bgImg, format, 0, 0, pageWidth, pageHeight);
-                    }
+                    const bgImg = new Image();
+                    bgImg.crossOrigin = 'anonymous';
+                    await new Promise((resolve, reject) => {
+                        bgImg.onload = resolve;
+                        bgImg.onerror = reject;
+                        bgImg.src = bgFullUrl;
+                    });
+                    const bgJpeg = await imageToJpegDataUrl(bgImg, { maxWidth: 1600, maxHeight: 1600, quality: 0.65 });
+                    doc.addImage(bgJpeg, 'JPEG', 0, 0, pageWidth, pageHeight);
                 } catch (e) {
                     console.warn('No se pudo cargar el fondo del recibo:', e);
                 }
@@ -87,11 +131,12 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                     logoImg.onerror = reject;
                     logoImg.src = logoUrl;
                 });
+                const logoPng = await resizePngDataUrl(logoImg, { maxWidth: 650, maxHeight: 300 });
                 const logoH = 18;
                 const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
                 const logoW = logoH * ratio;
                 const logoX = (pageWidth - logoW) / 2;
-                doc.addImage(logoImg, 'PNG', logoX, y, logoW, logoH);
+                doc.addImage(logoPng, 'PNG', logoX, y, logoW, logoH);
                 y += logoH + 5;
             } catch {
                 y += 5;

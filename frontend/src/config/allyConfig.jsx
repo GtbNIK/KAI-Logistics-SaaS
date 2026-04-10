@@ -71,10 +71,19 @@ export const allyConfig = {
                     icon: User
                 },
                 {
+                    name: 'internalCode',
+                    label: 'Código Interno',
+                    type: 'text',
+                    required: false,
+                    placeholder: 'Ej. ALL-0001 (opcional)',
+                    icon: FileText,
+                    helpText: 'Si no se especifica, se generará automáticamente'
+                },
+                {
                     name: 'rifOrId',
                     label: 'RIF / Cédula',
                     type: 'text',
-                    required: true,
+                    required: false,
                     maxLength: 10,
                     placeholder: 'Ej. J-12345678-9',
                     icon: FileText
@@ -90,7 +99,7 @@ export const allyConfig = {
                     name: 'contactInfo',
                     label: 'Contacto (Email, Teléfono, etc.)',
                     type: 'text',
-                    required: true,
+                    required: false,
                     placeholder: 'Ej. contacto@empresa.com / +58 412 1234567',
                     fullWidth: true
                 }
@@ -105,7 +114,7 @@ export const allyConfig = {
                     name: 'address',
                     label: 'Dirección',
                     type: 'textarea',
-                    required: true,
+                    required: false,
                     placeholder: 'Dirección completa del aliado...',
                     rows: 2,
                     fullWidth: true

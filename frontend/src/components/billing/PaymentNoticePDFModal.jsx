@@ -27,6 +27,52 @@ const getJsPdfImageFormatFromUrl = (url) => {
     return null;
 };
 
+const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/jpeg', quality);
+};
+
+const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, outW, outH);
+
+    return canvas.toDataURL('image/png');
+};
+
 /**
  * Modal para vista previa y generación de PDF de aviso de cobro
  */
@@ -48,18 +94,19 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const companyRif = companySettings?.rif || '';
     const paymentInfo = companySettings?.paymentInfo || '';
 
-    // Parsear items de la descripción enriquecida (sin aliado para el cliente)
+    // Parsear items de la descripción enriquecida (con aliado usando código interno)
     const parseItems = () => {
         return (notice.items || []).map(item => {
             const parts = (item.description || '').split(' · ');
             const serviceName = parts[0] || 'Servicio';
 
-            // Extraer ruta o zona según el tipo de servicio
-            // Si hay "Ruta: PO → PD" es un servicio de tipo port (FCL, LCL, AIR, etc.)
-            // Si hay "Zona: Miami" es un servicio de zona (almacenaje, door to door, etc.)
+            // Extraer aliado, ruta o zona según el tipo de servicio
+            const allyPart = parts.find(p => p.startsWith('Aliado:'));
             const rutaPart = parts.find(p => p.startsWith('Ruta:'));
             const zonaPart = parts.find(p => p.startsWith('Zona:'));
 
+            const allyCode = allyPart ? allyPart.replace('Aliado: ', '').trim() : '-';
+            const allyName = item.ally?.name || '-';
             let destination = '-';
             if (rutaPart) {
                 // Reemplazar → por -> (jsPDF no soporta Unicode con helvetica)
@@ -70,6 +117,8 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
 
             return {
                 service: serviceName,
+                allyCode,
+                allyName,
                 destination,
                 quantity: Number(item.quantity) || 0,
                 unitPrice: Number(item.unitPrice) || 0,
@@ -104,8 +153,8 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                         bgImg.src = `${API_BASE}${noticeBgUrl}`;
                     });
 
-                    const bgFormat = getJsPdfImageFormatFromUrl(noticeBgUrl) || 'JPEG';
-                    doc.addImage(bgImg, bgFormat, 0, 0, pageWidth, pageHeight);
+                    const bgJpeg = await imageToJpegDataUrl(bgImg, { maxWidth: 1600, maxHeight: 1600, quality: 0.65 });
+                    doc.addImage(bgJpeg, 'JPEG', 0, 0, pageWidth, pageHeight);
                 } catch (err) {
                     console.warn('No se pudo cargar el fondo del PDF:', err);
                 }
@@ -121,7 +170,8 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
             });
             const logoWidth = 50;
             const logoHeight = 13.5;
-            doc.addImage(img, 'PNG', margin, yPos, logoWidth, logoHeight);
+            const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
+            doc.addImage(logoPng, 'PNG', margin, yPos, logoWidth, logoHeight);
 
             // ── Título ──
             doc.setFontSize(22);
@@ -214,6 +264,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
             const tableData = items.map((item, i) => [
                 i + 1,
                 item.service,
+                item.allyCode,
                 item.destination,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
@@ -222,7 +273,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Ruta / Zona', 'Cant.', 'P. Unit.', 'Total']],
+                head: [['#', 'Servicio', 'Aliado', 'Ruta / Zona', 'Cant.', 'P. Unit.', 'Total']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -424,6 +475,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                         <tr style={{ backgroundColor: primaryColor }} className="text-white">
                                             <th className="py-2 px-3 text-left font-medium">#</th>
                                             <th className="py-2 px-3 text-left font-medium">Servicio</th>
+                                            <th className="py-2 px-3 text-left font-medium">Aliado</th>
                                             <th className="py-2 px-3 text-left font-medium">Ruta / Zona</th>
                                             <th className="py-2 px-3 text-center font-medium">Cant.</th>
                                             <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
@@ -435,6 +487,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                             <tr key={index} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
                                                 <td className="py-2 px-3 text-center">{index + 1}</td>
                                                 <td className="py-2 px-3">{item.service}</td>
+                                                <td className="py-2 px-3">{item.allyCode}</td>
                                                 <td className="py-2 px-3">{item.destination}</td>
                                                 <td className="py-2 px-3 text-center">{item.quantity}</td>
                                                 <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>

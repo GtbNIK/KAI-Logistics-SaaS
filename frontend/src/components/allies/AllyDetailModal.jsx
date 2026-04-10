@@ -213,17 +213,17 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
                                 <label className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                     <FileText size={12} /> RIF / Cédula
                                 </label>
-                                <p className="text-slate-800 font-medium">{ally.rifOrId}</p>
+                                <p className="text-slate-800 font-medium">{ally.rifOrId ? ally.rifOrId : 'No especificado'}</p>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Contacto</label>
-                                <p className="text-slate-800">{ally.contactInfo}</p>
+                                <p className="text-slate-800">{ally.contactInfo ? ally.contactInfo : 'No especificado'}</p>
                             </div>
                             <div className="space-y-1 md:col-span-2">
                                 <label className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                     <MapPin size={12} /> Dirección
                                 </label>
-                                <p className="text-slate-700 bg-slate-50 p-3 rounded-lg">{ally.address}</p>
+                                <p className="text-slate-700 bg-slate-50 p-3 rounded-lg">{ally.address ? ally.address : 'No Especificado'}</p>
                             </div>
                         </div>
 

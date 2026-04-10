@@ -35,33 +35,49 @@ const generateInternalCode = async () => {
 
 export const createAlly = async (req, res) => {
     try {
-        const { name, rifOrId, contactInfo, address } = req.body;
+        const { name, rifOrId, contactInfo, address, internalCode: providedInternalCode } = req.body;
         
-        // Normalizar RIF/Cédula
-        const normalizedRifOrId = normalizeRifOrId(rifOrId);
+        // Normalizar RIF/Cédula (si se proporciona)
+        const normalizedRifOrId = rifOrId ? normalizeRifOrId(rifOrId) : null;
         
-        // Verificar duplicados
-        const existingAlly = await prisma.ally.findFirst({
-            where: { 
-                rifOrId: normalizedRifOrId
-            }
-        });
-
-        if (existingAlly) {
-            return res.status(400).json({ 
-                message: 'Ya existe un aliado con ese RIF/Cédula' 
+        // Verificar duplicados de RIF/Cédula solo si se proporciona
+        if (normalizedRifOrId) {
+            const existingAlly = await prisma.ally.findFirst({
+                where: { 
+                    rifOrId: normalizedRifOrId
+                }
             });
+
+            if (existingAlly) {
+                return res.status(400).json({ 
+                    message: 'Ya existe un aliado con ese RIF/Cédula' 
+                });
+            }
         }
 
-        const internalCode = await generateInternalCode();
+        // Usar código proporcionado o generar automáticamente
+        const internalCode = providedInternalCode || await generateInternalCode();
+
+        // Verificar duplicados de código interno si se proporcionó manualmente
+        if (providedInternalCode) {
+            const existingCode = await prisma.ally.findFirst({
+                where: { internalCode }
+            });
+
+            if (existingCode) {
+                return res.status(400).json({ 
+                    message: 'Ya existe un aliado con ese código interno' 
+                });
+            }
+        }
 
         const ally = await prisma.ally.create({
             data: {
                 internalCode,
                 name,
                 rifOrId: normalizedRifOrId,
-                contactInfo,
-                address
+                contactInfo: contactInfo || null,
+                address: address || null
             }
         });
 
@@ -73,8 +89,7 @@ export const createAlly = async (req, res) => {
         if (error.code === 'P2002') {
             const field = error.meta?.target?.[0];
             let fieldName = 'datos';
-            if (field === 'rifOrId') fieldName = 'RIF/Cédula';
-            else if (field === 'internalCode') fieldName = 'código interno';
+            if (field === 'internalCode') fieldName = 'código interno';
             
             return res.status(400).json({ 
                 message: `Ya existe un aliado con ese ${fieldName}` 
@@ -165,18 +180,18 @@ export const updateAlly = async (req, res) => {
         const { id } = req.params;
         const { name, rifOrId, contactInfo, address } = req.body;
 
-        // Normalizar RIF/Cédula
-        const normalizedRifOrId = normalizeRifOrId(rifOrId);
+        // Normalizar RIF/Cédula (si se proporciona)
+        const normalizedRifOrId = rifOrId ? normalizeRifOrId(rifOrId) : null;
 
         const existingAlly = await prisma.ally.findUnique({ where: { id } });
         if (!existingAlly) {
             return res.status(404).json({ message: 'Aliado no encontrado' });
         }
 
-        // Verificar duplicados SOLO si el RIF cambió
+        // Verificar duplicados SOLO si el RIF cambió y no es null/vacío
         const rifChanged = normalizedRifOrId !== existingAlly.rifOrId;
 
-        if (rifChanged) {
+        if (rifChanged && normalizedRifOrId) {
             const duplicate = await prisma.ally.findFirst({
                 where: {
                     AND: [
@@ -198,8 +213,8 @@ export const updateAlly = async (req, res) => {
             data: {
                 name, 
                 rifOrId: normalizedRifOrId, 
-                contactInfo, 
-                address
+                contactInfo: contactInfo || null, 
+                address: address || null
             }
         });
 
