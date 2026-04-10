@@ -174,10 +174,10 @@ export const updateDeliveryNote = async (req, res) => {
             // Eliminar items existentes y recrear
             await tx.deliveryNoteItem.deleteMany({ where: { deliveryNoteId: id } });
 
-            return tx.deliveryNote.update({
+            return await tx.deliveryNote.update({
                 where: { id },
                 data: {
-                    clientId: clientId || existing.clientId,
+                    clientId: clientId ?? existing.clientId,
                     deliveredTo: deliveredTo ?? existing.deliveredTo,
                     deliveryAddress: deliveryAddress ?? existing.deliveryAddress,
 					warehouseNumber: warehouseNumber ?? existing.warehouseNumber,

@@ -1,9 +1,42 @@
 import { createPortal } from 'react-dom';
-import { Receipt, DollarSign, Package, FileText, User, Calendar, X, ScrollText } from 'lucide-react';
+import { Receipt, DollarSign, Package, FileText, User, Calendar, X, ScrollText, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const NoticeDetailModal = ({ notice, onClose }) => {
+    const [loading, setLoading] = useState(true);
+    const [fullNotice, setFullNotice] = useState(null);
+
+    useEffect(() => {
+        const loadNotice = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/payment-notices/${notice.id}`);
+                setFullNotice(response.data);
+            } catch (error) {
+                console.error('Error loading notice:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadNotice();
+    }, [notice.id]);
+
     if (!notice) return null;
-    const n = notice;
+    const n = fullNotice || notice;
+
+    if (loading) {
+        return createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl p-8 flex items-center gap-3">
+                    <Loader2 className="animate-spin text-primary" />
+                    <span>Cargando aviso de cobro...</span>
+                </div>
+            </div>,
+            document.body
+        );
+    }
 
     return createPortal(
         <div
@@ -78,12 +111,17 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                                 {n.items.map((item, i) => {
                                     const parts = (item.description || '').split(' · ');
                                     const serviceName = parts[0] || 'Servicio';
-                                    const extraParts = parts.slice(1);
+                                    const allyName = item.ally?.name || '-';
+                                    const extraParts = parts.slice(1).filter(p => !p.startsWith('Aliado:'));
                                     return (
                                         <div key={i} className="bg-slate-50 rounded-xl p-4 flex justify-between items-start border border-slate-100">
                                             <div className="space-y-1">
                                                 <p className="font-medium text-slate-800">{serviceName}</p>
                                                 <div className="text-sm text-slate-500 flex flex-col gap-0.5">
+                                                    <p className="flex items-center gap-1">
+                                                        <span className="font-medium text-slate-600">Aliado:</span>{' '}
+                                                        {allyName}
+                                                    </p>
                                                     {extraParts.map((part, j) => (
                                                         <p key={j} className="flex items-center gap-1">
                                                             <span className="font-medium text-slate-600">{part.split(': ')[0]}:</span>{' '}

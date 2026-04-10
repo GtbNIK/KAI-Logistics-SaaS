@@ -128,9 +128,9 @@ model Ally {
   id             String    @id @default(uuid())
   internalCode   String    @unique // ALL-0001
   name           String
-  rifOrId        String    @unique // RIF o Cédula (normalizado)
-  contactInfo    String
-  address        String
+  rifOrId        String?   // RIF o Cédula (normalizado) - opcional, unicidad manejada en código
+  contactInfo    String?
+  address        String?
   
   isActive       Boolean   @default(true)
   deletedAt      DateTime?
@@ -142,6 +142,7 @@ model Ally {
   serviceRates   ServiceRate[]
   payables       Payable[]
   quoteItems     QuoteItem[]
+  paymentNoticeItems PaymentNoticeItem[]
 }
 
 // -----------------------------------------------------------------------------
@@ -172,6 +173,7 @@ model Zone {
   // Relations
   rates        ServiceRate[]
   quoteItems   QuoteItem[]
+  paymentNoticeItems PaymentNoticeItem[]
 }
 
 model Port {
@@ -320,7 +322,7 @@ model DeliveryNoteItem {
   id              String       @id @default(uuid())
   deliveryNoteId  String
   deliveryNote    DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
-  
+
   d2dItemId        String?
   d2dItem          D2DItem?     @relation(fields: [d2dItemId], references: [id])
 
@@ -376,10 +378,16 @@ model PaymentNoticeItem {
   id              String   @id @default(uuid())
   paymentNoticeId String
   paymentNotice   PaymentNotice @relation(fields: [paymentNoticeId], references: [id], onDelete: Cascade)
-  
+
   serviceId       String?
   service         Service? @relation(fields: [serviceId], references: [id])
-  
+
+  allyId          String?
+  ally            Ally?    @relation(fields: [allyId], references: [id])
+
+  zoneId          String?
+  zone            Zone?    @relation(fields: [zoneId], references: [id])
+
   description     String
   quantity        Decimal  @db.Decimal(10, 2)
   unitPrice       Decimal  @db.Decimal(10, 2)
