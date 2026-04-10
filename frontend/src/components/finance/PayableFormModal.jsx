@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { Receipt, X, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import Select from 'react-select';
-import CreatableSelect from 'react-select/creatable';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import { getTodayLocal } from '../../utils/dateHelpers';
+import QuickCreateSvcProviderModal from '../shared/QuickCreateSvcProviderModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -16,6 +17,7 @@ const selectStyles = {
 };
 
 const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
+    const { user } = useAuth();
     const [allies, setAllies] = useState([]);
     const [svcProviders, setSvcProviders] = useState([]);
 
@@ -27,15 +29,22 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [dueDate, setDueDate] = useState('');
     const [saving, setSaving] = useState(false);
     const { showSuccess, showError } = useToast();
+    const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
     const allyOptions = useMemo(() =>
         (allies || []).filter(a => a.isActive !== false).map(a => ({ value: a.id, label: a.name })),
         [allies]
     );
 
-    const providerOptions = useMemo(() =>
+    const baseProviderOptions = useMemo(() =>
         (svcProviders || []).map(p => ({ value: p.id, label: p.name })),
         [svcProviders]
+    );
+    const providerOptions = useMemo(() =>
+        user?.role === 'ADMIN'
+            ? [...baseProviderOptions, { value: 'NEW', label: '+ Agregar nuevo proveedor', isAction: true }]
+            : baseProviderOptions,
+        [baseProviderOptions, user]
     );
 
     useEffect(() => {
@@ -56,17 +65,6 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
         fetchAll();
     }, [isOpen]);
 
-    const handleCreateProvider = async (inputValue) => {
-        try {
-            const res = await axios.post(`${API_URL}/svc-providers`, { name: inputValue }, { withCredentials: true });
-            const created = res.data;
-            setSvcProviders(prev => [...prev, created]);
-            setSvcProviderId(created.id);
-            showSuccess('Proveedor creado', `"${created.name}" agregado correctamente`);
-        } catch (err) {
-            showError('Error', err.response?.data?.message || 'No se pudo crear el proveedor');
-        }
-    };
 
     const resetForm = () => {
         setBeneficiaryType('ally');
@@ -184,17 +182,29 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
                     ) : (
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-slate-700">Proveedor de Servicios</label>
-                            <CreatableSelect
+                            <Select
                                 options={providerOptions}
-                                value={providerOptions.find(o => o.value === svcProviderId) || null}
-                                onChange={(opt) => setSvcProviderId(opt?.value || '')}
-                                onCreateOption={handleCreateProvider}
-                                placeholder="Buscar o crear proveedor..."
+                                value={baseProviderOptions.find(o => o.value === svcProviderId) || null}
+                                onChange={(opt) => {
+                                    if (opt?.value === 'NEW') {
+                                        setQuickCreateOpen(true);
+                                        return;
+                                    }
+                                    setSvcProviderId(opt?.value || '');
+                                }}
+                                placeholder="Seleccionar proveedor..."
                                 isClearable
-                                formatCreateLabel={(input) => `Crear "${input}"`}
-                                styles={selectStyles}
+                                styles={{
+                                    ...selectStyles,
+                                    option: (base, state) => ({
+                                        ...base,
+                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                    })
+                                }}
                                 menuPortalTarget={document.body}
-                                noOptionsMessage={() => 'Sin resultados. Escribe para crear uno nuevo.'}
+                                noOptionsMessage={() => 'Sin resultados'}
                             />
                         </div>
                     )}
@@ -254,6 +264,17 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
                         </button>
                     </div>
                 </form>
+
+                {/* Quick Create SvcProvider Modal */}
+                <QuickCreateSvcProviderModal
+                    isOpen={quickCreateOpen}
+                    onClose={() => setQuickCreateOpen(false)}
+                    onSuccess={(newProvider) => {
+                        setSvcProviders(prev => [...prev, { id: newProvider.value, name: newProvider.label }].sort((a, b) => a.name.localeCompare(b.name)));
+                        setSvcProviderId(newProvider.value);
+                        setQuickCreateOpen(false);
+                    }}
+                />
             </div>
         </div>,
         document.body
