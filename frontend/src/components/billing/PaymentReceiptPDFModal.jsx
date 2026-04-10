@@ -142,13 +142,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                 y += 5;
             }
 
-            // ── Nombre empresa y RIF ──
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
-            doc.text(companyName, pageWidth / 2, y, { align: 'center' });
-            y += 5;
-
+            //RIF
             if (companyRif) {
                 doc.setFontSize(9);
                 doc.setFont('helvetica', 'normal');
@@ -193,8 +187,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                 { text: `, RIF: ${companyRif}, hacemos constar que hemos recibido conforme de `, style: 'normal' },
                 { text: clientName || 'N/A', style: 'bold' },
                 { text: `, la cantidad de `, style: 'normal' },
-                { text: `$${amountFormatted}`, style: 'bold' },
-                { text: receivableNumber ? `, abono a la cuenta por cobrar CXC-${String(receivableNumber).padStart(5, '0')}.` : '.', style: 'normal' },
+                { text: `$${amountFormatted}.`, style: 'bold' }
             ];
 
             // Renderizar texto con fragmentos mixtos bold/normal usando splitTextToSize
