@@ -185,7 +185,8 @@ const Clients = () => {
                 isOpen={isToggleOpen}
                 onClose={closeAllModals}
                 onConfirm={handleToggleStatus}
-                clientName={selectedItem?.name}
+                entityName={clientConfig.entityName}
+                name={selectedItem?.name}
                 isActive={selectedItem?.isActive}
                 loading={actionLoading}
             />

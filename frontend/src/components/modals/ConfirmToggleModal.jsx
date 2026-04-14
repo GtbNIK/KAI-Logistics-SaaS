@@ -1,7 +1,7 @@
 import { AlertTriangle, X, Power, FileText } from 'lucide-react';
 import { useState } from 'react';
 
-const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, loading = false }) => {
+const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, entityName, name, isActive, loading = false }) => {
     const [deactivationNote, setDeactivationNote] = useState('');
 
     if (!isOpen) return null;
@@ -31,7 +31,7 @@ const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, 
                             <Power className={isActive ? 'text-amber-600' : 'text-green-600'} size={24} />
                         </div>
                         <h3 className="text-xl font-bold text-slate-800">
-                            {isActive ? 'Desactivar Cliente' : 'Activar Cliente'}
+                            {isActive ? `Desactivar ${entityName}` : `Activar ${entityName}`}
                         </h3>
                     </div>
                     <button 
@@ -47,13 +47,13 @@ const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, 
                 <div className="p-6 space-y-4">
                     <p className="text-slate-600">
                         {isActive 
-                            ? '¿Estás seguro de que deseas desactivar este cliente?' 
-                            : '¿Estás seguro de que deseas activar este cliente?'}
+                            ? `¿Estás seguro de que deseas desactivar este ${entityName}?` 
+                            : `¿Estás seguro de que deseas activar este ${entityName}?`}
                     </p>
-                    {clientName && (
+                    {name && (
                         <div className={`p-4 rounded-xl border ${isActive ? 'bg-amber-50 border-amber-100' : 'bg-green-50 border-green-100'}`}>
-                            <p className="text-sm text-slate-500 mb-1">Cliente:</p>
-                            <p className="font-semibold text-slate-800">{clientName}</p>
+                            <p className="text-sm text-slate-500 mb-1 capitalize">{entityName}:</p>
+                            <p className="font-semibold text-slate-800">{name}</p>
                         </div>
                     )}
 
@@ -81,8 +81,8 @@ const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, clientName, isActive, 
                         <AlertTriangle className={`shrink-0 mt-0.5 ${isActive ? 'text-amber-600' : 'text-blue-600'}`} size={18} />
                         <p className={`text-sm ${isActive ? 'text-amber-800' : 'text-blue-800'}`}>
                             {isActive 
-                                ? 'Al desactivar este cliente, no podrás crear nuevas cotizaciones ni embarques hasta que lo reactives.'
-                                : 'Al activar este cliente, podrás volver a crear cotizaciones y embarques normalmente.'}
+                                ? `Al desactivar este ${entityName}, no estará disponible para selección en formularios hasta que lo reactives.`
+                                : `Al activar este ${entityName}, volverá a estar disponible para selección en formularios.`}
                         </p>
                     </div>
                 </div>

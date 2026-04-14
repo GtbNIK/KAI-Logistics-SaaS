@@ -1,6 +1,64 @@
 import prisma from '../config/database.js';
 
 /**
+ * @route   DELETE /api/payment-notices/:id
+ * @desc    Eliminar un aviso de cobro y su cuenta por cobrar asociada
+ * @access  Private (ADMIN only)
+ */
+export const deletePaymentNotice = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const notice = await prisma.paymentNotice.findUnique({
+            where: { id },
+            include: {
+                receivable: {
+                    include: { payments: { select: { id: true } } }
+                }
+            }
+        });
+
+        if (!notice) {
+            return res.status(404).json({ message: 'Aviso de Cobro no encontrado' });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Si tiene receivable con pagos, eliminar en cascada recibos y pagos
+            if (notice.receivable) {
+                if (notice.receivable.payments.length > 0) {
+                    const paymentIds = notice.receivable.payments.map(p => p.id);
+                    await tx.paymentReceipt.deleteMany({
+                        where: { paymentTransactionId: { in: paymentIds } }
+                    });
+                    await tx.paymentTransaction.deleteMany({
+                        where: { id: { in: paymentIds } }
+                    });
+                }
+                await tx.receivable.delete({ where: { id: notice.receivable.id } });
+            }
+
+            // Eliminar items del aviso
+            await tx.paymentNoticeItem.deleteMany({ where: { paymentNoticeId: id } });
+
+            // Si el aviso viene de una cotización, revertir su estado
+            if (notice.quoteId) {
+                await tx.quote.update({
+                    where: { id: notice.quoteId },
+                    data: { status: 'APPROVED' }
+                });
+            }
+
+            await tx.paymentNotice.delete({ where: { id } });
+        });
+
+        res.json({ message: 'Aviso de Cobro eliminado correctamente' });
+    } catch (error) {
+        console.error('Error in deletePaymentNotice:', error);
+        res.status(500).json({ message: 'Error al eliminar el Aviso de Cobro' });
+    }
+};
+
+/**
  * @route   POST /api/payment-notices/from-quote/:id
  * @desc    Generar un Aviso de Cobro a partir de una Cotización Aprobada
  * @access  Private
@@ -61,9 +119,11 @@ export const convertFromQuote = async (req, res) => {
                             }
                             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
                             return {
-                                serviceId:  item.serviceId,
-                                allyId:     item.allyId || null,
-                                zoneId:     item.zoneId || null,
+                                serviceId:      item.serviceId,
+                                allyId:         item.allyId || null,
+                                zoneId:         item.zoneId || null,
+                                shippingLineId: item.shippingLineId || null,
+                                airLineId:      item.airLineId || null,
                                 description,
                                 quantity:   item.quantity,
                                 unitPrice:  item.unitPrice,
@@ -279,6 +339,10 @@ export const createPaymentNotice = async (req, res) => {
 
             processedItems.push({
                 serviceId: item.serviceId,
+                allyId: item.allyId || null,
+                zoneId: item.zoneId || null,
+                shippingLineId: item.shippingLineId || null,
+                airLineId: item.airLineId || null,
                 description,
                 quantity,
                 unitPrice,

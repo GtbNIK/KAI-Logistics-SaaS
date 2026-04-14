@@ -7,6 +7,8 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
+import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
+import airlineService from '../../services/airline.service';
 
 const STATUS_OPTIONS = [
     { value: 'PENDING', label: 'Pendiente' },
@@ -45,6 +47,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     const [users, setUsers] = useState([]);
     const [clients, setClients] = useState([]);
     const [shippingLines, setShippingLines] = useState([]);
+    const [airLines, setAirLines] = useState([]);
     const [ports, setPorts] = useState([]);
 
     // Toggle: ¿tiene aviso de cobro vinculado?
@@ -58,6 +61,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         whNumber: '',      // Warehouse Number para D2D
         bookingNumber: '',
         shippingLineId: '',
+        airLineId: '',
         status: 'PENDING',
         clientId: '',
         clientName: '',
@@ -81,18 +85,20 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         const load = async () => {
             setLoading(true);
             try {
-                const [notices, usersData, clientsData, shippingLinesData, portsData] = await Promise.all([
+                const [notices, usersData, clientsData, shippingLinesData, portsData, airLinesData] = await Promise.all([
                     shipmentService.getAvailableNotices(),
                     shipmentService.getVendedores(),
                     shipmentService.getClients(),
                     shipmentService.getShippingLines(),
-                    shipmentService.getPorts()
+                    shipmentService.getPorts(),
+                    airlineService.getAirLines()
                 ]);
                 setAvailableNotices(Array.isArray(notices) ? notices : []);
                 setUsers(Array.isArray(usersData) ? usersData : []);
                 setClients(Array.isArray(clientsData) ? clientsData : []);
                 setShippingLines(Array.isArray(shippingLinesData) ? shippingLinesData : []);
                 setPorts(Array.isArray(portsData) ? portsData : []);
+                setAirLines((airLinesData?.data || []))
             } catch (err) {
                 console.error('Error loading catalogs:', err);
             } finally {
@@ -111,9 +117,10 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 type: shipment.type || 'FCL',
                 paymentNoticeId: shipment.paymentNoticeId || '',
                 blNumber: shipment.blNumber || '',
-                whNumber: shipment.whNumber || '',      // Warehouse Number para D2D
+                whNumber: shipment.whNumber || '',
                 bookingNumber: shipment.bookingNumber || '',
                 shippingLineId: shipment.shippingLineId || '',
+                airLineId: shipment.airLineId || '',
                 status: shipment.status || 'PENDING',
                 clientId: shipment.clientId || '',
                 clientName: shipment.clientName || '',
@@ -407,31 +414,57 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Línea Naviera / Aérea</label>
-                                    <Select
-                                        options={shippingLineOptions}
-                                        value={baseShippingLineOptions.find(o => o.value === form.shippingLineId) || null}
-                                        onChange={(opt) => {
-                                            if (opt?.value === 'NEW') {
-                                                setQuickCreateType('SHIPPING_LINE');
-                                                return;
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                                        {isFCL ? 'Línea Naviera' : 'Línea Aérea'}
+                                    </label>
+                                    {isFCL ? (
+                                        <Select
+                                            options={shippingLineOptions}
+                                            value={baseShippingLineOptions.find(o => o.value === form.shippingLineId) || null}
+                                            onChange={(opt) => {
+                                                if (opt?.value === 'NEW') { setQuickCreateType('SHIPPING_LINE'); return; }
+                                                handleChange('shippingLineId', opt?.value || '');
+                                            }}
+                                            placeholder="Seleccionar naviera..."
+                                            isClearable
+                                            styles={{
+                                                ...selectStyles,
+                                                option: (base, state) => ({
+                                                    ...base,
+                                                    color: state.data.isAction ? '#12284bff' : base.color,
+                                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                })
+                                            }}
+                                            menuPortalTarget={document.body}
+                                            menuPosition="fixed"
+                                        />
+                                    ) : (
+                                        <Select
+                                            options={user?.role === 'ADMIN'
+                                                ? [...airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })), { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
+                                                : airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name }))
                                             }
-                                            handleChange('shippingLineId', opt?.value || '');
-                                        }}
-                                        placeholder="Seleccionar línea naviera..."
-                                        isClearable
-                                        styles={{
-                                            ...selectStyles,
-                                            option: (base, state) => ({
-                                                ...base,
-                                                color: state.data.isAction ? '#12284bff' : base.color,
-                                                fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
-                                                borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
-                                            })
-                                        }}
-                                        menuPortalTarget={document.body}
-                                        menuPosition="fixed"
-                                    />
+                                            value={airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })).find(o => o.value === form.airLineId) || null}
+                                            onChange={(opt) => {
+                                                if (opt?.value === 'NEW') { setQuickCreateType('AIR_LINE'); return; }
+                                                handleChange('airLineId', opt?.value || '');
+                                            }}
+                                            placeholder="Seleccionar aerolínea..."
+                                            isClearable
+                                            styles={{
+                                                ...selectStyles,
+                                                option: (base, state) => ({
+                                                    ...base,
+                                                    color: state.data.isAction ? '#12284bff' : base.color,
+                                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                })
+                                            }}
+                                            menuPortalTarget={document.body}
+                                            menuPosition="fixed"
+                                        />
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1">Estado</label>
@@ -648,6 +681,16 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 onSuccess={(newLine) => {
                     setShippingLines(prev => [...prev, { id: newLine.value, name: newLine.label }].sort((a, b) => a.name.localeCompare(b.name)));
                     handleChange('shippingLineId', newLine.value);
+                    setQuickCreateType(null);
+                }}
+            />
+
+            <QuickCreateAirLineModal
+                isOpen={quickCreateType === 'AIR_LINE'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newLine) => {
+                    setAirLines(prev => [...prev, newLine.data].sort((a, b) => a.name.localeCompare(b.name)));
+                    handleChange('airLineId', newLine.value);
                     setQuickCreateType(null);
                 }}
             />

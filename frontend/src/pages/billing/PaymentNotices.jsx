@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Receipt, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
 import { paymentNoticeConfig } from '../../config/paymentNoticeConfig';
 import PaymentNoticePDFModal from '../../components/billing/PaymentNoticePDFModal';
 import NoticeDetailModal from '../../components/billing/NoticeDetailModal';
 import CreateNoticeFormModal from '../../components/billing/CreateNoticeFormModal';
+import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -22,7 +24,7 @@ const usePaymentNotices = () => {
     const { showError } = useToast();
 
     useEffect(() => {
-        const t = setTimeout(() => { setDebouncedSearch(search);}, 1200);
+        const t = setTimeout(() => { setDebouncedSearch(search);}, 1000);
         return () => clearTimeout(t);
     }, [search]);
 
@@ -48,11 +50,14 @@ const usePaymentNotices = () => {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 const PaymentNotices = () => {
+    const { user } = useAuth();
     const [viewingNotice, setViewingNotice] = useState(null);
     const [printingNotice, setPrintingNotice] = useState(null);
     const [showPDFModal, setShowPDFModal] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const { showError } = useToast();
+    const [deletingNotice, setDeletingNotice] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const { showError, showSuccess } = useToast();
     const {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, refresh
@@ -66,6 +71,21 @@ const PaymentNotices = () => {
         } catch (error) {
             console.error('Error loading notice for print:', error);
             showError('Error', 'No se pudo cargar el aviso para imprimir');
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deletingNotice) return;
+        setDeleteLoading(true);
+        try {
+            await axios.delete(`${API_URL}/payment-notices/${deletingNotice.id}`, { withCredentials: true });
+            showSuccess('Eliminado', 'Aviso de Cobro eliminado correctamente');
+            setDeletingNotice(null);
+            refresh();
+        } catch (error) {
+            showError('Error', error.response?.data?.message || 'No se pudo eliminar el aviso de cobro');
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -104,10 +124,11 @@ const PaymentNotices = () => {
                 showStatusFilter={false}
                 showToggle={false}
                 canEdit={false}
-                canDelete={false}
+                canDelete={user?.role === 'ADMIN'}
                 canPrint={true}
                 onView={(item) => setViewingNotice(item)}
                 onPrint={handlePrint}
+                onDelete={(item) => setDeletingNotice(item)}
             />
 
             {viewingNotice && (
@@ -127,6 +148,17 @@ const PaymentNotices = () => {
                 onClose={() => setIsFormOpen(false)}
                 onSuccess={refresh}
             />
+
+            {deletingNotice && (
+                <ConfirmDeleteModal
+                    isOpen={!!deletingNotice}
+                    onClose={() => setDeletingNotice(null)}
+                    onConfirm={handleDelete}
+                    loading={deleteLoading}
+                    title="Eliminar Aviso de Cobro"
+                    message={`¿Estás seguro de eliminar el aviso AVC-${String(deletingNotice.number).padStart(5, '0')}? También se eliminará la cuenta por cobrar asociada. Esta acción no se puede deshacer.`}
+                />
+            )}
         </div>
     );
 };

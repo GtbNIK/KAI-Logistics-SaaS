@@ -196,7 +196,24 @@ model ShippingLine {
   updatedAt DateTime   @updatedAt
 
   // Relations
-  shipments Shipment[]
+  shipments        Shipment[]
+  quoteItems       QuoteItem[]
+  noticeItems      PaymentNoticeItem[]
+}
+
+model AirLine {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  code      String?    // Código IATA (ej: AA, DL, LA)
+  isActive  Boolean    @default(true)
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  shipments        Shipment[]
+  quoteItems       QuoteItem[]
+  noticeItems      PaymentNoticeItem[]
 }
 
 // The "Tarifario": Intersection of Ally, Service, and Zone
@@ -287,6 +304,12 @@ model QuoteItem {
   
   originPort    String?
   destinationPort String?
+
+  // Carrier fields (depend on service type)
+  shippingLineId  String?
+  shippingLine    ShippingLine? @relation(fields: [shippingLineId], references: [id])
+  airLineId       String?
+  airLine         AirLine?      @relation(fields: [airLineId], references: [id])
 }
 
 model DeliveryNote {
@@ -386,7 +409,13 @@ model PaymentNoticeItem {
   ally            Ally?    @relation(fields: [allyId], references: [id])
 
   zoneId          String?
-  zone            Zone?    @relation(fields: [zoneId], references: [id])
+  zone            Zone?         @relation(fields: [zoneId], references: [id])
+
+  // Carrier fields (depend on service type)
+  shippingLineId  String?
+  shippingLine    ShippingLine? @relation(fields: [shippingLineId], references: [id])
+  airLineId       String?
+  airLine         AirLine?      @relation(fields: [airLineId], references: [id])
 
   description     String
   quantity        Decimal  @db.Decimal(10, 2)
@@ -422,6 +451,10 @@ model Shipment {
   vendedorId      String?
   vendedor        User?    @relation("ShipmentVendedor", fields: [vendedorId], references: [id])
   
+  // Carrier
+  airLineId       String?
+  airLine         AirLine?      @relation(fields: [airLineId], references: [id])
+
   // FCL Specific
   containerType   String?  // Tipo de contenedor
   containerQty    Int?     // Cantidad de contenedores

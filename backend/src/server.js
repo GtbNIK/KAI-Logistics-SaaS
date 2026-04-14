@@ -20,6 +20,7 @@ import d2dItemRoutes from './routes/d2d-item.routes.js';
 import svcProviderRoutes from './routes/svc-provider.routes.js';
 import shipmentRoutes from './routes/shipment.routes.js';
 import shippingLineRoutes from './routes/shipping-line.routes.js';
+import airLineRoutes from './routes/airline.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import cashFlowRoutes from './routes/cash-flow.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
@@ -121,9 +122,11 @@ app.use('/api/svc-providers', verifyToken, svcProviderRoutes);
 import payableRoutes from './routes/payable.routes.js';
 app.use('/api/payables', payableRoutes);
 // Rutas de Tracking / Embarques
-app.use('/api/shipments', shipmentRoutes);
+app.use('/api/shipments', shipmentRoutes, verifyToken);
 // Catálogo de Líneas Navieras
-app.use('/api/shipping-lines', shippingLineRoutes);
+app.use('/api/shipping-lines', shippingLineRoutes, verifyToken);
+// Catálogo de Líneas Aéreas
+app.use('/api/airlines', airLineRoutes, verifyToken);
 
 // Rutas de Notificaciones
 import notificationRoutes from './routes/notification.routes.js';

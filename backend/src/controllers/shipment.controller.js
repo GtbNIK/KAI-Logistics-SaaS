@@ -90,7 +90,7 @@ export const createShipment = async (req, res) => {
     try {
         const {
             paymentNoticeId, type, blNumber, whNumber, bookingNumber,
-            shippingLineId, clientId, clientName,
+            shippingLineId, airLineId, clientId, clientName,
             vendedorId, currentLocation,
             containerType, containerQty, originPort, destPort, etd, eta,
             weight, quantity, cbm
@@ -104,6 +104,7 @@ export const createShipment = async (req, res) => {
         const noticeId = paymentNoticeId || null;
         const resolvedClientId = clientId || null;
         const resolvedShippingLineId = shippingLineId || null;
+        const resolvedAirLineId = airLineId || null;
 
         // Si se pasa un aviso de cobro, verificar que exista y no tenga tracking ya
         let notice = null;
@@ -128,6 +129,7 @@ export const createShipment = async (req, res) => {
             whNumber: whNumber || null,
             bookingNumber: bookingNumber || null,
             shippingLineId: resolvedShippingLineId,
+            airLineId: resolvedAirLineId,
             clientId: resolvedClientId,
             clientName: clientName || notice?.client?.name || null,
             vendedorId: vendedorId || null,
@@ -182,7 +184,7 @@ export const updateShipment = async (req, res) => {
     try {
         const { id } = req.params;
         const {
-            blNumber, whNumber, bookingNumber, shippingLineId, status,
+            blNumber, whNumber, bookingNumber, shippingLineId, airLineId, status,
             clientId, clientName, vendedorId, currentLocation,
             containerType, containerQty, originPort, destPort, etd, eta,
             weight, quantity, cbm
@@ -200,6 +202,7 @@ export const updateShipment = async (req, res) => {
         if (whNumber !== undefined) data.whNumber = whNumber || null;
         if (bookingNumber !== undefined) data.bookingNumber = bookingNumber || null;
         if (shippingLineId !== undefined) data.shippingLineId = shippingLineId || null;
+        if (airLineId !== undefined) data.airLineId = airLineId || null;
         if (status !== undefined) data.status = status;
         if (clientName !== undefined) data.clientName = clientName || null;
         if (vendedorId !== undefined) data.vendedorId = vendedorId || null;

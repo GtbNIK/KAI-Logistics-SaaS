@@ -2,8 +2,8 @@ import prisma from '../config/database.js';
 
 export const getShippingLines = async (req, res) => {
     try {
-        const { search = '' } = req.query;
-        const where = { isActive: true };
+        const { search = '', includeInactive } = req.query;
+        const where = includeInactive === 'true' ? {} : { isActive: true };
         if (search) {
             where.OR = [
                 { name: { contains: search, mode: 'insensitive' } },
@@ -58,6 +58,22 @@ export const updateShippingLine = async (req, res) => {
     } catch (error) {
         console.error('Error updateShippingLine:', error);
         res.status(500).json({ message: 'Error al actualizar línea naviera' });
+    }
+};
+
+export const toggleShippingLineStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const line = await prisma.shippingLine.findUnique({ where: { id } });
+        if (!line) return res.status(404).json({ message: 'Línea naviera no encontrada' });
+        const updated = await prisma.shippingLine.update({
+            where: { id },
+            data: { isActive: !line.isActive }
+        });
+        res.json(updated);
+    } catch (error) {
+        console.error('Error toggleShippingLineStatus:', error);
+        res.status(500).json({ message: 'Error al cambiar estado de línea naviera' });
     }
 };
 
