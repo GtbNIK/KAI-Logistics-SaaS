@@ -200,6 +200,21 @@ const QuotePDFModal = ({
             const quoteNumberHeader = quote.number ? `COT-${String(quote.number).padStart(5, '0')}` : 'Nueva Cotización';
             doc.text(quoteNumberHeader, pageWidth - margin, yPos + 16, { align: 'right' });
 
+            // Código de aliado (extraer del primer item que tenga aliado)
+            const firstAllyCode = (() => {
+                const itemWithAlly = quote.items.find(item => item.allyId);
+                if (!itemWithAlly) return null;
+                const ally = allies.find(a => a.value === itemWithAlly.allyId);
+                return ally?.data?.internalCode || null;
+            })();
+            
+            if (firstAllyCode) {
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(100, 100, 100);
+                doc.text(`A: ${firstAllyCode}`, pageWidth - margin, yPos + 20, { align: 'right' });
+            }
+
             yPos += 30;
 
             // Línea separadora
@@ -308,7 +323,6 @@ const QuotePDFModal = ({
             const tableData = items.map((item, index) => [
                 index + 1,
                 item.service,
-                item.allyCode,
                 item.destination,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
@@ -317,7 +331,7 @@ const QuotePDFModal = ({
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Aliado', 'Ruta / Zona', quantityLabel, 'P. Unit.', 'Subtotal']],
+                head: [['#', 'Servicio', 'Ruta / Zona', quantityLabel, 'P. Unit.', 'Subtotal']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -439,6 +453,17 @@ const QuotePDFModal = ({
                                     <p className="text-slate-500">
                                         {quote.number ? `COT-${String(quote.number).padStart(5, '0')}` : 'Nueva Cotización'}
                                     </p>
+                                    {(() => {
+                                        const itemWithAlly = quote.items.find(item => item.allyId);
+                                        if (!itemWithAlly) return null;
+                                        const ally = allies.find(a => a.value === itemWithAlly.allyId);
+                                        const allyCode = ally?.data?.internalCode;
+                                        return allyCode ? (
+                                            <p className="text-xs text-slate-500">
+                                                A: {allyCode}
+                                            </p>
+                                        ) : null;
+                                    })()}
                                 </div>
                             </div>
 
@@ -492,7 +517,6 @@ const QuotePDFModal = ({
                                     <tr style={{ backgroundColor: primaryColor }} className="text-white">
                                         <th className="py-2 px-3 text-left font-medium">#</th>
                                         <th className="py-2 px-3 text-left font-medium">Servicio</th>
-                                        <th className="py-2 px-3 text-left font-medium">Aliado</th>
                                         <th className="py-2 px-3 text-left font-medium">Ruta / Zona</th>
                                         <th className="py-2 px-3 text-center font-medium">Cant.</th>
                                         <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
@@ -504,7 +528,6 @@ const QuotePDFModal = ({
                                         <tr key={index} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
                                             <td className="py-2 px-3 text-center">{index + 1}</td>
                                             <td className="py-2 px-3">{item.service}</td>
-                                            <td className="py-2 px-3">{item.allyCode}</td>
                                             <td className="py-2 px-3">{item.destination}</td>
                                             <td className="py-2 px-3 text-center">{item.quantity}</td>
                                             <td className="py-2 px-3 text-right">${(Number(item.unitPrice) || 0).toFixed(2)}</td>

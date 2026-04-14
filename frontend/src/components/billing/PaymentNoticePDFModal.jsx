@@ -184,6 +184,15 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
             doc.setTextColor(100, 100, 100);
             doc.text(noticeNumber, pageWidth - margin, yPos + 16, { align: 'right' });
 
+            // Código de aliado (extraer del primer item que tenga aliado)
+            const firstAllyCode = items.length > 0 && items[0].allyCode !== '-' ? items[0].allyCode : null;
+            if (firstAllyCode) {
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(100, 100, 100);
+                doc.text(`A: ${firstAllyCode}`, pageWidth - margin, yPos + 20, { align: 'right' });
+            }
+
             yPos += 30;
 
             // Línea separadora
@@ -260,11 +269,10 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
 
             yPos = Math.max(clientEndY, rightY) + 10;
 
-            // ── Tabla de servicios ──
+            // ── Tabla de servicios (sin columna Aliado) ──
             const tableData = items.map((item, i) => [
                 i + 1,
                 item.service,
-                item.allyCode,
                 item.destination,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
@@ -273,7 +281,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Aliado', 'Ruta / Zona', 'Cant.', 'P. Unit.', 'Total']],
+                head: [['#', 'Servicio', 'Ruta / Zona', 'Cant.', 'P. Unit.', 'Total']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -286,9 +294,9 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
-                    3: { cellWidth: 15, halign: 'center' },
-                    4: { cellWidth: 22, halign: 'right' },
-                    5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+                    2: { cellWidth: 15, halign: 'center' },
+                    3: { cellWidth: 22, halign: 'right' },
+                    4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
                 },
                 margin: { left: margin, right: margin }
             });
@@ -432,6 +440,14 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                     <div className="text-right">
                                         <h1 className="text-2xl font-bold text-slate-800">AVISO DE COBRO</h1>
                                         <p className="text-slate-500">{noticeNumber}</p>
+                                        {(() => {
+                                            const firstAllyCode = items.length > 0 && items[0].allyCode !== '-' ? items[0].allyCode : null;
+                                            return firstAllyCode ? (
+                                                <p className="text-xs text-slate-500">
+                                                    A: {firstAllyCode}
+                                                </p>
+                                            ) : null;
+                                        })()}
                                     </div>
                                 </div>
 
@@ -475,7 +491,6 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                         <tr style={{ backgroundColor: primaryColor }} className="text-white">
                                             <th className="py-2 px-3 text-left font-medium">#</th>
                                             <th className="py-2 px-3 text-left font-medium">Servicio</th>
-                                            <th className="py-2 px-3 text-left font-medium">Aliado</th>
                                             <th className="py-2 px-3 text-left font-medium">Ruta / Zona</th>
                                             <th className="py-2 px-3 text-center font-medium">Cant.</th>
                                             <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
@@ -487,7 +502,6 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                             <tr key={index} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
                                                 <td className="py-2 px-3 text-center">{index + 1}</td>
                                                 <td className="py-2 px-3">{item.service}</td>
-                                                <td className="py-2 px-3">{item.allyCode}</td>
                                                 <td className="py-2 px-3">{item.destination}</td>
                                                 <td className="py-2 px-3 text-center">{item.quantity}</td>
                                                 <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
