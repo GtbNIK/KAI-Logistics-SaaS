@@ -504,10 +504,10 @@ const CreateQuote = () => {
                 setClients(clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })));
                 setServices(servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })));
                 setAllies(alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })));
-                setZones(zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })));
+                setZones(zonesRes.data.map(z => ({ value: z.id, label: `${z.name}`, data: z })));
                 setPorts((portsRes.data || []).map(p => ({ value: p.id, label: p.name, data: p })));
                 setShippingLines((slRes.data || []).map(s => ({ value: s.id, label: s.name, data: s })));
-                setAirLines((alRes.data || []).map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name, data: a })));
+                setAirLines((alRes.data || []).map(a => ({ value: a.id, label: a.name, data: a })));
 
                 if (id) {
                     const quote = await quoteService.getQuote(id);

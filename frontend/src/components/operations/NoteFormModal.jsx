@@ -9,6 +9,19 @@ import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// Estilos base compartidos para todos los react-select del modal.
+const selectStyles = {
+    control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px', '&:hover': { borderColor: '#10b981' } }),
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden' }),
+};
+
+const clientSelectStyles = {
+    control: (base) => ({ ...base, borderRadius: '0.75rem', borderColor: '#e2e8f0', minHeight: '44px', '&:hover': { borderColor: '#10b981' } }),
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden' }),
+};
+
 const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
     const { user } = useAuth();
     const [clients, setClients] = useState([]);
@@ -153,10 +166,9 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                             filterOption={() => true}
                             noOptionsMessage={() => 'Sin resultados'}
                             isClearable
-                            styles={{
-                                control: (base) => ({ ...base, borderRadius: '0.75rem', borderColor: '#e2e8f0', minHeight: '44px', '&:hover': { borderColor: '#10b981' } }),
-                                menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', zIndex: 50 }),
-                            }}
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                            styles={clientSelectStyles}
                         />
                     </div>
 
@@ -210,7 +222,7 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                                         </button>
                                     )}
                                 </div>
-                                <Select
+                                <Select 
                                     options={d2dItemOptions}
                                     value={baseD2dItemOptions.find(o => o.value === item.d2dItemId) || null}
                                     placeholder="Descripción del servicio *"
@@ -224,9 +236,10 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                                         updateItem(idx, 'd2dItemId', opt?.value || null);
                                         updateItem(idx, 'description', opt?.label || '');
                                     }}
+                                    menuPortalTarget={document.body}
+                                    menuPosition="fixed"
                                     styles={{
-                                        control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px' }),
-                                        menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', zIndex: 50 }),
+                                        ...selectStyles,
                                         option: (base, state) => ({
                                             ...base,
                                             color: state.data.isAction ? '#12284bff' : base.color,

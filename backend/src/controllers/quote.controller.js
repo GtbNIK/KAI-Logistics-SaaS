@@ -83,7 +83,9 @@ export const getQuote = async (req, res) => {
                     include: {
                         service: true,
                         ally: true,
-                        zone: true
+                        zone: true,
+                        shippingLine: true,
+                        airLine: true
                     }
                 }
             }
