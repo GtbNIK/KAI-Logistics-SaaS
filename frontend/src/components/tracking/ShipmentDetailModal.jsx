@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X, Container, Package, Ship, MapPin, Calendar, User, FileText, Anchor, Navigation } from 'lucide-react';
+import { X, Container, Package, Ship, MapPin, Calendar, User, FileText, Anchor, Navigation, Plane } from 'lucide-react';
 
 const STATUS_LABELS = {
     PENDING:             'Pendiente',
@@ -47,7 +47,9 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
         </div>
     );
 
-    const shippingLineName = s.shippingLineRel?.name || s.shippingLine || null;
+    const shippingLineName = isFCL ? (s.shippingLineRel?.name || s.shippingLine || null) : (s.airLine?.name || null);
+    const lineLabel = isFCL ? 'Línea Naviera' : 'Línea Aérea';
+    const lineIcon = isFCL ? Anchor : Plane;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
@@ -102,7 +104,7 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                             </h3>
                             <InfoRow icon={FileText} label={isFCL ? "Nro. BL" : "Nro. Warehouse"} value={isFCL ? s.blNumber : s.whNumber} mono />
                             {isFCL && <InfoRow icon={FileText} label="Nro. Booking" value={s.bookingNumber} mono />}
-                            <InfoRow icon={Anchor} label="Línea Naviera" value={shippingLineName} />
+                            <InfoRow icon={lineIcon} label={lineLabel} value={shippingLineName} />
                             <InfoRow icon={User} label="Cliente" value={s.clientName || s.clientRel?.name} />
                             <InfoRow icon={User} label="Vendedor" value={s.vendedor?.name} />
                             {s.paymentNotice && (
