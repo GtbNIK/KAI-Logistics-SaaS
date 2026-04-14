@@ -8,6 +8,7 @@ import EntityTable from '../../components/shared/EntityTable';
 import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ServiceDetailModal from '../../components/services/ServiceDetailModal';
+import ConfirmToggleModal from '../../components/modals/ConfirmToggleModal';
 
 // Adaptar servicio para el hook
 const adaptedService = {
@@ -78,22 +79,19 @@ const Services = () => {
                 isOpen={isDeleteOpen}
                 onClose={closeAllModals}
                 onConfirm={handleDelete}
-                title={`Desactivar ${serviceConfig.entityName}`}
-                message={`¿Estás seguro de que deseas desactivar este ${serviceConfig.entityName}? Podrás reactivarlo después.`}
+                title={`Eliminar ${serviceConfig.entityName}`}
+                message={`¿Estás seguro de que deseas eliminar este ${serviceConfig.entityName}?`}
                 itemName={selectedItem?.name}
                 loading={actionLoading}
             />
 
-            <ConfirmDeleteModal
+            <ConfirmToggleModal
                 isOpen={isToggleOpen}
                 onClose={closeAllModals}
                 onConfirm={handleToggleStatus}
-                title={selectedItem?.isActive ? 'Desactivar Servicio' : 'Activar Servicio'}
-                message={selectedItem?.isActive 
-                    ? '¿Deseas desactivar este servicio? No aparecerá en nuevas cotizaciones.'
-                    : '¿Deseas reactivar este servicio?'
-                }
-                itemName={selectedItem?.name}
+                entityName={serviceConfig.entityName}
+                name={selectedItem?.name}
+                isActive={selectedItem?.isActive}
                 loading={actionLoading}
             />
 

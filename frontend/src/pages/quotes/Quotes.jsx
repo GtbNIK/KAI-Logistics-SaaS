@@ -244,10 +244,6 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                                 const isAir = item.service?.type === 'AIR';
                                 const showPorts = isLogistics || isAir;
                                 
-                                let allyLabel = 'Aliado';
-                                if (isLogistics) allyLabel = 'Línea Naviera';
-                                if (isAir) allyLabel = 'Línea Aérea';
-
                                 return (
                                     <div key={i} className="bg-slate-50 rounded-lg p-4 flex justify-between items-start">
                                         <div className="space-y-1">
@@ -256,13 +252,27 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                                                     {item.service?.name || item.description || 'Servicio'}
                                                 </p>
                                             </div>
-                                            
+
                                             {/* Detalle de Aliado/Línea y Ruta/Zona */}
                                             <div className="text-sm text-slate-500 flex flex-col gap-0.5">
                                                 {item.ally && (
                                                     <p className="flex items-center gap-1">
-                                                        <span className="font-medium text-slate-600">{allyLabel}:</span> 
+                                                        <span className="font-medium text-slate-600">Aliado:</span>
                                                         {item.ally.name}
+                                                    </p>
+                                                )}
+
+                                                {/* Línea Naviera o Aérea */}
+                                                {isLogistics && item.shippingLine && (
+                                                    <p className="flex items-center gap-1">
+                                                        <span className="font-medium text-slate-600">Línea Naviera:</span>
+                                                        {item.shippingLine.name}
+                                                    </p>
+                                                )}
+                                                {isAir && item.airLine && (
+                                                    <p className="flex items-center gap-1">
+                                                        <span className="font-medium text-slate-600">Línea Aérea:</span>
+                                                        {item.airLine.name}
                                                     </p>
                                                 )}
                                                 

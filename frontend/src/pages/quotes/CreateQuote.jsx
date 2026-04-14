@@ -13,6 +13,8 @@ import allyService from '../../services/ally.service';
 import zoneService from '../../services/zone.service';
 import portService from '../../services/port.service';
 import quoteService from '../../services/quote.service';
+import shippingLineService from '../../services/shippingLine.service';
+import airlineService from '../../services/airline.service';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +22,8 @@ import DatePicker from '../../components/shared/DatePicker';
 import QuickCreateServiceModal from '../../components/shared/QuickCreateServiceModal';
 import QuickCreatePortModal from '../../components/shared/QuickCreatePortModal';
 import QuickCreateZoneModal from '../../components/shared/QuickCreateZoneModal';
+import QuickCreateShippingLineModal from '../../components/shared/QuickCreateShippingLineModal';
+import QuickCreateAirLineModal from '../../components/shared/QuickCreateAirLineModal';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -28,7 +32,9 @@ const QuoteItemRow = ({
     services, 
     allies, 
     zones, 
-	ports,
+    ports,
+    shippingLines,
+    airLines,
     loadingData,
     onUpdate, 
     onRemove, 
@@ -45,6 +51,15 @@ const QuoteItemRow = ({
     const serviceType = selectedService?.data?.type;
     const isLandService = ['DOOR_TO_DOOR', 'WAREHOUSE', 'CUSTOMS', 'OTHER'].includes(serviceType);
     const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
+    const isAirService = serviceType === 'AIR';
+    const isMaritimeService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL'].includes(serviceType);
+
+    const actionStyleFn = (base, state) => ({
+        ...base,
+        color: state.data.isAction ? '#12284bff' : base.color,
+        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+    });
 
     const isInitialLoad = useRef(true);
 
@@ -169,15 +184,14 @@ const QuoteItemRow = ({
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-500">
-                        {serviceType === 'AIR' ? 'Línea Aérea' : isPortService ? 'Línea Naviera' : 'Aliado'}
-                    </label>
+                    <label className="text-xs font-medium text-slate-500">Aliado</label>
                     <Select
                         options={allies}
                         value={allies.find(a => a.value === item.allyId)}
                         isLoading={loadingData}
-                        placeholder={serviceType === 'AIR' ? "Línea aérea..." : isPortService ? "Línea naviera..." : "Aliado..."}
+                        placeholder="Aliado..."
                         onChange={(opt) => onUpdate(index, { allyId: opt?.value })}
+                        isClearable
                         className="text-sm"
                         menuPortalTarget={document.body}
                         menuPosition="fixed"
@@ -217,6 +231,62 @@ const QuoteItemRow = ({
                                 fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
                                 borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
                              })
+                        }}
+                    />
+                </div>
+            )}
+
+            {isMaritimeService && (
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Línea Naviera</label>
+                    <Select
+                        options={userRole === 'ADMIN'
+                            ? [...shippingLines, { value: 'NEW', label: '+ Agregar nueva naviera', isAction: true }]
+                            : shippingLines
+                        }
+                        value={shippingLines.find(s => s.value === item.shippingLineId) || null}
+                        isLoading={loadingData}
+                        placeholder="Seleccionar naviera..."
+                        onChange={(opt) => {
+                            if (opt?.value === 'NEW') { onQuickCreate('SHIPPING_LINE', index); return; }
+                            onUpdate(index, { shippingLineId: opt?.value || null });
+                        }}
+                        isClearable
+                        className="text-sm"
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={{
+                            control: (base) => ({ ...base, minHeight: '36px', borderRadius: '12px' }),
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                            option: actionStyleFn
+                        }}
+                    />
+                </div>
+            )}
+
+            {isAirService && (
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500">Línea Aérea</label>
+                    <Select
+                        options={userRole === 'ADMIN'
+                            ? [...airLines, { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
+                            : airLines
+                        }
+                        value={airLines.find(a => a.value === item.airLineId) || null}
+                        isLoading={loadingData}
+                        placeholder="Seleccionar aerolínea..."
+                        onChange={(opt) => {
+                            if (opt?.value === 'NEW') { onQuickCreate('AIR_LINE', index); return; }
+                            onUpdate(index, { airLineId: opt?.value || null });
+                        }}
+                        isClearable
+                        className="text-sm"
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={{
+                            control: (base) => ({ ...base, minHeight: '36px', borderRadius: '12px' }),
+                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                            option: actionStyleFn
                         }}
                     />
                 </div>
@@ -365,7 +435,9 @@ const CreateQuote = () => {
     const [services, setServices] = useState([]);
     const [allies, setAllies] = useState([]);
     const [zones, setZones] = useState([]);
-	const [ports, setPorts] = useState([]);
+    const [ports, setPorts] = useState([]);
+    const [shippingLines, setShippingLines] = useState([]);
+    const [airLines, setAirLines] = useState([]);
 
     const [clientId, setClientId] = useState(null);
     const [notes, setNotes] = useState('');
@@ -407,6 +479,8 @@ const CreateQuote = () => {
             zoneId: null,
             originPort: '',
             destinationPort: '',
+            shippingLineId: null,
+            airLineId: null,
             quantity: 1,
             unitPrice: 0,
             description: ''
@@ -417,20 +491,23 @@ const CreateQuote = () => {
         const loadData = async () => {
             setLoadingData(true);
             try {
-                const [clientsRes, servicesRes, alliesRes, zonesRes] = await Promise.all([
+                const [clientsRes, servicesRes, alliesRes, zonesRes, portsRes, slRes, alRes] = await Promise.all([
                     clientService.getClients({ limit: 100 }),
                     serviceService.getServices({ limit: 100 }),
                     allyService.getAllies({ limit: 100 }),
-                    zoneService.getZones({ limit: 100 })
+                    zoneService.getZones({ limit: 100 }),
+                    portService.getPorts({ all: 'true' }),
+                    shippingLineService.getShippingLines(),
+                    airlineService.getAirLines()
                 ]);
 
                 setClients(clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })));
                 setServices(servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })));
                 setAllies(alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })));
-                setZones(zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })));
-
-				const portsRes = await portService.getPorts({ all: 'true' });
-				setPorts((portsRes.data || []).map(p => ({ value: p.id, label: p.name, data: p })));
+                setZones(zonesRes.data.map(z => ({ value: z.id, label: `${z.name}`, data: z })));
+                setPorts((portsRes.data || []).map(p => ({ value: p.id, label: p.name, data: p })));
+                setShippingLines((slRes.data || []).map(s => ({ value: s.id, label: s.name, data: s })));
+                setAirLines((alRes.data || []).map(a => ({ value: a.id, label: a.name, data: a })));
 
                 if (id) {
                     const quote = await quoteService.getQuote(id);
@@ -447,6 +524,8 @@ const CreateQuote = () => {
                         zoneId: item.zoneId,
                         originPort: item.originPort || '',
                         destinationPort: item.destinationPort || '',
+                        shippingLineId: item.shippingLineId || null,
+                        airLineId: item.airLineId || null,
                         quantity: parseFloat(item.quantity),
                         unitPrice: parseFloat(item.unitPrice),
                         description: item.description
@@ -529,6 +608,8 @@ const CreateQuote = () => {
                     zoneId: item.zoneId,
                     originPort: item.originPort || null,
                     destinationPort: item.destinationPort || null,
+                    shippingLineId: item.shippingLineId || null,
+                    airLineId: item.airLineId || null,
                     quantity: parseFloat(item.quantity),
                     unitPrice: parseFloat(item.unitPrice),
                     description: item.description || ''
@@ -604,6 +685,8 @@ const CreateQuote = () => {
 								allies={allies}
 								zones={zones}
 								ports={ports}
+								shippingLines={shippingLines}
+								airLines={airLines}
 								loadingData={loadingData}
 								onUpdate={updateItem}
 								onRemove={removeItem}
@@ -836,6 +919,27 @@ const CreateQuote = () => {
                 onSuccess={(newZone) => {
                     setZones(prev => [...prev, newZone].sort((a, b) => a.label.localeCompare(b.label)));
                     updateItem(quickCreateRowIndex, { zoneId: newZone.value });
+                }}
+            />
+
+            <QuickCreateShippingLineModal
+                isOpen={quickCreateType === 'SHIPPING_LINE'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newLine) => {
+                    setShippingLines(prev => [...prev, { value: newLine.value, label: newLine.label, data: newLine.data }].sort((a, b) => a.label.localeCompare(b.label)));
+                    updateItem(quickCreateRowIndex, { shippingLineId: newLine.value });
+                    setQuickCreateType(null);
+                }}
+            />
+
+            <QuickCreateAirLineModal
+                isOpen={quickCreateType === 'AIR_LINE'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newLine) => {
+                    const label = newLine.data?.code ? `${newLine.data.code} — ${newLine.label}` : newLine.label;
+                    setAirLines(prev => [...prev, { value: newLine.value, label, data: newLine.data }].sort((a, b) => a.label.localeCompare(b.label)));
+                    updateItem(quickCreateRowIndex, { airLineId: newLine.value });
+                    setQuickCreateType(null);
                 }}
             />
         </div>

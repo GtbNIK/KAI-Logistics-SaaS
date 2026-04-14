@@ -111,17 +111,35 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                                 {n.items.map((item, i) => {
                                     const parts = (item.description || '').split(' · ');
                                     const serviceName = parts[0] || 'Servicio';
-                                    const allyName = item.ally?.name || '-';
-                                    const extraParts = parts.slice(1).filter(p => !p.startsWith('Aliado:'));
+                                    const isLogistics = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'DOOR_TO_DOOR'].includes(item.service?.type);
+                                    const isAir = item.service?.type === 'AIR';
+                                    const extraParts = parts.slice(1).filter(p => !p.startsWith('Aliado:') && !p.startsWith('Línea Naviera:') && !p.startsWith('Línea Aérea:'));
                                     return (
                                         <div key={i} className="bg-slate-50 rounded-xl p-4 flex justify-between items-start border border-slate-100">
                                             <div className="space-y-1">
                                                 <p className="font-medium text-slate-800">{serviceName}</p>
                                                 <div className="text-sm text-slate-500 flex flex-col gap-0.5">
-                                                    <p className="flex items-center gap-1">
-                                                        <span className="font-medium text-slate-600">Aliado:</span>{' '}
-                                                        {allyName}
-                                                    </p>
+                                                    {item.ally && (
+                                                        <p className="flex items-center gap-1">
+                                                            <span className="font-medium text-slate-600">Aliado:</span>
+                                                            {item.ally.name}
+                                                        </p>
+                                                    )}
+
+                                                    {/* Línea Naviera o Aérea */}
+                                                    {isLogistics && item.shippingLine && (
+                                                        <p className="flex items-center gap-1">
+                                                            <span className="font-medium text-slate-600">Línea Naviera:</span>
+                                                            {item.shippingLine.name}
+                                                        </p>
+                                                    )}
+                                                    {isAir && item.airLine && (
+                                                        <p className="flex items-center gap-1">
+                                                            <span className="font-medium text-slate-600">Línea Aérea:</span>
+                                                            {item.airLine.name}
+                                                        </p>
+                                                    )}
+
                                                     {extraParts.map((part, j) => (
                                                         <p key={j} className="flex items-center gap-1">
                                                             <span className="font-medium text-slate-600">{part.split(': ')[0]}:</span>{' '}

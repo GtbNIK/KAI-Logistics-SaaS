@@ -26,7 +26,7 @@ const useReceivables = () => {
     const { showError } = useToast();
 
     useEffect(() => {
-        const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 1200);
+        const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 1000);
         return () => clearTimeout(t);
     }, [search]);
 

@@ -24,7 +24,7 @@ const useDeliveryNotes = () => {
     const { showError } = useToast();
 
     useEffect(() => {
-        const t = setTimeout(() => { setDebouncedSearch(search); }, 1200);
+        const t = setTimeout(() => { setDebouncedSearch(search); }, 1000);
         return () => clearTimeout(t);
     }, [search]);
 

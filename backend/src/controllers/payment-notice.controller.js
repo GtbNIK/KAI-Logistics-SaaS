@@ -1,6 +1,64 @@
 import prisma from '../config/database.js';
 
 /**
+ * @route   DELETE /api/payment-notices/:id
+ * @desc    Eliminar un aviso de cobro y su cuenta por cobrar asociada
+ * @access  Private (ADMIN only)
+ */
+export const deletePaymentNotice = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const notice = await prisma.paymentNotice.findUnique({
+            where: { id },
+            include: {
+                receivable: {
+                    include: { payments: { select: { id: true } } }
+                }
+            }
+        });
+
+        if (!notice) {
+            return res.status(404).json({ message: 'Aviso de Cobro no encontrado' });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Si tiene receivable con pagos, eliminar en cascada recibos y pagos
+            if (notice.receivable) {
+                if (notice.receivable.payments.length > 0) {
+                    const paymentIds = notice.receivable.payments.map(p => p.id);
+                    await tx.paymentReceipt.deleteMany({
+                        where: { paymentTransactionId: { in: paymentIds } }
+                    });
+                    await tx.paymentTransaction.deleteMany({
+                        where: { id: { in: paymentIds } }
+                    });
+                }
+                await tx.receivable.delete({ where: { id: notice.receivable.id } });
+            }
+
+            // Eliminar items del aviso
+            await tx.paymentNoticeItem.deleteMany({ where: { paymentNoticeId: id } });
+
+            // Si el aviso viene de una cotización, revertir su estado
+            if (notice.quoteId) {
+                await tx.quote.update({
+                    where: { id: notice.quoteId },
+                    data: { status: 'APPROVED' }
+                });
+            }
+
+            await tx.paymentNotice.delete({ where: { id } });
+        });
+
+        res.json({ message: 'Aviso de Cobro eliminado correctamente' });
+    } catch (error) {
+        console.error('Error in deletePaymentNotice:', error);
+        res.status(500).json({ message: 'Error al eliminar el Aviso de Cobro' });
+    }
+};
+
+/**
  * @route   POST /api/payment-notices/from-quote/:id
  * @desc    Generar un Aviso de Cobro a partir de una Cotización Aprobada
  * @access  Private
@@ -17,7 +75,9 @@ export const convertFromQuote = async (req, res) => {
                     include: {
                         service: { select: { name: true, type: true } },
                         ally:    { select: { internalCode: true } },
-                        zone:    { select: { name: true } }
+                        zone:    { select: { name: true } },
+                        shippingLine: { select: { name: true } },
+                        airLine: { select: { name: true } }
                     }
                 }
             }
@@ -51,19 +111,23 @@ export const convertFromQuote = async (req, res) => {
                     notes: quote.notes,
                     items: {
                         create: quote.items.map(item => {
-                            // Construir descripción rica: "Servicio · Aliado · Zona/Ruta"
+                            // Construir descripción rica: "Servicio · Aliado · Línea · Zona/Ruta"
                             const parts = [];
                             if (item.service?.name)   parts.push(item.service.name);
                             if (item.ally?.internalCode) parts.push(`Aliado: ${item.ally.internalCode}`);
+                            if (item.shippingLine?.name) parts.push(`Línea Naviera: ${item.shippingLine.name}`);
+                            if (item.airLine?.name) parts.push(`Línea Aérea: ${item.airLine.name}`);
                             if (item.zone?.name)      parts.push(`Zona: ${item.zone.name}`);
                             if (item.originPort || item.destinationPort) {
                                 parts.push(`Ruta: ${item.originPort || 'N/A'} → ${item.destinationPort || 'N/A'}`);
                             }
                             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
                             return {
-                                serviceId:  item.serviceId,
-                                allyId:     item.allyId || null,
-                                zoneId:     item.zoneId || null,
+                                serviceId:      item.serviceId,
+                                allyId:         item.allyId || null,
+                                zoneId:         item.zoneId || null,
+                                shippingLineId: item.shippingLineId || null,
+                                airLineId:      item.airLineId || null,
                                 description,
                                 quantity:   item.quantity,
                                 unitPrice:  item.unitPrice,
@@ -184,7 +248,10 @@ export const getPaymentNoticeById = async (req, res) => {
                 client: { include: { assignedUsers: { select: { id: true } } } },
                 items: {
                     include: {
-                        ally: { select: { name: true } }
+                        service: { select: { name: true, type: true } },
+                        ally: { select: { name: true } },
+                        shippingLine: true,
+                        airLine: true
                     }
                 },
                 quote: {
@@ -267,10 +334,20 @@ export const createPaymentNotice = async (req, res) => {
                 ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
                 : null;
 
-            // Construir descripción enriquecida: "Servicio · Aliado · Zona/Ruta"
+            const shippingLine = item.shippingLineId
+                ? await prisma.shippingLine.findUnique({ where: { id: item.shippingLineId }, select: { name: true } })
+                : null;
+
+            const airLine = item.airLineId
+                ? await prisma.airLine.findUnique({ where: { id: item.airLineId }, select: { name: true } })
+                : null;
+
+            // Construir descripción enriquecida: "Servicio · Aliado · Línea · Zona/Ruta"
             const parts = [];
             if (service?.name) parts.push(service.name);
             if (ally?.internalCode) parts.push(`Aliado: ${ally.internalCode}`);
+            if (shippingLine?.name) parts.push(`Línea Naviera: ${shippingLine.name}`);
+            if (airLine?.name) parts.push(`Línea Aérea: ${airLine.name}`);
             if (zone?.name) parts.push(`Zona: ${zone.name}`);
             if (item.originPort || item.destinationPort) {
                 parts.push(`Ruta: ${item.originPort || 'N/A'} → ${item.destinationPort || 'N/A'}`);
@@ -279,6 +356,10 @@ export const createPaymentNotice = async (req, res) => {
 
             processedItems.push({
                 serviceId: item.serviceId,
+                allyId: item.allyId || null,
+                zoneId: item.zoneId || null,
+                shippingLineId: item.shippingLineId || null,
+                airLineId: item.airLineId || null,
                 description,
                 quantity,
                 unitPrice,

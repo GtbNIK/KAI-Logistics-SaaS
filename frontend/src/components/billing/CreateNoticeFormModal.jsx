@@ -6,6 +6,10 @@ import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import QuickCreateServiceModal from '../shared/QuickCreateServiceModal';
+import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
+import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
+import shippingLineService from '../../services/shippingLine.service';
+import airlineService from '../../services/airline.service';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -28,12 +32,17 @@ const clientSelectStyles = {
     menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden' }),
 };
 
+const MARITIME_TYPES = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL'];
+const AIR_TYPE = 'AIR';
+
 const emptyItem = () => ({
     serviceId: '',
     allyId: '',
     zoneId: '',
     originPort: '',
     destinationPort: '',
+    shippingLineId: '',
+    airLineId: '',
     quantity: 1,
     unitPrice: '',
     description: '',
@@ -45,6 +54,8 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [allies, setAllies] = useState([]);
     const [zones, setZones] = useState([]);
     const [ports, setPorts] = useState([]);
+    const [shippingLines, setShippingLines] = useState([]);
+    const [airLines, setAirLines] = useState([]);
 
     const [clientId, setClientId] = useState('');
     const [clientInputValue, setClientInputValue] = useState('');
@@ -53,6 +64,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [saving, setSaving] = useState(false);
     const { user } = useAuth();
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+    const [quickCreateType, setQuickCreateType] = useState(null);
     const [currentItemIndex, setCurrentItemIndex] = useState(null);
     const { showSuccess, showError } = useToast();
 
@@ -100,18 +112,22 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
 
         const fetchAll = async () => {
             try {
-                const [cRes, sRes, aRes, zRes, pRes] = await Promise.all([
+                const [cRes, sRes, aRes, zRes, pRes, slRes, alRes] = await Promise.all([
                     axios.get(`${API_URL}/clients?all=true`, { withCredentials: true }),
                     axios.get(`${API_URL}/services`, { withCredentials: true }),
                     axios.get(`${API_URL}/allies`, { withCredentials: true }),
                     axios.get(`${API_URL}/zones`, { withCredentials: true }),
                     axios.get(`${API_URL}/ports`, { withCredentials: true }),
+                    shippingLineService.getShippingLines(),
+                    airlineService.getAirLines()
                 ]);
                 setClients(cRes.data.data || []);
                 setServices(sRes.data.data || sRes.data || []);
                 setAllies(aRes.data.data || aRes.data || []);
                 setZones(zRes.data.data || zRes.data || []);
                 setPorts(pRes.data.data || pRes.data || []);
+                setShippingLines((slRes.data || []));
+                setAirLines((alRes.data || []));
             } catch {
                 showError('Error', 'No se pudieron cargar los catálogos');
             }
@@ -135,6 +151,8 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
             updated[index].zoneId = '';
             updated[index].originPort = '';
             updated[index].destinationPort = '';
+            updated[index].shippingLineId = '';
+            updated[index].airLineId = '';
         }
         setItems(updated);
     };
@@ -182,6 +200,8 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                     zoneId: item.zoneId || undefined,
                     originPort: item.originPort || undefined,
                     destinationPort: item.destinationPort || undefined,
+                    shippingLineId: item.shippingLineId || undefined,
+                    airLineId: item.airLineId || undefined,
                     quantity: Number(item.quantity) || 1,
                     unitPrice: Number(item.unitPrice),
                     description: item.description || undefined,
@@ -317,6 +337,73 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                                             />
                                         </div>
 
+                                        {/* Línea Naviera (marítimo) o Aérea */}
+                                        {item.serviceId && !showZone && (
+                                            (() => {
+                                                const svcType = getServiceType(item.serviceId);
+                                                const isMaritime = MARITIME_TYPES.includes(svcType);
+                                                const isAir = svcType === AIR_TYPE;
+                                                if (!isMaritime && !isAir) return null;
+                                                return isMaritime ? (
+                                                    <div>
+                                                        <label className="text-xs text-slate-500 mb-1 block">Línea Naviera <span className="text-slate-300">(opcional)</span></label>
+                                                        <Select
+                                                            options={user?.role === 'ADMIN'
+                                                                ? [...shippingLines.map(s => ({ value: s.id, label: s.name })), { value: 'NEW', label: '+ Agregar nueva naviera', isAction: true }]
+                                                                : shippingLines.map(s => ({ value: s.id, label: s.name }))
+                                                            }
+                                                            value={shippingLines.map(s => ({ value: s.id, label: s.name })).find(o => o.value === item.shippingLineId) || null}
+                                                            placeholder="Seleccionar naviera..."
+                                                            onChange={(opt) => {
+                                                                if (opt?.value === 'NEW') { setCurrentItemIndex(idx); setQuickCreateType('SHIPPING_LINE'); return; }
+                                                                updateItem(idx, 'shippingLineId', opt?.value || '');
+                                                            }}
+                                                            isClearable
+                                                            menuPortalTarget={document.body}
+                                                            menuPosition="fixed"
+                                                            styles={{
+                                                                ...selectStyles,
+                                                                option: (base, state) => ({
+                                                                    ...base,
+                                                                    color: state.data?.isAction ? '#12284bff' : base.color,
+                                                                    fontWeight: state.data?.isAction ? 'bold' : base.fontWeight,
+                                                                    borderTop: state.data?.isAction ? '1px solid #e2e8f0' : 'none'
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <label className="text-xs text-slate-500 mb-1 block">Línea Aérea <span className="text-slate-300">(opcional)</span></label>
+                                                        <Select
+                                                            options={user?.role === 'ADMIN'
+                                                                ? [...airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })), { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
+                                                                : airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name }))
+                                                            }
+                                                            value={airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })).find(o => o.value === item.airLineId) || null}
+                                                            placeholder="Seleccionar aerolínea..."
+                                                            onChange={(opt) => {
+                                                                if (opt?.value === 'NEW') { setCurrentItemIndex(idx); setQuickCreateType('AIR_LINE'); return; }
+                                                                updateItem(idx, 'airLineId', opt?.value || '');
+                                                            }}
+                                                            isClearable
+                                                            menuPortalTarget={document.body}
+                                                            menuPosition="fixed"
+                                                            styles={{
+                                                                ...selectStyles,
+                                                                option: (base, state) => ({
+                                                                    ...base,
+                                                                    color: state.data?.isAction ? '#12284bff' : base.color,
+                                                                    fontWeight: state.data?.isAction ? 'bold' : base.fontWeight,
+                                                                    borderTop: state.data?.isAction ? '1px solid #e2e8f0' : 'none'
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                );
+                                            })()
+                                        )}
+
                                         {/* Zona o Ruta según tipo de servicio */}
                                         {item.serviceId && (
                                             showZone ? (
@@ -425,14 +512,34 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                     isOpen={quickCreateOpen}
                     onClose={() => { setQuickCreateOpen(false); setCurrentItemIndex(null); }}
                     onSuccess={(newService) => {
-                        // Actualizar catálogo local de servicios
                         setServices(prev => [...prev, { id: newService.value, name: newService.label, type: newService.data?.type }]
                             .sort((a, b) => a.name.localeCompare(b.name)));
-                        // Seleccionar automáticamente en el item correspondiente
                         if (currentItemIndex !== null) {
                             updateItem(currentItemIndex, 'serviceId', newService.value);
                         }
                         setQuickCreateOpen(false);
+                        setCurrentItemIndex(null);
+                    }}
+                />
+
+                <QuickCreateShippingLineModal
+                    isOpen={quickCreateType === 'SHIPPING_LINE'}
+                    onClose={() => { setQuickCreateType(null); setCurrentItemIndex(null); }}
+                    onSuccess={(newLine) => {
+                        setShippingLines(prev => [...prev, { id: newLine.value, name: newLine.label }].sort((a, b) => a.name.localeCompare(b.name)));
+                        if (currentItemIndex !== null) updateItem(currentItemIndex, 'shippingLineId', newLine.value);
+                        setQuickCreateType(null);
+                        setCurrentItemIndex(null);
+                    }}
+                />
+
+                <QuickCreateAirLineModal
+                    isOpen={quickCreateType === 'AIR_LINE'}
+                    onClose={() => { setQuickCreateType(null); setCurrentItemIndex(null); }}
+                    onSuccess={(newLine) => {
+                        setAirLines(prev => [...prev, newLine.data].sort((a, b) => a.name.localeCompare(b.name)));
+                        if (currentItemIndex !== null) updateItem(currentItemIndex, 'airLineId', newLine.value);
+                        setQuickCreateType(null);
                         setCurrentItemIndex(null);
                     }}
                 />

@@ -3,7 +3,8 @@ import {
     convertFromQuote,
     createPaymentNotice,
     getPaymentNotices,
-    getPaymentNoticeById
+    getPaymentNoticeById,
+    deletePaymentNotice
 } from '../controllers/payment-notice.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 
@@ -39,5 +40,12 @@ router.get('/', getPaymentNotices);
  * @access  Private
  */
 router.get('/:id', getPaymentNoticeById);
+
+/**
+ * @route   DELETE /api/payment-notices/:id
+ * @desc    Eliminar aviso de cobro y su cuenta por cobrar
+ * @access  Private (ADMIN only)
+ */
+router.delete('/:id', authorize('ADMIN'), deletePaymentNotice);
 
 export default router;

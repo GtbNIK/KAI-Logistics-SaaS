@@ -11,6 +11,7 @@ import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ZoneDetailModal from '../../components/zones/ZoneDetailModal';
 import PortDetailModal from '../../components/ports/PortDetailModal';
+import ConfirmToggleModal from '../../components/modals/ConfirmToggleModal.jsx';
 
 // Adaptar servicio para el hook
 const adaptedService = {
@@ -154,29 +155,23 @@ const Zones = () => {
 				loading={portActionLoading}
 			/>
 
-            <ConfirmDeleteModal
+            <ConfirmToggleModal
                 isOpen={isToggleOpen}
                 onClose={closeAllModals}
                 onConfirm={handleToggleStatus}
-                title={selectedItem?.isActive ? 'Desactivar Zona' : 'Activar Zona'}
-                message={selectedItem?.isActive 
-                    ? '¿Deseas desactivar esta zona? No aparecerá en nuevas cotizaciones.'
-                    : '¿Deseas reactivar esta zona?'
-                }
-                itemName={selectedItem?.name}
+                entityName={zoneConfig.entityName}
+                name={selectedItem?.name}
+                isActive={selectedItem?.isActive}
                 loading={actionLoading}
             />
 
-			<ConfirmDeleteModal
+			<ConfirmToggleModal
 				isOpen={isPortToggleOpen}
 				onClose={closeAllPortModals}
 				onConfirm={handleTogglePortStatus}
-				title={selectedPort?.isActive ? 'Desactivar Puerto' : 'Activar Puerto'}
-				message={selectedPort?.isActive
-					? '¿Deseas desactivar este puerto? No aparecerá en nuevas cotizaciones y tarifas.'
-					: '¿Deseas reactivar este puerto?'
-				}
-				itemName={selectedPort?.name}
+				entityName={portConfig.entityName}
+				name={selectedPort?.name}
+				isActive={selectedPort?.isActive}
 				loading={portActionLoading}
 			/>
 

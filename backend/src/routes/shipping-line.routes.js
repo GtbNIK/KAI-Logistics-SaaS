@@ -4,6 +4,7 @@ import {
     getShippingLines,
     createShippingLine,
     updateShippingLine,
+    toggleShippingLineStatus,
     deleteShippingLine
 } from '../controllers/shipping-line.controller.js';
 
@@ -14,6 +15,7 @@ router.use(verifyToken);
 router.get('/', authorize('ADMIN', 'SALES'), getShippingLines);
 router.post('/', authorize('ADMIN', 'SALES'), createShippingLine);
 router.put('/:id', authorize('ADMIN'), updateShippingLine);
+router.patch('/:id/toggle-status', authorize('ADMIN'), toggleShippingLineStatus);
 router.delete('/:id', authorize('ADMIN'), deleteShippingLine);
 
 export default router;

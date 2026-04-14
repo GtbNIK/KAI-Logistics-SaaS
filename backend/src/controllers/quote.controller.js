@@ -83,7 +83,9 @@ export const getQuote = async (req, res) => {
                     include: {
                         service: true,
                         ally: true,
-                        zone: true
+                        zone: true,
+                        shippingLine: true,
+                        airLine: true
                     }
                 }
             }
@@ -130,6 +132,8 @@ export const createQuote = async (req, res) => {
                 zoneId: item.zoneId || null,
                 originPort: item.originPort || null,
                 destinationPort: item.destinationPort || null,
+                shippingLineId: item.shippingLineId || null,
+                airLineId: item.airLineId || null,
                 quantity,
                 unitPrice,
                 totalPrice,
@@ -213,6 +217,8 @@ export const updateQuote = async (req, res) => {
                     zoneId: item.zoneId || null,
                     originPort: item.originPort || null,
                     destinationPort: item.destinationPort || null,
+                    shippingLineId: item.shippingLineId || null,
+                    airLineId: item.airLineId || null,
                     quantity,
                     unitPrice,
                     totalPrice,

@@ -178,7 +178,7 @@ export const getAlly = async (req, res) => {
 export const updateAlly = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, rifOrId, contactInfo, address } = req.body;
+        const { name, rifOrId, contactInfo, address, internalCode } = req.body;
 
         // Normalizar RIF/Cédula (si se proporciona)
         const normalizedRifOrId = rifOrId ? normalizeRifOrId(rifOrId) : null;
@@ -208,13 +208,24 @@ export const updateAlly = async (req, res) => {
             }
         }
 
+        // Verificar duplicado de internalCode si cambió
+        if (internalCode && internalCode !== existingAlly.internalCode) {
+            const duplicateCode = await prisma.ally.findFirst({
+                where: { AND: [{ id: { not: id } }, { internalCode }] }
+            });
+            if (duplicateCode) {
+                return res.status(400).json({ message: 'Ya existe otro aliado con ese código interno' });
+            }
+        }
+
         const updatedAlly = await prisma.ally.update({
             where: { id },
             data: {
                 name, 
                 rifOrId: normalizedRifOrId, 
                 contactInfo: contactInfo || null, 
-                address: address || null
+                address: address || null,
+                ...(internalCode && { internalCode })
             }
         });
 

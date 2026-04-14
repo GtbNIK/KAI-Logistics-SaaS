@@ -17,7 +17,8 @@ import {
     Wallet,
     TrendingDown,
     TrendingUp,
-    Landmark
+    Landmark,
+    Ship
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -48,6 +49,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 { to: '/dashboard/aliados', icon: Truck, label: 'Aliados', roles: ['ADMIN'] },
                 { to: '/dashboard/servicios', icon: Package, label: 'Servicios', roles: ['ADMIN', 'SALES'] },
                 { to: '/dashboard/zonas', icon: MapPin, label: 'Zonas / Puertos', roles: ['ADMIN'] },
+                { to: '/dashboard/lineas', icon: Ship, label: 'Líneas de Transporte', roles: ['ADMIN'] },
             ]
         },
         {

@@ -7,6 +7,7 @@ import Clients from './pages/clients/Clients';
 import Allies from './pages/allies/Allies';
 import Services from './pages/services/Services';
 import Zones from './pages/zones/Zones';
+import Lines from './pages/lines/Lines';
 import Quotes from './pages/quotes/Quotes';
 import CreateQuote from './pages/quotes/CreateQuote';
 import PaymentNotices from './pages/billing/PaymentNotices';
@@ -76,6 +77,13 @@ function App() {
                                     <ProtectedRoute>
                                         <MainLayout>
                                             <Zones />
+                                        </MainLayout>
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/dashboard/lineas" element={
+                                    <ProtectedRoute>
+                                        <MainLayout>
+                                            <Lines />
                                         </MainLayout>
                                     </ProtectedRoute>
                                 } />
