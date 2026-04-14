@@ -75,7 +75,9 @@ export const convertFromQuote = async (req, res) => {
                     include: {
                         service: { select: { name: true, type: true } },
                         ally:    { select: { internalCode: true } },
-                        zone:    { select: { name: true } }
+                        zone:    { select: { name: true } },
+                        shippingLine: { select: { name: true } },
+                        airLine: { select: { name: true } }
                     }
                 }
             }
@@ -109,10 +111,12 @@ export const convertFromQuote = async (req, res) => {
                     notes: quote.notes,
                     items: {
                         create: quote.items.map(item => {
-                            // Construir descripción rica: "Servicio · Aliado · Zona/Ruta"
+                            // Construir descripción rica: "Servicio · Aliado · Línea · Zona/Ruta"
                             const parts = [];
                             if (item.service?.name)   parts.push(item.service.name);
                             if (item.ally?.internalCode) parts.push(`Aliado: ${item.ally.internalCode}`);
+                            if (item.shippingLine?.name) parts.push(`Línea Naviera: ${item.shippingLine.name}`);
+                            if (item.airLine?.name) parts.push(`Línea Aérea: ${item.airLine.name}`);
                             if (item.zone?.name)      parts.push(`Zona: ${item.zone.name}`);
                             if (item.originPort || item.destinationPort) {
                                 parts.push(`Ruta: ${item.originPort || 'N/A'} → ${item.destinationPort || 'N/A'}`);
@@ -244,7 +248,10 @@ export const getPaymentNoticeById = async (req, res) => {
                 client: { include: { assignedUsers: { select: { id: true } } } },
                 items: {
                     include: {
-                        ally: { select: { name: true } }
+                        service: { select: { name: true, type: true } },
+                        ally: { select: { name: true } },
+                        shippingLine: true,
+                        airLine: true
                     }
                 },
                 quote: {
@@ -327,10 +334,20 @@ export const createPaymentNotice = async (req, res) => {
                 ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
                 : null;
 
-            // Construir descripción enriquecida: "Servicio · Aliado · Zona/Ruta"
+            const shippingLine = item.shippingLineId
+                ? await prisma.shippingLine.findUnique({ where: { id: item.shippingLineId }, select: { name: true } })
+                : null;
+
+            const airLine = item.airLineId
+                ? await prisma.airLine.findUnique({ where: { id: item.airLineId }, select: { name: true } })
+                : null;
+
+            // Construir descripción enriquecida: "Servicio · Aliado · Línea · Zona/Ruta"
             const parts = [];
             if (service?.name) parts.push(service.name);
             if (ally?.internalCode) parts.push(`Aliado: ${ally.internalCode}`);
+            if (shippingLine?.name) parts.push(`Línea Naviera: ${shippingLine.name}`);
+            if (airLine?.name) parts.push(`Línea Aérea: ${airLine.name}`);
             if (zone?.name) parts.push(`Zona: ${zone.name}`);
             if (item.originPort || item.destinationPort) {
                 parts.push(`Ruta: ${item.originPort || 'N/A'} → ${item.destinationPort || 'N/A'}`);
