@@ -36,6 +36,7 @@ export const getShipments = async (req, res) => {
                 updatedBy: { select: { name: true } },
                 shippingLineRel: { select: { id: true, name: true, code: true } },
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
+                airLine: { select: { id: true, name: true, code: true } },
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -68,6 +69,7 @@ export const getShipment = async (req, res) => {
                 updatedBy: { select: { name: true } },
                 shippingLineRel: { select: { id: true, name: true, code: true } },
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
+                airLine: { select: { id: true, name: true, code: true } },
             }
         });
 
