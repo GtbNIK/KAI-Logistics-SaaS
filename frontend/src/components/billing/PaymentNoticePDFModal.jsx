@@ -150,7 +150,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                     await new Promise((resolve, reject) => {
                         bgImg.onload = resolve;
                         bgImg.onerror = reject;
-                        bgImg.src = `${API_BASE}${noticeBgUrl}`;
+                        bgImg.src = noticeBgUrl.startsWith('http') ? noticeBgUrl : `${API_BASE}${noticeBgUrl}`;
                     });
 
                     const bgJpeg = await imageToJpegDataUrl(bgImg, { maxWidth: 1600, maxHeight: 1600, quality: 0.65 });
@@ -427,7 +427,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                             {/* Fondo preview (si existe) */}
                             {noticeBgUrl && (
                                 <img
-                                    src={`${API_BASE}${noticeBgUrl}`}
+                                    src={noticeBgUrl.startsWith('http') ? noticeBgUrl : `${API_BASE}${noticeBgUrl}`}
                                     alt="Fondo"
                                     className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
                                 />
