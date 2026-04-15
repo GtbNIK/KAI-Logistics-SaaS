@@ -1,19 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { DollarSign, Ship, Globe, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import rateService from '../../services/rate.service';
-import allyService from '../../services/ally.service';
-import portService from '../../services/port.service';
-import shippingLineService from '../../services/shippingLine.service';
 import { rateConfig } from '../../config/rateConfig.jsx';
 import useEntityCRUD from '../../hooks/useEntityCRUD';
 import EntityTable from '../../components/shared/EntityTable';
-import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import RateDetailModal from '../../components/rates/RateDetailModal';
 import RatePDFModal from '../../components/rates/RatePDFModal';
-import QuickCreatePortModal from '../../components/shared/QuickCreatePortModal';
-import QuickCreateShippingLineModal from '../../components/shared/QuickCreateShippingLineModal';
+import CreateRateModal from '../../components/rates/CreateRateModal';
 
 // Adaptar servicio para el hook
 const adaptedService = {
@@ -27,18 +22,11 @@ const Rates = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('CHINA');
     const [detailItem, setDetailItem] = useState(null);
-    const [statusFilter, setStatusFilter] = useState('valid');
     
     // Modals
-    const [showQuickPort, setShowQuickPort] = useState(false);
-    const [showQuickShippingLine, setShowQuickShippingLine] = useState(false);
     const [showPDFModal, setShowPDFModal] = useState(false);
-    
-    // Catálogos
-    const [allies, setAllies] = useState([]);
-    const [ports, setPorts] = useState([]);
-    const [shippingLines, setShippingLines] = useState([]);
-    const [catalogsLoading, setCatalogsLoading] = useState(true);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editItem, setEditItem] = useState(null);
     
     // Hook genérico con toda la lógica CRUD
     const {
@@ -51,11 +39,7 @@ const Rates = () => {
         setSearch,
         setPage,
         selectedItem,
-        isFormOpen,
         isDeleteOpen,
-        isEditMode,
-        openCreateForm,
-        openEditForm,
         openDeleteConfirm,
         closeAllModals,
         handleDelete,
@@ -68,92 +52,22 @@ const Rates = () => {
         entityName: rateConfig.entityName,
         limit: 20,
         hasStatusField: false,
-        customFilters: { status: statusFilter }
+        customFilters: { status: 'valid' }
     });
-    
-    // Cargar catálogos
-    useEffect(() => {
-        loadCatalogs();
-    }, []);
-    
-    const loadCatalogs = async () => {
-        setCatalogsLoading(true);
-        try {
-            const [alliesData, portsData, linesData] = await Promise.all([
-                allyService.getAllies({ all: 'true' }),
-                portService.getPorts({ all: 'true' }),
-                shippingLineService.getShippingLines({ all: 'true' })
-            ]);
-            setAllies(alliesData.data || []);
-            setPorts(portsData.data || []);
-            setShippingLines(linesData.data || []);
-        } catch (error) {
-            console.error('Error loading catalogs:', error);
-        } finally {
-            setCatalogsLoading(false);
-        }
-    };
-    
-    // Opciones para selects
-    const allyOptions = useMemo(() => 
-        allies.filter(a => a.isActive !== false).map(a => ({
-            value: a.id,
-            label: `${a.name} (${a.internalCode})`
-        })),
-        [allies]
-    );
-    
-    const portOptions = useMemo(() => 
-        ports.filter(p => p.isActive !== false).map(p => ({
-            value: p.id,
-            label: `${p.name} (${p.code})`
-        })),
-        [ports]
-    );
-    
-    const shippingLineOptions = useMemo(() => 
-        shippingLines.filter(l => l.isActive !== false).map(l => ({
-            value: l.id,
-            label: l.name
-        })),
-        [shippingLines]
-    );
-    
-    // Inyectar opciones dinámicamente en las secciones
-    const sectionsWithOptions = useMemo(() => {
-        return rateConfig.formSections.map(section => ({
-            ...section,
-            fields: section.fields.map(field => {
-                if (field.name === 'allyId') return { ...field, type: 'select', options: allyOptions };
-                if (field.name === 'originPortId') return { ...field, type: 'select', options: portOptions };
-                if (field.name === 'destinationPortId') return { ...field, type: 'select', options: portOptions };
-                if (field.name === 'shippingLineId') return { ...field, type: 'select', options: shippingLineOptions };
-                return field;
-            })
-        }));
-    }, [allyOptions, portOptions, shippingLineOptions]);
-    
-    // Handler para ver detalle
-    const handleViewDetail = (item) => {
-        setDetailItem(item);
-    };
 
     return (
         <div className="space-y-6">
             {/* Modales */}
-            <EntityFormModal 
-                isOpen={isFormOpen} 
-                onClose={closeAllModals} 
+            <CreateRateModal
+                isOpen={showCreateModal}
+                onClose={() => { setShowCreateModal(false); setEditItem(null); }}
                 onSuccess={() => {
                     handleFormSuccess();
-                    loadCatalogs();
+                    setShowCreateModal(false);
+                    setEditItem(null);
                 }}
-                editMode={isEditMode}
-                entityData={selectedItem}
-                service={adaptedService}
-                entityName={rateConfig.entityName}
-                sections={sectionsWithOptions}
-                customData={{ region: activeTab }}
+                editMode={!!editItem}
+                entityData={editItem}
             />
             
             <ConfirmDeleteModal
@@ -178,24 +92,7 @@ const Rates = () => {
                 rates={items}
                 region={activeTab}
             />
-            
-            <QuickCreatePortModal
-                isOpen={showQuickPort}
-                onClose={() => setShowQuickPort(false)}
-                onSuccess={() => {
-                    setShowQuickPort(false);
-                    loadCatalogs();
-                }}
-            />
-            
-            <QuickCreateShippingLineModal
-                isOpen={showQuickShippingLine}
-                onClose={() => setShowQuickShippingLine(false)}
-                onSuccess={() => {
-                    setShowQuickShippingLine(false);
-                    loadCatalogs();
-                }}
-            />
+
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -214,7 +111,7 @@ const Rates = () => {
                     </button>
                     {user?.role === 'ADMIN' && (
                         <button
-                            onClick={openCreateForm}
+                            onClick={() => { setEditItem(null); setShowCreateModal(true); }}
                             className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
                         >
                             <DollarSign size={20} />
@@ -266,44 +163,6 @@ const Rates = () => {
                 </button>
             </div>
 
-            {/* Filtros de estado de validez */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-4">
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setCustomFilters({ status: 'valid' })}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                customFilters?.status === 'valid'
-                                    ? 'bg-green-100 text-green-700 border border-green-300'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >
-                            Vigentes
-                        </button>
-                        <button
-                            onClick={() => setCustomFilters({ status: 'expired' })}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                customFilters?.status === 'expired'
-                                    ? 'bg-red-100 text-red-700 border border-red-300'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >
-                            Expiradas
-                        </button>
-                        <button
-                            onClick={() => setCustomFilters({ status: 'all' })}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                customFilters?.status === 'all'
-                                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >
-                            Todas
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <EntityTable
                 items={items}
                 columns={rateConfig.columns}
@@ -314,8 +173,8 @@ const Rates = () => {
                 totalPages={totalPages}
                 totalItems={totalItems}
                 onPageChange={setPage}
-                onView={handleViewDetail}
-                onEdit={openEditForm}
+                onView={(item) => setDetailItem(item)}
+                onEdit={(item) => { setEditItem(item); setShowCreateModal(true); }}
                 onDelete={openDeleteConfirm}
                 entityName={rateConfig.entityName}
                 entityNamePlural={rateConfig.entityNamePlural}
@@ -323,6 +182,17 @@ const Rates = () => {
                 showToggle={false}
                 showStatusFilter={false}
                 codeColor={rateConfig.codeColor}
+                extraFilters={
+                    <select
+                        value={customFilters?.status || 'valid'}
+                        onChange={(e) => setCustomFilters({ status: e.target.value })}
+                        className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                    >
+                        <option value="valid">Vigentes</option>
+                        <option value="expired">Expiradas</option>
+                        <option value="all">Todas</option>
+                    </select>
+                }
             />
         </div>
     );

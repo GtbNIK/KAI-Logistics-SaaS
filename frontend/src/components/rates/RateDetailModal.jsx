@@ -1,185 +1,168 @@
-import { X, DollarSign, Ship, MapPin, Calendar, FileText } from 'lucide-react';
+import { X, DollarSign, Ship, MapPin, Calendar, FileText, Anchor, Clock, AlertCircle } from 'lucide-react';
 
 const RateDetailModal = ({ isOpen, onClose, rate }) => {
     if (!isOpen || !rate) return null;
 
     const formatDate = (dateStr) => {
-        if (!dateStr) return '-';
-        const date = new Date(dateStr);
+        if (!dateStr) return '—';
+        const date = new Date(dateStr.split('T')[0] + 'T12:00:00');
         return date.toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' });
     };
 
-    const isExpired = new Date(rate.validUntil) < new Date();
+    const isExpired = rate.validUntil && new Date(rate.validUntil) < new Date();
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200">
+                
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 backdrop-blur-md z-10">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-600 rounded-lg">
-                            <DollarSign className="text-white" size={20} />
+                        <div className="p-2 bg-red-50 rounded-xl">
+                            <DollarSign className="text-red-600" size={24} />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-800">Detalle de Tarifa</h2>
-                            <p className="text-sm text-slate-500">
+                            <h3 className="text-xl font-bold text-slate-800">
                                 {rate.originPort?.code} → {rate.destinationPort?.code}
-                            </p>
+                            </h3>
+                            <span className={`px-2.5 py-0.5 text-xs font-medium rounded-md border ${
+                                isExpired
+                                    ? 'bg-red-50 text-red-600 border-red-100'
+                                    : 'bg-green-50 text-green-600 border-green-100'
+                            }`}>
+                                {isExpired ? 'Expirada' : 'Vigente'}
+                            </span>
                         </div>
                     </div>
-                    <button
+                    <button 
                         onClick={onClose}
-                        className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* Estado */}
-                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                        <span className="text-sm font-medium text-slate-700">Estado de la tarifa:</span>
-                        {isExpired ? (
-                            <span className="px-3 py-1.5 bg-red-100 text-red-700 text-sm font-semibold rounded-full">
-                                Expirada
-                            </span>
-                        ) : (
-                            <span className="px-3 py-1.5 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
-                                Vigente
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Información General */}
-                    <div>
-                        <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
-                            <Ship size={18} />
-                            Información General
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs text-slate-500 font-medium">Aliado</label>
-                                <p className="text-sm font-semibold text-slate-800">{rate.ally?.name}</p>
-                                <p className="text-xs text-slate-500">{rate.ally?.internalCode}</p>
+                <div className="p-6 space-y-6">
+                    
+                    {/* Sección: Información General */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Ship size={14} /> Información General
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-slate-50 rounded-xl">
+                                <p className="text-xs text-slate-400 mb-1">Aliado</p>
+                                <p className="font-medium text-slate-800">{rate.ally?.name}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">{rate.ally?.internalCode}</p>
                             </div>
-                            <div>
-                                <label className="text-xs text-slate-500 font-medium">Línea Naviera</label>
-                                <p className="text-sm font-semibold text-slate-800">
-                                    {rate.shippingLine?.name || '-'}
-                                </p>
+                            <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
+                                <Anchor className="text-slate-400 mt-0.5" size={18} />
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Línea Naviera</p>
+                                    <p className="font-medium text-slate-800">{rate.shippingLine?.name || '—'}</p>
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-xs text-slate-500 font-medium">Región</label>
-                                <p className="text-sm font-semibold text-slate-800">
+                            <div className="p-4 bg-slate-50 rounded-xl">
+                                <p className="text-xs text-slate-400 mb-1">Región</p>
+                                <p className="font-medium text-slate-800">
                                     {rate.region === 'CHINA' ? 'China' : 'Otros Países'}
                                 </p>
                             </div>
-                            <div>
-                                <label className="text-xs text-slate-500 font-medium">Días Libres</label>
-                                <p className="text-sm font-semibold text-slate-800">{rate.freeDays} días</p>
+                            <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
+                                <Clock className="text-slate-400 mt-0.5" size={18} />
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Días Libres</p>
+                                    <p className="font-medium text-slate-800">{rate.freeDays} días</p>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Ruta */}
-                    <div>
-                        <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
-                            <MapPin size={18} />
-                            Ruta
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                                <label className="text-xs text-blue-600 font-medium">Puerto de Salida</label>
-                                <p className="text-sm font-semibold text-slate-800 mt-1">
-                                    {rate.originPort?.name}
-                                </p>
-                                <p className="text-xs text-slate-500">{rate.originPort?.code}</p>
+                    {/* Sección: Ruta */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <MapPin size={14} /> Ruta
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                <p className="text-xs text-blue-500 mb-1">Puerto de Salida</p>
+                                <p className="font-medium text-slate-800">{rate.originPort?.name}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">{rate.originPort?.code}</p>
                             </div>
-                            <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-                                <label className="text-xs text-green-600 font-medium">Puerto de Llegada</label>
-                                <p className="text-sm font-semibold text-slate-800 mt-1">
-                                    {rate.destinationPort?.name}
-                                </p>
-                                <p className="text-xs text-slate-500">{rate.destinationPort?.code}</p>
+                            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <p className="text-xs text-emerald-500 mb-1">Puerto de Llegada</p>
+                                <p className="font-medium text-slate-800">{rate.destinationPort?.name}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">{rate.destinationPort?.code}</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Precios */}
-                    <div>
-                        <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
-                            <DollarSign size={18} />
-                            Precios
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-                                <label className="text-xs text-green-600 font-medium">Venta 20HC</label>
-                                <p className="text-2xl font-bold text-green-700 mt-1">
-                                    ${rate.sale20HC?.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Costo: ${rate.cost20ft?.toFixed(2)}
-                                </p>
+                    {/* Sección: Precios de Venta */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <DollarSign size={14} /> Precios
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                                <p className="text-xs text-green-600 mb-1">Venta 20HC</p>
+                                <p className="text-2xl font-bold text-green-700">${rate.sale20HC?.toFixed(2)}</p>
+                                <p className="text-xs text-slate-500 mt-1">Costo: ${rate.cost20ft?.toFixed(2)}</p>
                             </div>
-                            <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-                                <label className="text-xs text-green-600 font-medium">Venta 40HC</label>
-                                <p className="text-2xl font-bold text-green-700 mt-1">
-                                    ${rate.sale40HC?.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Costo: ${rate.cost40ft?.toFixed(2)}
-                                </p>
+                            <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                                <p className="text-xs text-green-600 mb-1">Venta 40HC</p>
+                                <p className="text-2xl font-bold text-green-700">${rate.sale40HC?.toFixed(2)}</p>
+                                <p className="text-xs text-slate-500 mt-1">Costo: ${rate.cost40ft?.toFixed(2)}</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Fees y Márgenes */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-slate-800 mb-4">Fees y Márgenes</h3>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="p-3 bg-slate-50 rounded-lg">
-                                <label className="text-xs text-slate-500 font-medium">Bank Fee</label>
-                                <p className="text-lg font-semibold text-slate-800 mt-1">
-                                    ${rate.bankFee?.toFixed(2)}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-slate-50 rounded-lg">
-                                <label className="text-xs text-slate-500 font-medium">Profit Yaho</label>
-                                <p className="text-lg font-semibold text-slate-800 mt-1">
-                                    ${rate.profitYaho?.toFixed(2)}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-slate-50 rounded-lg">
-                                <label className="text-xs text-slate-500 font-medium">Profit IS</label>
-                                <p className="text-lg font-semibold text-slate-800 mt-1">
-                                    ${rate.profitIS?.toFixed(2)}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Validez */}
-                    <div>
-                        <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
-                            <Calendar size={18} />
-                            Validez
-                        </h3>
-                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-                            <p className="text-sm text-slate-700">
-                                Válida hasta: <span className="font-semibold">{formatDate(rate.validUntil)}</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Observaciones */}
-                    {rate.observations && (
-                        <div>
-                            <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
-                                <FileText size={18} />
-                                Observaciones
-                            </h3>
+                    {/* Sección: Fees y Márgenes */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <DollarSign size={14} /> Fees y Márgenes
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="p-4 bg-slate-50 rounded-xl">
+                                <p className="text-xs text-slate-400 mb-1">Bank Fee</p>
+                                <p className="text-lg font-bold text-slate-800">${rate.bankFee?.toFixed(2)}</p>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-xl">
+                                <p className="text-xs text-slate-400 mb-1">Profit Yaho</p>
+                                <p className="text-lg font-bold text-slate-800">${rate.profitYaho?.toFixed(2)}</p>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-xl">
+                                <p className="text-xs text-slate-400 mb-1">Profit IS</p>
+                                <p className="text-lg font-bold text-slate-800">${rate.profitIS?.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sección: Validez */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Calendar size={14} /> Validez
+                        </h4>
+                        <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                            isExpired
+                                ? 'bg-red-50 border-red-200'
+                                : 'bg-amber-50 border-amber-200'
+                        }`}>
+                            {isExpired && <AlertCircle className="text-red-500 mt-0.5 shrink-0" size={18} />}
+                            <div>
+                                <p className="text-xs text-slate-400 mb-1">Válida hasta</p>
+                                <p className="font-medium text-slate-800">{formatDate(rate.validUntil)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sección: Observaciones */}
+                    {rate.observations && (
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                <FileText size={14} /> Observaciones
+                            </h4>
+                            <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
                                 <p className="text-sm text-slate-700 whitespace-pre-wrap">{rate.observations}</p>
                             </div>
                         </div>
@@ -187,10 +170,10 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-slate-200 flex justify-end bg-slate-50">
+                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm font-medium"
+                        className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
                     >
                         Cerrar
                     </button>
