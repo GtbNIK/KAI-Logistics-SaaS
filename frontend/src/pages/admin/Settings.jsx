@@ -250,12 +250,12 @@ const PdfBackgroundUploader = ({ label, description, currentUrl, file, onFileCha
     const handleDragOver = (e) => { e.preventDefault(); setDragging(true); };
     const handleDragLeave = () => setDragging(false);
 
-    // Determinar qué mostrar como preview
+// Determinar qué mostrar como preview
     const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
     const previewSrc = file
         ? URL.createObjectURL(file)           // Archivo nuevo local (aún sin guardar)
         : currentUrl
-            ? `${API_BASE}${currentUrl}`       // URL del servidor
+            ? (String(currentUrl).startsWith('http') ? currentUrl : `${API_BASE}${currentUrl}`) // Absoluta o relativa
             : null;
 
     return (
