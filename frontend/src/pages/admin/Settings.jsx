@@ -328,9 +328,9 @@ const Settings = () => {
     const [saving, setSaving] = useState(false);
 
     // Archivos de fondo pendientes de subir
-    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null });
+    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
     // Flags de eliminación de fondos
-    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false });
+    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
 
     // Estados usuarios
     const [users, setUsers] = useState([]);
@@ -373,8 +373,8 @@ const Settings = () => {
         try {
             await updateSettings(formData, pendingFiles, pendingRemovals);
             // Resetear estados pendientes
-            setPendingFiles({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null });
-            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false });
+            setPendingFiles({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
+            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
         } finally {
             setSaving(false);
         }
@@ -682,6 +682,21 @@ const Settings = () => {
                                     onRemove={() => {
                                         setPendingFiles(prev => ({ ...prev, receiptBg: null }));
                                         setPendingRemovals(prev => ({ ...prev, removeReceiptBg: true }));
+                                    }}
+                                />
+                                {/* Upload Tarifa */}
+                                <PdfBackgroundUploader
+                                    label="Fondo de Tarifario"
+                                    description="Se usará como fondo en el PDF de tarifas"
+                                    currentUrl={pendingRemovals.removeRateBg ? null : formData.rateBgUrl}
+                                    file={pendingFiles.rateBg}
+                                    onFileChange={(f) => {
+                                        setPendingFiles(prev => ({ ...prev, rateBg: f }));
+                                        setPendingRemovals(prev => ({ ...prev, removeRateBg: false }));
+                                    }}
+                                    onRemove={() => {
+                                        setPendingFiles(prev => ({ ...prev, rateBg: null }));
+                                        setPendingRemovals(prev => ({ ...prev, removeRateBg: true }));
                                     }}
                                 />
                             </div>
