@@ -11,6 +11,7 @@ import serviceRoutes from './routes/service.routes.js';
 import zoneRoutes from './routes/zone.routes.js';
 import portRoutes from './routes/port.routes.js';
 import quoteRoutes from './routes/quote.routes.js';
+import serviceRateRoutes from './routes/service-rate.routes.js';
 import rateRoutes from './routes/rate.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import paymentNoticeRoutes from './routes/payment-notice.routes.js';
@@ -102,7 +103,9 @@ app.use('/api/zones', verifyToken, zoneRoutes);
 app.use('/api/ports', verifyToken, portRoutes);
 // Rutas de cotizaciones (requiere autenticación)
 app.use('/api/quotes', verifyToken, quoteRoutes);
-// Rutas de tarifas (requiere autenticación)
+// Rutas de tarifas ServiceRate (sistema antiguo - requiere autenticación)
+app.use('/api/service-rates', verifyToken, serviceRateRoutes);
+// Rutas de tarifas Rate (nuevo sistema China/Otros Países - requiere autenticación)
 app.use('/api/rates', verifyToken, rateRoutes);
 // Rutas de configuración de empresa
 app.use('/api/settings', settingsRoutes);
