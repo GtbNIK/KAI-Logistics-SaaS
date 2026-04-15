@@ -105,6 +105,7 @@ const QuotePDFModal = ({
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
     const quoteBgUrl = companySettings?.quoteBgUrl || null;
+    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
 
     const resolveClientName = () => {
         const c = quote?.client;
@@ -158,7 +159,7 @@ const QuotePDFModal = ({
                     await new Promise((resolve, reject) => {
                         bgImg.onload = resolve;
                         bgImg.onerror = reject;
-                        bgImg.src = `${API_BASE}${quoteBgUrl}`;
+                        bgImg.src = quoteBgUrl.startsWith('http') ? quoteBgUrl : `${API_BASE}${quoteBgUrl}`;
                     });
 
                     const bgJpeg = await imageToJpegDataUrl(bgImg, { maxWidth: 1600, maxHeight: 1600, quality: 0.65 });
@@ -444,7 +445,17 @@ const QuotePDFModal = ({
                         </div>
                     ) : (
                         /* Simulación del PDF */
-                        <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
+                        <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-8 max-w-2xl mx-auto relative overflow-hidden">
+                            {/* Fondo preview (si existe) */}
+                            {quoteBgUrl && (
+                                <img
+                                    src={quoteBgUrl.startsWith('http') ? quoteBgUrl : `${API_BASE}${quoteBgUrl}`}
+                                    alt="Fondo"
+                                    className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
+                                />
+                            )}
+
+                            <div className="relative z-10">
                             {/* Header del documento */}
                             <div className="flex items-start justify-between mb-6 pb-4 border-b border-slate-100">
                                 <img src={logoUrl} alt="Logo" className="h-12" />
@@ -556,6 +567,7 @@ const QuotePDFModal = ({
                             {/* Footer */}
                             <div className="mt-8 pt-4 border-t border-slate-100 text-center">
                                 <p className="text-xs text-slate-400">{companyName} - {companySlogan}</p>
+                            </div>
                             </div>
                         </div>
                     )}

@@ -129,7 +129,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                     await new Promise((resolve, reject) => {
                         bgImg.onload = resolve;
                         bgImg.onerror = reject;
-                        bgImg.src = `${API_BASE}${deliveryNoteBgUrl}`;
+                        bgImg.src = deliveryNoteBgUrl.startsWith('http') ? deliveryNoteBgUrl : `${API_BASE}${deliveryNoteBgUrl}`;
                     });
 
                     const bgJpeg = await imageToJpegDataUrl(bgImg, { maxWidth: 1600, maxHeight: 1600, quality: 0.65 });
@@ -376,7 +376,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                             {/* Fondo preview (si existe) */}
                             {deliveryNoteBgUrl && (
                                 <img
-                                    src={`${API_BASE}${deliveryNoteBgUrl}`}
+                                    src={deliveryNoteBgUrl.startsWith('http') ? deliveryNoteBgUrl : `${API_BASE}${deliveryNoteBgUrl}`}
                                     alt="Fondo"
                                     className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
                                 />
