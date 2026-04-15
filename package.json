@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@supabase/supabase-js": "^2.103.2",
     "react-international-phone": "^4.8.0"
   }
 }

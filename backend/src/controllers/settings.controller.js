@@ -1,7 +1,5 @@
 import prisma from '../lib/prisma.js';
-import fs from 'fs';
-import path from 'path';
-import { UPLOADS_DIR } from '../config/upload.js';
+import { supabase, BACKGROUNDS_BUCKET } from '../lib/supabase.js';
 
 /**
  * Obtener la configuración de la empresa
@@ -69,46 +67,46 @@ export const updateSettings = async (req, res) => {
             paymentInfo
         };
 
-        // Procesar archivos subidos (si los hay)
+        // Procesar archivos subidos (si los hay) - usando Supabase Storage
         if (req.files) {
             // Fondo de cotización
             if (req.files.quoteBg?.[0]) {
                 // Borrar archivo anterior si existe
-                deleteOldFile(existing.quoteBgUrl);
-                data.quoteBgUrl = `/uploads/backgrounds/${req.files.quoteBg[0].filename}`;
+                await deleteOldFileFromStorage(existing.quoteBgUrl);
+                data.quoteBgUrl = await uploadToStorage(req.files.quoteBg[0], 'quote');
             }
             // Fondo de aviso de cobro
             if (req.files.noticeBg?.[0]) {
-                deleteOldFile(existing.noticeBgUrl);
-                data.noticeBgUrl = `/uploads/backgrounds/${req.files.noticeBg[0].filename}`;
+                await deleteOldFileFromStorage(existing.noticeBgUrl);
+                data.noticeBgUrl = await uploadToStorage(req.files.noticeBg[0], 'notice');
             }
             // Fondo de nota de entrega
             if (req.files.deliveryNoteBg?.[0]) {
-                deleteOldFile(existing.deliveryNoteBgUrl);
-                data.deliveryNoteBgUrl = `/uploads/backgrounds/${req.files.deliveryNoteBg[0].filename}`;
+                await deleteOldFileFromStorage(existing.deliveryNoteBgUrl);
+                data.deliveryNoteBgUrl = await uploadToStorage(req.files.deliveryNoteBg[0], 'delivery-note');
             }
             // Fondo de recibo de pago
             if (req.files.receiptBg?.[0]) {
-                deleteOldFile(existing.receiptBgUrl);
-                data.receiptBgUrl = `/uploads/backgrounds/${req.files.receiptBg[0].filename}`;
+                await deleteOldFileFromStorage(existing.receiptBgUrl);
+                data.receiptBgUrl = await uploadToStorage(req.files.receiptBg[0], 'receipt');
             }
         }
 
         // Comprobar si se solicita eliminar una imagen (sin reemplazar)
         if (req.body.removeQuoteBg === 'true') {
-            deleteOldFile(existing.quoteBgUrl);
+            await deleteOldFileFromStorage(existing.quoteBgUrl);
             data.quoteBgUrl = null;
         }
         if (req.body.removeNoticeBg === 'true') {
-            deleteOldFile(existing.noticeBgUrl);
+            await deleteOldFileFromStorage(existing.noticeBgUrl);
             data.noticeBgUrl = null;
         }
         if (req.body.removeDeliveryNoteBg === 'true') {
-            deleteOldFile(existing.deliveryNoteBgUrl);
+            await deleteOldFileFromStorage(existing.deliveryNoteBgUrl);
             data.deliveryNoteBgUrl = null;
         }
         if (req.body.removeReceiptBg === 'true') {
-            deleteOldFile(existing.receiptBgUrl);
+            await deleteOldFileFromStorage(existing.receiptBgUrl);
             data.receiptBgUrl = null;
         }
 
@@ -125,18 +123,67 @@ export const updateSettings = async (req, res) => {
 };
 
 /**
- * Elimina un archivo antiguo del disco
+ * Sube un archivo a Supabase Storage
  */
-function deleteOldFile(fileUrl) {
+async function uploadToStorage(file, prefix) {
+    try {
+        const timestamp = Date.now();
+        const fileExt = file.originalname.split('.').pop();
+        const fileName = `${prefix}-${timestamp}.${fileExt}`;
+        
+        const { data, error } = await supabase.storage
+            .from(BACKGROUNDS_BUCKET)
+            .upload(fileName, file.buffer, {
+                contentType: file.mimetype,
+                upsert: false
+            });
+        
+        if (error) {
+            console.error('Error uploading to Supabase:', error);
+            throw error;
+        }
+        
+        // Obtener URL pública
+        const { data: publicUrlData } = supabase.storage
+            .from(BACKGROUNDS_BUCKET)
+            .getPublicUrl(fileName);
+        
+        return publicUrlData.publicUrl;
+    } catch (err) {
+        console.error('Error uploading file:', err);
+        throw new Error('Error al subir imagen al storage');
+    }
+}
+
+/**
+ * Elimina un archivo antiguo de Supabase Storage
+ */
+async function deleteOldFileFromStorage(fileUrl) {
     if (!fileUrl) return;
     try {
-        // fileUrl es algo como "/uploads/backgrounds/quote-123456.jpg"
-        const relativePath = fileUrl.replace('/uploads/', '');
-        const fullPath = path.join(UPLOADS_DIR, relativePath);
-        if (fs.existsSync(fullPath)) {
-            fs.unlinkSync(fullPath);
+        // Si es URL de Supabase, extraer el nombre del archivo
+        if (fileUrl.includes('supabase.co')) {
+            const url = new URL(fileUrl);
+            const pathParts = url.pathname.split('/');
+            const fileName = pathParts[pathParts.length - 1];
+            
+            const { error } = await supabase.storage
+                .from(BACKGROUNDS_BUCKET)
+                .remove([fileName]);
+            
+            if (error) {
+                console.warn('No se pudo eliminar archivo de Supabase:', error.message);
+            }
         }
     } catch (err) {
         console.warn('No se pudo eliminar archivo antiguo:', err.message);
     }
+}
+
+/**
+ * @deprecated Función legacy para eliminar archivos del disco local
+ */
+function deleteOldFile(fileUrl) {
+    // Ya no se usa - los archivos ahora están en Supabase Storage
+    console.log('deleteOldFile es deprecated, use deleteOldFileFromStorage');
 }
