@@ -16,24 +16,8 @@ const ensureDir = (dir) => {
 };
 ensureDir(path.join(UPLOADS_DIR, 'backgrounds'));
 
-// Configuración de almacenamiento
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dest = path.join(UPLOADS_DIR, 'backgrounds');
-        ensureDir(dest);
-        cb(null, dest);
-    },
-    filename: (req, file, cb) => {
-        // Nombre: tipo-timestamp.ext  (ej: quote-1709056000.jpg)
-        const ext = path.extname(file.originalname).toLowerCase();
-        const prefix = file.fieldname === 'quoteBg'
-            ? 'quote'
-            : file.fieldname === 'deliveryNoteBg'
-                ? 'delivery-note'
-                : 'notice';
-        cb(null, `${prefix}-${Date.now()}${ext}`);
-    }
-});
+// Configuración de almacenamiento en memoria para acceder a file.buffer
+const storage = multer.memoryStorage();
 
 // Filtro: solo imágenes
 const fileFilter = (req, file, cb) => {
