@@ -73,7 +73,14 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                                 <User size={12} /> Cliente
                             </p>
                             <p className="font-semibold text-slate-800">{n.client?.name || 'N/A'}</p>
-                            <p className="text-xs text-slate-400">{n.client?.rifOrId || ''}</p>
+                            {n.client?.rifOrId && (
+                                <p className="text-xs text-slate-400">{n.client.rifOrId}</p>
+                            )}
+                            {n.client?.address && (
+                                <p className="text-xs text-slate-400 break-words whitespace-pre-line">
+                                    Dirección: {n.client.address}
+                                </p>
+                            )}
                         </div>
                         <div className="bg-slate-50 rounded-xl p-4 space-y-1">
                             <p className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-1">
