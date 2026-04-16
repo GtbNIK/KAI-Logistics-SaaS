@@ -900,6 +900,7 @@ const CreateQuote = () => {
                 allies={allies}
                 zones={zones}
                 shippingLines={shippingLines}
+                ports={ports.map(p => ({ code: p.data?.code, name: p.data?.name || p.label }))}
             />
 
             {/* Modales de Creación Rápida */}

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, FileText, X, Package, User, Calendar, DollarSign, Loader2, Activity } from 'lucide-react';
 import quoteService from '../../services/quote.service';
 import paymentNoticeService from '../../services/paymentNotice.service';
+import portService from '../../services/port.service';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ConfirmActionModal from '../../components/modals/ConfirmActionModal';
@@ -92,13 +93,58 @@ const useQuotes = () => {
 };
 
 // Modal de visualización de cotización
-const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
+const QuoteViewModal = ({ quote, onClose, onConvertSuccess, portsCatalog = [] }) => {
     const [loading, setLoading] = useState(true);
     const [fullQuote, setFullQuote] = useState(null);
     const [isConverting, setIsConverting] = useState(false);
     const [showConvertConfirm, setShowConvertConfirm] = useState(false);
     const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
+
+    const portCodeMap = useMemo(() => {
+        const map = new Map();
+        (portsCatalog || []).forEach((port) => {
+            if (!port) return;
+            const code = (port.code || '').trim();
+            const name = (port.name || '').trim();
+            if (code) {
+                map.set(code.toLowerCase(), code.toUpperCase());
+            }
+            if (name && code) {
+                map.set(name.toLowerCase(), code.toUpperCase());
+            }
+        });
+        return map;
+    }, [portsCatalog]);
+
+    const resolvePortCode = (value) => {
+        if (!value) return '';
+        const str = String(value).trim();
+        if (!str) return '';
+        const lower = str.toLowerCase();
+        if (portCodeMap.has(lower)) {
+            return portCodeMap.get(lower);
+        }
+        if (str.includes(' - ')) {
+            const possible = str.split(' - ')[0].trim();
+            if (portCodeMap.has(possible.toLowerCase())) {
+                return portCodeMap.get(possible.toLowerCase());
+            }
+            if (/^[A-Za-z0-9]{2,6}$/.test(possible)) {
+                return possible.toUpperCase();
+            }
+        }
+        if (/^[A-Za-z0-9]{2,6}$/.test(str)) {
+            return str.toUpperCase();
+        }
+        return str;
+    };
+
+    const formatRouteLabel = (origin, destination) => {
+        const originCode = resolvePortCode(origin) || 'N/A';
+        const destinationCode = resolvePortCode(destination) || 'N/A';
+        return `${originCode} → ${destinationCode}`;
+    };
 
     useEffect(() => {
         const loadQuote = async () => {
@@ -253,6 +299,7 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                                 const isLogistics = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'DOOR_TO_DOOR'].includes(serviceType);
                                 const isAir = serviceType === 'AIR';
                                 const showPorts = isLogistics || isAir;
+                                const shouldShowRoute = showPorts && (item.originPort || item.destinationPort);
                                 const quantityLabel = formatQuantityLabel(item.quantity, serviceType);
                                 
                                 return (
@@ -288,10 +335,10 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                                                 )}
                                                 
                                                 {/* Mostrar Puertos si aplica, sino Zona */}
-                                                {showPorts && (item.originPort || item.destinationPort) ? (
+                                                {shouldShowRoute ? (
                                                     <p className="flex items-center gap-1">
                                                         <span className="font-medium text-slate-600">Ruta:</span> 
-                                                        {item.originPort || 'N/A'} → {item.destinationPort || 'N/A'}
+                                                        {formatRouteLabel(item.originPort, item.destinationPort)}
                                                     </p>
                                                 ) : item.zone ? (
                                                     <p className="flex items-center gap-1">
@@ -394,6 +441,7 @@ const Quotes = () => {
     const [showPDFModal, setShowPDFModal] = useState(false);
 
     const [statusQuote, setStatusQuote] = useState(null);
+    const [portsCatalog, setPortsCatalog] = useState([]);
 
     // Estados para datos necesarios en el PDF
     const [pdfData, setPdfData] = useState({
@@ -401,11 +449,31 @@ const Quotes = () => {
         services: [],
         allies: [],
         zones: [],
-        shippingLines: []
+        shippingLines: [],
+        ports: []
     });
 
     // Auto-open modal if URL contains ?id=
     useAutoOpenModal(setViewingQuote);
+
+    const mapPortsResponse = (data = []) => data.map((p) => ({ code: p.code, name: p.name }));
+
+    const ensurePortsCatalog = useCallback(async () => {
+        if (portsCatalog.length) return portsCatalog;
+        try {
+            const response = await portService.getPorts({ all: 'true' });
+            const mapped = mapPortsResponse(response.data || []);
+            setPortsCatalog(mapped);
+            return mapped;
+        } catch (error) {
+            console.error('Error loading ports:', error);
+            return [];
+        }
+    }, [portsCatalog.length]);
+
+    useEffect(() => {
+        ensurePortsCatalog();
+    }, [ensurePortsCatalog]);
 
     const handleCreate = () => {
         navigate('/dashboard/cotizaciones/nuevo');
@@ -440,12 +508,15 @@ const Quotes = () => {
                 (await import('../../services/shippingLine.service')).default.getShippingLines({ all: 'true' })
             ]);
 
+            const portsData = await ensurePortsCatalog();
+
             setPdfData({
                 clients: clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })),
                 services: servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })),
                 allies: alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })),
                 zones: zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })),
-                shippingLines: (shippingLinesRes.data || []).map(sl => ({ value: sl.id, label: sl.name, data: sl }))
+                shippingLines: (shippingLinesRes.data || []).map(sl => ({ value: sl.id, label: sl.name, data: sl })),
+                ports: portsData
             });
         } catch (error) {
             console.error('Error loading PDF data:', error);
@@ -586,6 +657,7 @@ const Quotes = () => {
                     quote={viewingQuote} 
                     onClose={() => setViewingQuote(null)}
                     onConvertSuccess={refresh}
+                    portsCatalog={portsCatalog}
                 />
             )}
 
@@ -616,6 +688,7 @@ const Quotes = () => {
                     allies={pdfData.allies}
                     zones={pdfData.zones}
                     shippingLines={pdfData.shippingLines}
+                    ports={pdfData.ports?.length ? pdfData.ports : portsCatalog}
                 />
             )}
 
