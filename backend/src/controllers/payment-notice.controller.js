@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { calculateItemSubtotal } from '../utils/pricing.js';
 
 /**
  * @route   DELETE /api/payment-notices/:id
@@ -317,14 +318,16 @@ export const createPaymentNotice = async (req, res) => {
 
             const quantity = Number(item.quantity) || 1;
             const unitPrice = Number(item.unitPrice) || 0;
-            const totalPrice = quantity * unitPrice;
-            totalAmount += totalPrice;
 
-            // Buscar nombres para la descripción enriquecida
+            // Buscar nombres para la descripción enriquecida y obtener tipo de servicio
             const service = await prisma.service.findUnique({
                 where: { id: item.serviceId },
                 select: { name: true, type: true }
             });
+            
+            // Calcular totalPrice usando la lógica de pricing
+            const totalPrice = calculateItemSubtotal(service?.type, quantity, unitPrice);
+            totalAmount += totalPrice;
 
             const ally = item.allyId
                 ? await prisma.ally.findUnique({ where: { id: item.allyId }, select: { internalCode: true } })

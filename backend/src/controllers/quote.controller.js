@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { createNotification } from './notification.controller.js';
+import { calculateItemSubtotal } from '../utils/pricing.js';
 
 // GET /api/quotes - Listar cotizaciones
 export const getQuotes = async (req, res) => {
@@ -119,11 +120,17 @@ export const createQuote = async (req, res) => {
 
         // Calcular totales
         let totalAmount = 0;
-        const quoteItems = items.map(item => {
+        const quoteItems = await Promise.all(items.map(async (item) => {
             const quantity = parseFloat(item.quantity) || 1;
             const unitPrice = parseFloat(item.unitPrice) || 0;
-            const totalPrice = quantity * unitPrice;
             
+            // Obtener el tipo de servicio para aplicar reglas de pricing
+            const service = await prisma.service.findUnique({
+                where: { id: item.serviceId },
+                select: { type: true }
+            });
+            
+            const totalPrice = calculateItemSubtotal(service?.type, quantity, unitPrice);
             totalAmount += totalPrice;
 
             return {
@@ -139,7 +146,7 @@ export const createQuote = async (req, res) => {
                 totalPrice,
                 description: item.description
             };
-        });
+        }));
 
         // Crear cotización con transacción implícita de Prisma
         const quote = await prisma.quote.create({
@@ -205,10 +212,17 @@ export const updateQuote = async (req, res) => {
             // En un sistema real de producción querríamos upserts inteligentes, pero esto funciona bien para cotizaciones pequeñas
 
             let totalAmount = 0;
-            const quoteItems = items.map(item => {
+            const quoteItems = await Promise.all(items.map(async (item) => {
                 const quantity = parseFloat(item.quantity) || 1;
                 const unitPrice = parseFloat(item.unitPrice) || 0;
-                const totalPrice = quantity * unitPrice;
+                
+                // Obtener el tipo de servicio para aplicar reglas de pricing
+                const service = await prisma.service.findUnique({
+                    where: { id: item.serviceId },
+                    select: { type: true }
+                });
+                
+                const totalPrice = calculateItemSubtotal(service?.type, quantity, unitPrice);
                 totalAmount += totalPrice;
                 
                 return {
@@ -224,7 +238,7 @@ export const updateQuote = async (req, res) => {
                     totalPrice,
                     description: item.description
                 };
-            });
+            }));
 
             // Usamos una transacción
             const updatedQuote = await prisma.$transaction(async (tx) => {

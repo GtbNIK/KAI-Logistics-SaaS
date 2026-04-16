@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import ChangeQuoteStatusModal from '../../components/quotes/ChangeQuoteStatusModal';
+import { formatQuantityLabel } from '../../utils/pricing';
 
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 
@@ -248,9 +249,11 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                         </h3>
                         <div className="space-y-2">
                             {q.items?.map((item, i) => {
-                                const isLogistics = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'DOOR_TO_DOOR'].includes(item.service?.type);
-                                const isAir = item.service?.type === 'AIR';
+                                const serviceType = item.service?.type;
+                                const isLogistics = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'DOOR_TO_DOOR'].includes(serviceType);
+                                const isAir = serviceType === 'AIR';
                                 const showPorts = isLogistics || isAir;
+                                const quantityLabel = formatQuantityLabel(item.quantity, serviceType);
                                 
                                 return (
                                     <div key={i} className="bg-slate-50 rounded-lg p-4 flex justify-between items-start">
@@ -298,12 +301,12 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                                                 ) : null}
 
                                                 <p className="text-slate-400 text-xs mt-1 italic">
-                                                    {item.quantity} {item.service?.type === 'DOOR_TO_DOOR' ? 'CBM' : 'unidades'} @ ${parseFloat(item.unitPrice).toFixed(2)}
+                                                    {quantityLabel} @ ${parseFloat(item.unitPrice).toFixed(2)}
                                                 </p>
                                             </div>
                                         </div>
                                         <span className="font-bold text-slate-700 whitespace-nowrap">
-                                            ${(item.quantity * parseFloat(item.unitPrice)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            ${parseFloat(item.totalPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                         </span>
                                     </div>
                                 );
