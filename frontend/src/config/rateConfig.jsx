@@ -87,7 +87,7 @@ export const rateConfig = {
             }
         },
         {
-            header: 'Estado',
+            header: 'Vigencia',
             accessor: 'status',
             align: 'center',
             render: (item) => {
@@ -103,6 +103,22 @@ export const rateConfig = {
                     </span>
                 );
             }
+        },
+        {
+            header: 'Activa',
+            accessor: 'isActive',
+            align: 'center',
+            render: (item) => (
+                item.isActive ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                        Activa
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">
+                        Inactiva
+                    </span>
+                )
+            )
         }
     ],
 

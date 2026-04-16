@@ -25,13 +25,18 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                             <h3 className="text-xl font-bold text-slate-800">
                                 {rate.originPort?.code} → {rate.destinationPort?.code}
                             </h3>
-                            <span className={`px-2.5 py-0.5 text-xs font-medium rounded-md border ${
-                                isExpired
-                                    ? 'bg-red-50 text-red-600 border-red-100'
-                                    : 'bg-green-50 text-green-600 border-green-100'
-                            }`}>
-                                {isExpired ? 'Expirada' : 'Vigente'}
-                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className={`px-2.5 py-0.5 text-xs font-medium rounded-md border ${
+                                    isExpired
+                                        ? 'bg-red-50 text-red-600 border-red-100'
+                                        : 'bg-green-50 text-green-600 border-green-100'
+                                }`}>
+                                    {isExpired ? 'Expirada' : 'Vigente'}
+                                </span>
+                                <span className={`px-2.5 py-0.5 text-xs font-medium rounded-md border ${
+                                    rate.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'
+                                }`}>{rate.isActive ? 'Activa' : 'Inactiva'}</span>
+                            </div>
                         </div>
                     </div>
                     <button 
@@ -156,24 +161,14 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                         </div>
                     </div>
 
-                    {/* Sección: Observaciones */}
-                    {rate.observations && (
-                        <div className="space-y-3">
-                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                                <FileText size={14} /> Observaciones
-                            </h4>
-                            <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
-                                <p className="text-sm text-slate-700 whitespace-pre-wrap">{rate.observations}</p>
-                            </div>
-                        </div>
-                    )}
+                    
                 </div>
 
                 {/* Footer */}
                 <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                     <button
                         onClick={onClose}
-                        className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
+                        className="ml-auto px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
                     >
                         Cerrar
                     </button>

@@ -76,14 +76,52 @@ const QuoteItemRow = ({
 
             setSearchingRate(true);
             try {
-                const rateService = (await import('../../services/service-rate.service')).default;
-                const result = await rateService.findRate({
-                    serviceId: item.serviceId,
-                    allyId: item.allyId,
-                    zoneId: item.zoneId || undefined,
-                    originPort: item.originPort || undefined,
-                    destinationPort: item.destinationPort || undefined
-                });
+                // Determinar si debemos usar el nuevo sistema Rate (FCL marítimo con puertos)
+                const isFCL = ['FCL_20', 'FCL_40', 'FCL_40HC'].includes(serviceType);
+                
+                let result;
+                
+                if (isFCL && item.originPort && item.destinationPort) {
+                    // Nuevo sistema: buscar por puertos en Rate
+                    const originPortObj = ports.find(p => p.label === item.originPort);
+                    const destPortObj = ports.find(p => p.label === item.destinationPort);
+                    
+                    if (originPortObj && destPortObj) {
+                        const rateService = (await import('../../services/rate.service')).default;
+                        const rateResult = await rateService.findRate({
+                            allyId: item.allyId,
+                            originPortId: originPortObj.value,
+                            destinationPortId: destPortObj.value,
+                            shippingLineId: item.shippingLineId || undefined
+                        });
+
+                        if (rateResult.found && rateResult.rate) {
+                            // Seleccionar precio según el tipo de contenedor
+                            const salePrice = serviceType === 'FCL_20' 
+                                ? rateResult.rate.sale20HC 
+                                : rateResult.rate.sale40HC;
+                            
+                            result = {
+                                found: true,
+                                rate: { ...rateResult.rate, salePrice }
+                            };
+                        } else {
+                            result = { found: false };
+                        }
+                    } else {
+                        result = { found: false };
+                    }
+                } else {
+                    // Sistema antiguo: ServiceRate para servicios terrestres/aéreos/LCL
+                    const rateService = (await import('../../services/service-rate.service')).default;
+                    result = await rateService.findRate({
+                        serviceId: item.serviceId,
+                        allyId: item.allyId,
+                        zoneId: item.zoneId || undefined,
+                        originPort: item.originPort || undefined,
+                        destinationPort: item.destinationPort || undefined
+                    });
+                }
 
                 if (!isMounted) return;
 
@@ -122,7 +160,7 @@ const QuoteItemRow = ({
 
         fetchRate();
         return () => { isMounted = false; };
-    }, [item.serviceId, item.allyId, item.zoneId, item.originPort, item.destinationPort]);
+    }, [item.serviceId, item.allyId, item.zoneId, item.originPort, item.destinationPort, item.shippingLineId]);
 
     const subtotal = calculateItemSubtotal(item.quantity, item.unitPrice, serviceType);
 

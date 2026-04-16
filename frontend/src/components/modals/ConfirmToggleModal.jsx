@@ -1,14 +1,14 @@
 import { AlertTriangle, X, Power, FileText } from 'lucide-react';
 import { useState } from 'react';
 
-const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, entityName, name, isActive, loading = false }) => {
+const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, entityName, name, isActive, loading = false, showNote = true }) => {
     const [deactivationNote, setDeactivationNote] = useState('');
 
     if (!isOpen) return null;
 
     const handleConfirm = () => {
-        // Si se está desactivando, pasar la nota
-        if (isActive) {
+        // Si se está desactivando y el campo está visible, pasar la nota; de lo contrario, confirmar sin nota
+        if (isActive && showNote) {
             onConfirm(deactivationNote);
         } else {
             onConfirm();
@@ -57,8 +57,8 @@ const ConfirmToggleModal = ({ isOpen, onClose, onConfirm, entityName, name, isAc
                         </div>
                     )}
 
-                    {/* Campo de nota solo cuando se desactiva */}
-                    {isActive && (
+                    {/* Campo de nota solo cuando se desactiva y si está habilitado */}
+                    {isActive && showNote && (
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                                 <FileText size={16} className="text-slate-400" />

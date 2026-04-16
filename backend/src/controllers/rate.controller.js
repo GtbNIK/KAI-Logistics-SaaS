@@ -25,6 +25,7 @@ export const getRates = async (req, res) => {
             originPortId, 
             destinationPortId, 
             shippingLineId,
+            isActive,        // 'true' | 'false' | undefined
             status = 'valid', // valid | expired | all
             page = 1, 
             limit = 20 
@@ -43,6 +44,8 @@ export const getRates = async (req, res) => {
         if (originPortId) where.originPortId = originPortId;
         if (destinationPortId) where.destinationPortId = destinationPortId;
         if (shippingLineId) where.shippingLineId = shippingLineId;
+        if (isActive === 'true') where.isActive = true;
+        if (isActive === 'false') where.isActive = false;
 
         // Filtro por estado de validez
         if (status === 'valid') {
@@ -419,5 +422,252 @@ export const getExpiredRates = async (req, res) => {
     } catch (error) {
         console.error('Error getting expired rates:', error);
         res.status(500).json({ message: 'Error al obtener tarifas expiradas' });
+    }
+};
+
+/**
+ * Helper: Formatear rate con Decimals convertidos a number
+ */
+const formatRate = (rate) => ({
+    ...rate,
+    cost20ft: parseFloat(rate.cost20ft),
+    cost40ft: parseFloat(rate.cost40ft),
+    bankFee: parseFloat(rate.bankFee),
+    profitYaho: parseFloat(rate.profitYaho),
+    profitIS: parseFloat(rate.profitIS),
+    sale20HC: parseFloat(rate.sale20HC),
+    sale40HC: parseFloat(rate.sale40HC)
+});
+
+/**
+ * PATCH /api/rates/:id/toggle-active
+ * Activar/desactivar una tarifa individual
+ */
+export const toggleActive = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const existingRate = await prisma.rate.findUnique({ where: { id } });
+        if (!existingRate || existingRate.deletedAt) {
+            return res.status(404).json({ message: 'Tarifa no encontrada' });
+        }
+
+        // Si se quiere activar, verificar que no esté expirada
+        if (!existingRate.isActive && existingRate.validUntil < new Date()) {
+            return res.status(400).json({ 
+                message: 'No se puede activar una tarifa expirada. Actualiza la fecha de validez primero.' 
+            });
+        }
+
+        const rate = await prisma.rate.update({
+            where: { id },
+            data: { isActive: !existingRate.isActive },
+            include: {
+                ally: { select: { id: true, name: true, internalCode: true } },
+                originPort: { select: { id: true, name: true, code: true } },
+                destinationPort: { select: { id: true, name: true, code: true } },
+                shippingLine: { select: { id: true, name: true, code: true } }
+            }
+        });
+
+        res.json(formatRate(rate));
+    } catch (error) {
+        console.error('Error toggling rate active:', error);
+        res.status(500).json({ message: 'Error al cambiar estado de la tarifa' });
+    }
+};
+
+/**
+ * PATCH /api/rates/bulk-activate
+ * Activar todas las tarifas de un aliado (vigentes)
+ * Body: { allyId }
+ */
+export const bulkActivate = async (req, res) => {
+    try {
+        const { allyId } = req.body;
+
+        if (!allyId) {
+            return res.status(400).json({ message: 'Se requiere allyId' });
+        }
+
+        const now = new Date();
+        const result = await prisma.rate.updateMany({
+            where: {
+                allyId,
+                deletedAt: null,
+                validUntil: { gte: now } // Solo activar las vigentes
+            },
+            data: { isActive: true }
+        });
+
+        res.json({ 
+            message: `Se activaron ${result.count} tarifa(s)`,
+            count: result.count
+        });
+    } catch (error) {
+        console.error('Error bulk activating rates:', error);
+        res.status(500).json({ message: 'Error al activar tarifas' });
+    }
+};
+
+/**
+ * PATCH /api/rates/bulk-deactivate
+ * Desactivar todas las tarifas de un aliado
+ * Body: { allyId }
+ */
+export const bulkDeactivate = async (req, res) => {
+    try {
+        const { allyId } = req.body;
+
+        if (!allyId) {
+            return res.status(400).json({ message: 'Se requiere allyId' });
+        }
+
+        const result = await prisma.rate.updateMany({
+            where: {
+                allyId,
+                deletedAt: null
+            },
+            data: { isActive: false }
+        });
+
+        res.json({ 
+            message: `Se desactivaron ${result.count} tarifa(s)`,
+            count: result.count
+        });
+    } catch (error) {
+        console.error('Error bulk deactivating rates:', error);
+        res.status(500).json({ message: 'Error al desactivar tarifas' });
+    }
+};
+
+/**
+ * GET /api/rates/find
+ * Buscar tarifa activa exacta (para cotizaciones)
+ * Query: allyId, originPortId, destinationPortId, shippingLineId (opcional)
+ */
+export const findRate = async (req, res) => {
+    try {
+        const { allyId, originPortId, destinationPortId, shippingLineId } = req.query;
+
+        if (!allyId || !originPortId || !destinationPortId) {
+            return res.status(400).json({ 
+                message: 'Se requiere allyId, originPortId y destinationPortId' 
+            });
+        }
+
+        const now = new Date();
+        const where = {
+            allyId,
+            originPortId,
+            destinationPortId,
+            isActive: true,
+            deletedAt: null,
+            validUntil: { gte: now }
+        };
+
+        if (shippingLineId) where.shippingLineId = shippingLineId;
+
+        const rate = await prisma.rate.findFirst({
+            where,
+            include: {
+                ally: { select: { id: true, name: true, internalCode: true } },
+                originPort: { select: { id: true, name: true, code: true } },
+                destinationPort: { select: { id: true, name: true, code: true } },
+                shippingLine: { select: { id: true, name: true, code: true } }
+            },
+            orderBy: { updatedAt: 'desc' }
+        });
+
+        if (!rate) {
+            return res.json({ found: false, rate: null });
+        }
+
+        res.json({ found: true, rate: formatRate(rate) });
+    } catch (error) {
+        console.error('Error finding rate:', error);
+        res.status(500).json({ message: 'Error al buscar tarifa' });
+    }
+};
+
+/**
+ * GET /api/rates/by-ally/:allyId
+ * Obtener todas las tarifas de un aliado (para mostrar en modal de detalle)
+ */
+export const getRatesByAlly = async (req, res) => {
+    try {
+        const { allyId } = req.params;
+
+        const rates = await prisma.rate.findMany({
+            where: { allyId, deletedAt: null },
+            include: {
+                originPort: { select: { id: true, name: true, code: true } },
+                destinationPort: { select: { id: true, name: true, code: true } },
+                shippingLine: { select: { id: true, name: true, code: true } }
+            },
+            orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
+        });
+
+        res.json({ data: rates.map(formatRate), total: rates.length });
+    } catch (error) {
+        console.error('Error getting rates by ally:', error);
+        res.status(500).json({ message: 'Error al obtener tarifas del aliado' });
+    }
+};
+
+/**
+ * GET /api/rates/by-port/:portId
+ * Obtener todas las tarifas donde participa un puerto (origen o destino)
+ */
+export const getRatesByPort = async (req, res) => {
+    try {
+        const { portId } = req.params;
+
+        const rates = await prisma.rate.findMany({
+            where: {
+                deletedAt: null,
+                OR: [
+                    { originPortId: portId },
+                    { destinationPortId: portId }
+                ]
+            },
+            include: {
+                ally: { select: { id: true, name: true, internalCode: true } },
+                originPort: { select: { id: true, name: true, code: true } },
+                destinationPort: { select: { id: true, name: true, code: true } },
+                shippingLine: { select: { id: true, name: true, code: true } }
+            },
+            orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
+        });
+
+        res.json({ data: rates.map(formatRate), total: rates.length });
+    } catch (error) {
+        console.error('Error getting rates by port:', error);
+        res.status(500).json({ message: 'Error al obtener tarifas del puerto' });
+    }
+};
+
+/**
+ * GET /api/rates/by-shipping-line/:shippingLineId
+ * Obtener todas las tarifas de una línea naviera
+ */
+export const getRatesByShippingLine = async (req, res) => {
+    try {
+        const { shippingLineId } = req.params;
+
+        const rates = await prisma.rate.findMany({
+            where: { shippingLineId, deletedAt: null },
+            include: {
+                ally: { select: { id: true, name: true, internalCode: true } },
+                originPort: { select: { id: true, name: true, code: true } },
+                destinationPort: { select: { id: true, name: true, code: true } }
+            },
+            orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
+        });
+
+        res.json({ data: rates.map(formatRate), total: rates.length });
+    } catch (error) {
+        console.error('Error getting rates by shipping line:', error);
+        res.status(500).json({ message: 'Error al obtener tarifas de la línea naviera' });
     }
 };

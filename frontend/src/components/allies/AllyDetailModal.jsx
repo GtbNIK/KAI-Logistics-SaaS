@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Building, FileText, MapPin, DollarSign, Trash2, AlertTriangle, Ship, ArrowRight, Plane } from 'lucide-react';
+import { X, Building, FileText, MapPin, DollarSign, Trash2, AlertTriangle, Ship, ArrowRight, Plane, Package } from 'lucide-react';
 import allyService from '../../services/ally.service';
+import rateService from '../../services/rate.service';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 
 // Helper para verificar si una tarifa está vigente
@@ -28,6 +30,8 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
     const { user } = useAuth();
     const [rates, setRates] = useState([]);
     const [loadingRates, setLoadingRates] = useState(false);
+    const [tariffRates, setTariffRates] = useState([]);
+    const [loadingTariffRates, setLoadingTariffRates] = useState(false);
     
     // Estado para confirmar eliminación de tarifa
     const [deleteRateModal, setDeleteRateModal] = useState({ open: false, rate: null });
@@ -39,6 +43,7 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
     useEffect(() => {
         if (isOpen && ally) {
             fetchRates();
+            fetchTariffRates();
         }
     }, [isOpen, ally]);
 
@@ -51,6 +56,18 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
             console.error('Error fetching rates:', error);
         } finally {
             setLoadingRates(false);
+        }
+    };
+
+    const fetchTariffRates = async () => {
+        setLoadingTariffRates(true);
+        try {
+            const result = await rateService.getRatesByAlly(ally.id);
+            setTariffRates(result.data || []);
+        } catch (error) {
+            console.error('Error fetching tariff rates:', error);
+        } finally {
+            setLoadingTariffRates(false);
         }
     };
 
@@ -232,6 +249,94 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
                                                                 </button>
                                                             </td>
                                                         )}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                        {/* Tarifario (Nuevo Rate) */}
+                        <div className="border-t border-slate-100 pt-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                                    <Package size={16} className="text-red-600" /> Tarifas del Tarifario
+                                    {tariffRates.length > 0 && (
+                                        <span className="ml-2 px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded border border-slate-200">
+                                            {tariffRates.filter(r => r.isActive).length} activa(s) / {tariffRates.length} total
+                                        </span>
+                                    )}
+                                </h4>
+                            </div>
+
+                            {loadingTariffRates ? (
+                                <div className="text-center py-8 text-slate-400">
+                                    <div className="w-6 h-6 border-2 border-slate-300 border-t-primary-light rounded-full animate-spin mx-auto"></div>
+                                    <p className="mt-2 text-sm">Cargando tarifas...</p>
+                                </div>
+                            ) : tariffRates.length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl">
+                                    <Package size={32} className="mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">No hay tarifas en el tarifario para este aliado</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-hidden rounded-xl border border-slate-200">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-50">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Región</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ruta</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Línea</th>
+                                                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 20HC</th>
+                                                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 40HC</th>
+                                                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Validez</th>
+                                                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {tariffRates.map(rate => {
+                                                const isExpired = new Date(rate.validUntil) < new Date();
+                                                return (
+                                                    <tr key={rate.id} className={`hover:bg-slate-50/50 ${isExpired ? 'bg-red-50/30' : ''}`}>
+                                                        <td className="px-4 py-3">
+                                                            <span className="text-xs font-medium bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                                                                {rate.region === 'CHINA' ? '🇨🇳 China' : '🌎 Otros'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-600">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-medium bg-slate-100 px-2 py-0.5 rounded">{rate.originPort?.code}</span>
+                                                                <ArrowRight size={12} className="text-slate-400" />
+                                                                <span className="text-xs font-medium bg-slate-100 px-2 py-0.5 rounded">{rate.destinationPort?.code}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-600 text-xs">
+                                                            {rate.shippingLine?.name || '-'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-bold text-green-600">
+                                                            ${parseFloat(rate.sale20HC || 0).toFixed(2)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-bold text-green-600">
+                                                            ${parseFloat(rate.sale40HC || 0).toFixed(2)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${!isExpired ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+                                                                {isExpired && <AlertTriangle size={12} />}
+                                                                {toVenezuelanFormat(toDateString(rate.validUntil))}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {rate.isActive ? (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700 font-medium">
+                                                                    Activa
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-500">
+                                                                    Inactiva
+                                                                </span>
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}

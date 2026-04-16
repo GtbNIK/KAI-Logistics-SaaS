@@ -213,8 +213,8 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 margin: { left: leftRight, right: leftRight },
             });
 
-            // Segunda página con observaciones (si existen)
-            const obsText = (observations || rates?.[0]?.observations || settings?.rateObservations || '').toString().trim();
+            // Segunda página con observaciones (si existen) - solo usa la prop recibida o ajuste en settings
+            const obsText = (observations || settings?.rateObservations || '').toString().trim();
             if (obsText.length > 0) {
                 doc.addPage('a4', 'landscape');
                 // Fondo en segunda página

@@ -296,8 +296,8 @@ model Rate {
   freeDays   Int      @default(21)
   validUntil DateTime
   
-  // Observaciones
-  observations String?  @db.Text
+  // Activación (para seleccionar aliado ganador)
+  isActive  Boolean   @default(true)
   
   // Soft delete
   deletedAt DateTime?
@@ -310,6 +310,7 @@ model Rate {
   @@index([region, deletedAt])
   @@index([allyId])
   @@index([originPortId, destinationPortId])
+  @@index([isActive])
   @@index([validUntil])
 }
 

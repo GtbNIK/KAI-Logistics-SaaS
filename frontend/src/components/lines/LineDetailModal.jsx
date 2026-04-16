@@ -1,11 +1,37 @@
-import { Ship, Plane, X, Hash } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Ship, Plane, X, Hash, Package, ArrowRight, AlertTriangle } from 'lucide-react';
+import rateService from '../../services/rate.service';
+import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 
 const LineDetailModal = ({ isOpen, onClose, item, type }) => {
+    const [tariffRates, setTariffRates] = useState([]);
+    const [loadingTariffRates, setLoadingTariffRates] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && item?.id && type === 'shipping') {
+            fetchTariffRates();
+        } else {
+            setTariffRates([]);
+        }
+    }, [isOpen, item?.id, type]);
+
+    const fetchTariffRates = async () => {
+        setLoadingTariffRates(true);
+        try {
+            const result = await rateService.getRatesByShippingLine(item.id);
+            setTariffRates(result.data || []);
+        } catch (error) {
+            console.error('Error fetching tariff rates:', error);
+        } finally {
+            setLoadingTariffRates(false);
+        }
+    };
+
     if (!isOpen || !item) return null;
 
     return (
         <div className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className={`bg-white rounded-2xl shadow-2xl w-full ${type === 'shipping' ? 'max-w-4xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
                 <div className={`flex items-center justify-between px-6 py-4 border-b border-slate-100 ${
                     type === 'shipping' ? 'bg-purple-50/50' : 'bg-blue-50/50'
                 }`}>
@@ -19,10 +45,8 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
                             }
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">{item.name}</h3>
-                            <p className="text-sm text-slate-500">
-                                {type === 'shipping' ? 'Línea Naviera' : 'Línea Aérea'}
-                            </p>
+                            <h3 className="text-lg font-bold text-slate-800">{type === 'shipping' ? 'Línea Naviera' : 'Línea Aérea'}</h3>
+                            <p className="text-sm text-slate-500">Detalle</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full">
@@ -31,36 +55,39 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
                 </div>
 
                 <div className="p-6 space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                        <Hash size={16} className="text-slate-400" />
-                        <div>
-                            <p className="text-xs text-slate-400 font-medium">Código</p>
-                            <p className="text-sm font-semibold text-slate-700">{item.code || '—'}</p>
+                    {/* Fila 1: Código y Nombre */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                            <Hash size={16} className="text-slate-400" />
+                            <div>
+                                <p className="text-xs text-slate-400 font-medium">Código</p>
+                                <p className="text-sm font-semibold text-slate-700">{item.code || '—'}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                            {type === 'shipping' ? (
+                                <Ship size={16} className="text-slate-400" />
+                            ) : (
+                                <Plane size={16} className="text-slate-400" />
+                            )}
+                            <div>
+                                <p className="text-xs text-slate-400 font-medium">Nombre</p>
+                                <p className="text-sm font-semibold text-slate-700">{item.name}</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                        {type === 'shipping'
-                            ? <Ship size={16} className="text-slate-400" />
-                            : <Plane size={16} className="text-slate-400" />
-                        }
-                        <div>
-                            <p className="text-xs text-slate-400 font-medium">Nombre</p>
-                            <p className="text-sm font-semibold text-slate-700">{item.name}</p>
+                    {/* Fila 2: Estado y Fecha de creación */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                            <div className={`w-2.5 h-2.5 rounded-full ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                            <div>
+                                <p className="text-xs text-slate-400 font-medium">Estado</p>
+                                <p className={`text-sm font-semibold ${item.isActive ? 'text-emerald-600' : 'text-slate-500'}`}> 
+                                    {item.isActive ? 'Activa' : 'Inactiva'}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                        <div className={`w-2.5 h-2.5 rounded-full ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        <div>
-                            <p className="text-xs text-slate-400 font-medium">Estado</p>
-                            <p className={`text-sm font-semibold ${item.isActive ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                {item.isActive ? 'Activa' : 'Inactiva'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {item.createdAt && (
                         <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                             <div>
                                 <p className="text-xs text-slate-400 font-medium">Fecha de creación</p>
@@ -68,6 +95,80 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
                                     {new Date(item.createdAt).toLocaleDateString('es-VE', { year: 'numeric', month: 'long', day: 'numeric' })}
                                 </p>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Tarifas del Tarifario (solo para líneas navieras) */}
+                    {type === 'shipping' && (
+                        <div className="border-t border-slate-100 pt-6">
+                            <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <Package size={16} className="text-red-600" />
+                                Tarifas del Tarifario
+                                {tariffRates.length > 0 && (
+                                    <span className="ml-2 px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">
+                                        {tariffRates.filter(r => r.isActive).length} activa(s) / {tariffRates.length} total
+                                    </span>
+                                )}
+                            </h4>
+
+                            {loadingTariffRates ? (
+                                <div className="text-center py-8 text-slate-400">
+                                    <div className="w-6 h-6 border-2 border-slate-300 border-t-purple-500 rounded-full animate-spin mx-auto"></div>
+                                    <p className="mt-2 text-sm">Cargando tarifas...</p>
+                                </div>
+                            ) : tariffRates.length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl">
+                                    <Package size={32} className="mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">No hay tarifas del tarifario para esta línea</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-hidden rounded-xl border border-slate-200">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-50">
+                                            <tr>
+                                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Aliado</th>
+                                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Ruta</th>
+                                                <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">20HC</th>
+                                                <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">40HC</th>
+                                                <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase">Validez</th>
+                                                <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {tariffRates.map(rate => {
+                                                const isExpired = new Date(rate.validUntil) < new Date();
+                                                return (
+                                                    <tr key={rate.id} className={`hover:bg-slate-50/50 ${isExpired ? 'bg-red-50/30' : ''}`}>
+                                                        <td className="px-3 py-2 font-medium text-slate-700 text-xs">{rate.ally?.name}</td>
+                                                        <td className="px-3 py-2">
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded">{rate.originPort?.code}</span>
+                                                                <ArrowRight size={10} className="text-slate-400" />
+                                                                <span className="text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded">{rate.destinationPort?.code}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right font-bold text-green-600 text-xs">${parseFloat(rate.sale20HC || 0).toFixed(2)}</td>
+                                                        <td className="px-3 py-2 text-right font-bold text-green-600 text-xs">${parseFloat(rate.sale40HC || 0).toFixed(2)}</td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] rounded ${!isExpired ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+                                                                {isExpired && <AlertTriangle size={10} />}
+                                                                {toVenezuelanFormat(toDateString(rate.validUntil))}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            {rate.isActive ? (
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 text-[11px] rounded bg-emerald-50 text-emerald-700 font-medium">Activa</span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 text-[11px] rounded bg-slate-100 text-slate-500">Inactiva</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
