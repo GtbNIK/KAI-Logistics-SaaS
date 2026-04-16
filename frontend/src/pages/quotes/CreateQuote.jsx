@@ -24,21 +24,7 @@ import QuickCreatePortModal from '../../components/shared/QuickCreatePortModal';
 import QuickCreateZoneModal from '../../components/shared/QuickCreateZoneModal';
 import QuickCreateShippingLineModal from '../../components/shared/QuickCreateShippingLineModal';
 import QuickCreateAirLineModal from '../../components/shared/QuickCreateAirLineModal';
-
-const DOOR_TO_DOOR_FLAT_MAX_CBM = 0.16;
-
-const calculateItemSubtotal = (item, serviceType) => {
-    const quantity = Number(item.quantity) || 0;
-    const unitPrice = Number(item.unitPrice) || 0;
-
-    if (!unitPrice) return 0;
-
-    if (serviceType === 'DOOR_TO_DOOR' && quantity > 0 && quantity < DOOR_TO_DOOR_FLAT_MAX_CBM) {
-        return unitPrice;
-    }
-
-    return quantity * unitPrice;
-};
+import { calculateItemSubtotal, formatQuantityLabel } from '../../utils/pricing';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -137,7 +123,7 @@ const QuoteItemRow = ({
         return () => { isMounted = false; };
     }, [item.serviceId, item.allyId, item.zoneId, item.originPort, item.destinationPort]);
 
-    const subtotal = calculateItemSubtotal(item, serviceType);
+    const subtotal = calculateItemSubtotal(item.quantity, item.unitPrice, serviceType);
 
     return (
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-4 relative group">
@@ -593,7 +579,7 @@ const CreateQuote = () => {
     const calculateTotals = () => {
         const subtotals = items.map((item) => {
             const serviceType = services.find(s => s.value === item.serviceId)?.data?.type;
-            return calculateItemSubtotal(item, serviceType);
+            return calculateItemSubtotal(item.quantity, item.unitPrice, serviceType);
         });
         const total = subtotals.reduce((sum, st) => sum + st, 0);
         return { subtotals, total };
@@ -620,18 +606,26 @@ const CreateQuote = () => {
                 validUntil: new Date(validUntil),
                 notes,
                 showNotesToClient,
-                items: validItems.map(item => ({
-                    serviceId: item.serviceId,
-                    allyId: item.allyId,
-                    zoneId: item.zoneId,
-                    originPort: item.originPort || null,
-                    destinationPort: item.destinationPort || null,
-                    shippingLineId: item.shippingLineId || null,
-                    airLineId: item.airLineId || null,
-                    quantity: parseFloat(item.quantity),
-                    unitPrice: parseFloat(item.unitPrice),
-                    description: item.description || ''
-                }))
+                items: validItems.map(item => {
+                    const service = services.find(s => s.value === item.serviceId);
+                    const quantity = parseFloat(item.quantity);
+                    const unitPrice = parseFloat(item.unitPrice);
+                    const totalPrice = calculateItemSubtotal(service?.type, quantity, unitPrice);
+                    
+                    return {
+                        serviceId: item.serviceId,
+                        allyId: item.allyId,
+                        zoneId: item.zoneId,
+                        originPort: item.originPort || null,
+                        destinationPort: item.destinationPort || null,
+                        shippingLineId: item.shippingLineId || null,
+                        airLineId: item.airLineId || null,
+                        quantity: quantity,
+                        unitPrice: unitPrice,
+                        totalPrice: totalPrice,
+                        description: item.description || ''
+                    };
+                })
             };
 
             if (id) {
@@ -820,7 +814,7 @@ const CreateQuote = () => {
                                 const ally = allies.find(a => a.value === item.allyId);
                                 const zone = zones.find(z => z.value === item.zoneId);
                                 const serviceType = service?.data?.type;
-                                const subtotal = calculateItemSubtotal(item, serviceType);
+                                const subtotal = calculateItemSubtotal(item.quantity, item.unitPrice, serviceType);
                                 const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
                                 
                                 // Extraer solo el nombre de la zona (sin el código)
@@ -829,10 +823,7 @@ const CreateQuote = () => {
                                 const destination = isPortService 
                                     ? (item.originPort && item.destinationPort ? `${item.originPort} → ${item.destinationPort}` : null)
                                     : zoneName;
-                                const formattedQuantity = Number(item.quantity) || 0;
-                                const quantityLabel = serviceType === 'DOOR_TO_DOOR'
-                                    ? `${formattedQuantity} CBM`
-                                    : `${formattedQuantity}x`;
+                                const quantityLabel = formatQuantityLabel(item.quantity, serviceType);
 
                                 return (
                                     <div key={item.id} className="bg-white/5 rounded-lg px-4 py-3">

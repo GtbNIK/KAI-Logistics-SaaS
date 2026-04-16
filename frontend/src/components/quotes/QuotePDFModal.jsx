@@ -4,6 +4,7 @@ import { X, Download, Loader2, FileText, Truck, MapPin } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
+import { calculateItemSubtotal } from '../../utils/pricing';
 
 // Valores por defecto si no hay configuración
 const DEFAULT_LOGO = '/1.png';
@@ -129,14 +130,20 @@ const QuotePDFModal = ({
                 ? (item.originPort && item.destinationPort ? `${item.originPort} -> ${item.destinationPort}` : '-')
                 : zoneName;
 
+            const quantity = Number(item.quantity) || 0;
+            const unitPrice = Number(item.unitPrice) || 0;
+            const subtotal = item.totalPrice != null
+                ? Number(item.totalPrice) || 0
+                : calculateItemSubtotal(quantity, unitPrice, serviceType);
+
             return {
                 service: service?.label || 'Servicio',
                 allyName: ally?.label || '-',
                 allyCode: ally?.data?.internalCode || '-',
                 destination,
-                quantity: Number(item.quantity) || 0,
-                unitPrice: Number(item.unitPrice) || 0,
-                subtotal: (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)
+                quantity,
+                unitPrice,
+                subtotal
             };
         });
     };

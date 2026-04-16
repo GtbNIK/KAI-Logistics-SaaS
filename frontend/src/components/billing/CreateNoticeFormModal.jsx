@@ -10,6 +10,7 @@ import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal
 import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
 import shippingLineService from '../../services/shippingLine.service';
 import airlineService from '../../services/airline.service';
+import { calculateItemSubtotal } from '../../utils/pricing';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -175,9 +176,8 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
 
     // ── Cálculos ──
     const getItemTotal = (item) => {
-        const qty = Number(item.quantity) || 0;
-        const price = Number(item.unitPrice) || 0;
-        return qty * price;
+        const serviceType = getServiceType(item.serviceId);
+        return calculateItemSubtotal(item.quantity, item.unitPrice, serviceType);
     };
 
     const grandTotal = items.reduce((acc, item) => acc + getItemTotal(item), 0);
