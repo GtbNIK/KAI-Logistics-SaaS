@@ -899,6 +899,7 @@ const CreateQuote = () => {
                 services={services}
                 allies={allies}
                 zones={zones}
+                shippingLines={shippingLines}
             />
 
             {/* Modales de Creación Rápida */}

@@ -100,6 +100,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
         return (notice.items || []).map(item => {
             const parts = (item.description || '').split(' · ');
             const serviceName = parts[0] || 'Servicio';
+            const serviceType = item.service?.type;
 
             // Extraer aliado, ruta o zona según el tipo de servicio
             const allyPart = parts.find(p => p.startsWith('Aliado:'));
@@ -116,9 +117,10 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 destination = zonaPart.replace('Zona: ', '').trim();
             }
 
+            const isFclService = ['FCL_20', 'FCL_40', 'FCL_40HC'].includes(serviceType);
+            const carrierCode = isFclService ? (item.shippingLine?.code || '-') : '-';
             const quantity = Number(item.quantity) || 0;
             const unitPrice = Number(item.unitPrice) || 0;
-            const serviceType = item.service?.type;
             const subtotal = item.totalPrice != null
                 ? Number(item.totalPrice) || 0
                 : calculateItemSubtotal(quantity, unitPrice, serviceType);
@@ -128,6 +130,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 allyCode,
                 allyName,
                 destination,
+                carrierCode,
                 quantity,
                 unitPrice,
                 subtotal
@@ -276,6 +279,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 i + 1,
                 item.service,
                 item.destination,
+                item.carrierCode,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
                 `$${item.subtotal.toFixed(2)}`
@@ -283,7 +287,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Ruta / Zona', 'Cant.', 'P. Unit.', 'Total']],
+                head: [['#', 'Servicio', 'Ruta / Zona', 'Carrier', 'Cant.', 'P. Unit.', 'Total']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -297,8 +301,10 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
                     2: { cellWidth: 30, halign: 'center' },
-                    3: { cellWidth: 22, halign: 'right' },
-                    4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+                    3: { cellWidth: 22, halign: 'center' },
+                    4: { cellWidth: 18, halign: 'center' },
+                    5: { cellWidth: 22, halign: 'right' },
+                    6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
                 },
                 margin: { left: margin, right: margin }
             });
@@ -504,6 +510,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                             <th className="py-2 px-3 text-left font-medium">#</th>
                                             <th className="py-2 px-3 text-left font-medium">Servicio</th>
                                             <th className="py-2 px-3 text-left font-medium">Ruta / Zona</th>
+                                            <th className="py-2 px-3 text-center font-medium">Carrier</th>
                                             <th className="py-2 px-3 text-center font-medium">Cant.</th>
                                             <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
                                             <th className="py-2 px-3 text-right font-medium">Total</th>
@@ -515,6 +522,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                                 <td className="py-2 px-3 text-center">{index + 1}</td>
                                                 <td className="py-2 px-3">{item.service}</td>
                                                 <td className="py-2 px-3">{item.destination}</td>
+                                                <td className="py-2 px-3 text-center">{item.carrierCode}</td>
                                                 <td className="py-2 px-3 text-center">{item.quantity}</td>
                                                 <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
                                                 <td className="py-2 px-3 text-right font-semibold">${item.subtotal.toFixed(2)}</td>

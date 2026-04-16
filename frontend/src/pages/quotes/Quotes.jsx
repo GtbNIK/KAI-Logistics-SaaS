@@ -400,7 +400,8 @@ const Quotes = () => {
         clients: [],
         services: [],
         allies: [],
-        zones: []
+        zones: [],
+        shippingLines: []
     });
 
     // Auto-open modal if URL contains ?id=
@@ -431,18 +432,20 @@ const Quotes = () => {
         if (pdfData.clients.length > 0) return; // Ya cargados
 
         try {
-            const [clientsRes, servicesRes, alliesRes, zonesRes] = await Promise.all([
+            const [clientsRes, servicesRes, alliesRes, zonesRes, shippingLinesRes] = await Promise.all([
                 (await import('../../services/client.service')).default.getClients({ limit: 100 }),
                 (await import('../../services/service.service')).default.getServices({ limit: 100 }),
                 (await import('../../services/ally.service')).default.getAllies({ limit: 100 }),
-                (await import('../../services/zone.service')).default.getZones({ limit: 100 })
+                (await import('../../services/zone.service')).default.getZones({ limit: 100 }),
+                (await import('../../services/shippingLine.service')).default.getShippingLines({ all: 'true' })
             ]);
 
             setPdfData({
                 clients: clientsRes.data.map(c => ({ value: c.id, label: c.name, data: c })),
                 services: servicesRes.data.map(s => ({ value: s.id, label: s.name, type: s.type, data: s })),
                 allies: alliesRes.data.map(a => ({ value: a.id, label: a.name, data: a })),
-                zones: zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z }))
+                zones: zonesRes.data.map(z => ({ value: z.id, label: `(${z.internalCode}) ${z.name}`, data: z })),
+                shippingLines: (shippingLinesRes.data || []).map(sl => ({ value: sl.id, label: sl.name, data: sl }))
             });
         } catch (error) {
             console.error('Error loading PDF data:', error);
@@ -612,6 +615,7 @@ const Quotes = () => {
                     services={pdfData.services}
                     allies={pdfData.allies}
                     zones={pdfData.zones}
+                    shippingLines={pdfData.shippingLines}
                 />
             )}
 
