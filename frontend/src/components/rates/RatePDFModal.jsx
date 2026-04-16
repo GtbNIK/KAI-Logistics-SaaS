@@ -4,7 +4,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 
+const DEFAULT_LOGO = '/1.png';
+const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_PRIMARY_COLOR = '#003366';
+const DEFAULT_COMPANY_RIF = 'J-00000000-0';
 
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -50,21 +53,49 @@ const loadImageAsDataUrl = async (url) => {
     });
 };
 
-const RatePDFModal = ({ isOpen, onClose, rates, region }) => {
+// Carga PNG preservando transparencia
+const loadImageAsPngDataUrl = async (url) => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = async () => {
+            try {
+                const w = img.naturalWidth || img.width;
+                const h = img.naturalHeight || img.height;
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            } catch (err) {
+                reject(err);
+            }
+        };
+        img.onerror = reject;
+        img.src = url;
+    });
+};
+
+const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => {
     const { settings } = useSettings();
     const [generating, setGenerating] = useState(false);
 
     if (!isOpen) return null;
 
-    const companyName = settings?.companyName || 'ERP Logística';
-    const logoUrl = settings?.logoUrl || '/1.png';
+    const companyName = settings?.companyName || DEFAULT_COMPANY_NAME;
+    const companyRif = settings?.rif || settings?.companyRif || DEFAULT_COMPANY_RIF;
+    const logoUrl = settings?.logoUrl || DEFAULT_LOGO;
     const primaryColor = settings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const rateBgUrl = settings?.rateBgUrl;
 
     const handleGenerate = async () => {
         setGenerating(true);
         try {
-            const doc = new jsPDF('p', 'mm', 'a4');
+            const doc = new jsPDF('l', 'mm', 'a4');
             const pageW = doc.internal.pageSize.getWidth();
             const pageH = doc.internal.pageSize.getHeight();
             const rgb = hexToRgb(primaryColor);
@@ -81,9 +112,11 @@ const RatePDFModal = ({ isOpen, onClose, rates, region }) => {
                 }
             }
 
-            // Logo
+            // Logo (usar PNG para mantener transparencia)
             try {
-                const logoDataUrl = await loadImageAsDataUrl(logoUrl);
+                const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+                const fullLogoUrl = logoUrl.startsWith('http') ? logoUrl : `${API_BASE}${logoUrl}`;
+                const logoDataUrl = await loadImageAsPngDataUrl(fullLogoUrl);
                 doc.addImage(logoDataUrl, 'PNG', 15, 15, 40, 15);
             } catch (error) {
                 console.warn('Error loading logo:', error);
@@ -93,33 +126,33 @@ const RatePDFModal = ({ isOpen, onClose, rates, region }) => {
             doc.setFontSize(20);
             doc.setTextColor(rgb.r, rgb.g, rgb.b);
             doc.setFont('helvetica', 'bold');
-            doc.text('TARIFARIO', pageW / 2, 25, { align: 'center' });
+            doc.text('TARIFAS CHINA - VENEZUELA', pageW / 2, 25, { align: 'center' });
 
-            // Región y fecha
+            // Fecha (se elimina texto de región)
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(60, 60, 60);
-            doc.text(`Región: ${region === 'CHINA' ? 'China' : 'Otros Países'}`, 15, 38);
+            //doc.text(`Región: ${region === 'CHINA' ? 'China' : 'Otros Países'}`, 15, 38);
             doc.text(`Fecha: ${new Date().toLocaleDateString('es-VE')}`, pageW - 15, 38, { align: 'right' });
 
             // Tabla
-            const tableData = rates.map(rate => {
-                const isExpired = new Date(rate.validUntil) < new Date();
-                return [
-                    rate.ally?.name || '-',
-                    `${rate.originPort?.code} → ${rate.destinationPort?.code}`,
-                    `$${rate.sale20HC?.toFixed(2)}`,
-                    `$${rate.sale40HC?.toFixed(2)}`,
-                    rate.shippingLine?.name || '-',
-                    `${rate.freeDays} días`,
-                    new Date(rate.validUntil).toLocaleDateString('es-VE'),
-                    isExpired ? 'Expirada' : 'Vigente'
-                ];
-            });
+            const tableData = rates.map(rate => [
+                rate.originPort?.code || '-',
+                rate.destinationPort?.code || '-',
+                `$${(rate.sale20HC ?? 0).toFixed(2)}`,
+                `$${(rate.sale40HC ?? 0).toFixed(2)}`,
+                (rate.shippingLine?.code || '-'),
+                `${rate.freeDays} días`,
+                new Date(rate.validUntil).toLocaleDateString('es-VE')
+            ]);
+
+            // Centrado horizontal según anchos de columnas
+            const tableTotalWidth = 30 + 30 + 25 + 25 + 35 + 22 + 25;
+            const leftRight = Math.max(10, (pageW - tableTotalWidth) / 2);
 
             autoTable(doc, {
                 startY: 45,
-                head: [['Aliado', 'Ruta', '20HC', '40HC', 'Naviera', 'Días Libres', 'Validez', 'Estado']],
+                head: [['POL', 'POD', '20HC', '40HC', 'Carrier', 'Días Libres', 'Validez']],
                 body: tableData,
                 theme: 'grid',
                 headStyles: {
@@ -134,44 +167,62 @@ const RatePDFModal = ({ isOpen, onClose, rates, region }) => {
                     textColor: [40, 40, 40]
                 },
                 columnStyles: {
-                    0: { cellWidth: 30 },
-                    1: { cellWidth: 30 },
-                    2: { cellWidth: 20, halign: 'right' },
-                    3: { cellWidth: 20, halign: 'right' },
-                    4: { cellWidth: 25 },
-                    5: { cellWidth: 18, halign: 'center' },
-                    6: { cellWidth: 22, halign: 'center' },
-                    7: { cellWidth: 18, halign: 'center' }
+                    0: { cellWidth: 30, halign: 'center' }, // POL
+                    1: { cellWidth: 30, halign: 'center' }, // POD
+                    2: { cellWidth: 25, halign: 'right' },  // 20HC
+                    3: { cellWidth: 25, halign: 'right' },  // 40HC
+                    4: { cellWidth: 35 },                  // Carrier
+                    5: { cellWidth: 22, halign: 'center' }, // Días Libres
+                    6: { cellWidth: 25, halign: 'center' }  // Validez
                 },
-                margin: { left: 15, right: 15 },
-                didDrawCell: (data) => {
-                    // Colorear estado
-                    if (data.column.index === 7 && data.section === 'body') {
-                        const estado = data.cell.raw;
-                        if (estado === 'Expirada') {
-                            doc.setFillColor(254, 226, 226);
-                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                            doc.setTextColor(185, 28, 28);
-                            doc.text(estado, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 1, { align: 'center' });
-                        } else {
-                            doc.setFillColor(220, 252, 231);
-                            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                            doc.setTextColor(21, 128, 61);
-                            doc.text(estado, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 1, { align: 'center' });
-                        }
-                    }
-                }
+                margin: { left: leftRight, right: leftRight },
             });
 
-            // Footer
-            const finalY = doc.lastAutoTable.finalY || 45;
+            // Segunda página con observaciones (si existen)
+            const obsText = (observations || rates?.[0]?.observations || settings?.rateObservations || '').toString().trim();
+            if (obsText.length > 0) {
+                doc.addPage('a4', 'landscape');
+                // Fondo en segunda página
+                if (rateBgUrl) {
+                    try {
+                        const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+                        const fullBgUrl = rateBgUrl.startsWith('http') ? rateBgUrl : `${API_BASE}${rateBgUrl}`;
+                        const bgDataUrl = await loadImageAsDataUrl(fullBgUrl);
+                        doc.addImage(bgDataUrl, 'JPEG', 0, 0, pageW, pageH);
+                    } catch (error) {
+                        console.warn('Error loading background (page 2):', error);
+                    }
+                }
+                // Título de observaciones
+                doc.setFontSize(18);
+                doc.setTextColor(rgb.r, rgb.g, rgb.b);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Observaciones:', 15, 25);
+
+                // Texto de observaciones con wrap
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(40, 40, 40);
+                const maxWidth = pageW - 30;
+                const lines = doc.splitTextToSize(obsText, maxWidth);
+                doc.text(lines, 15, 40);
+
+                // Footer página 2
+                doc.setFontSize(9);
+                doc.setTextColor(120, 120, 120);
+                doc.setFont('helvetica', 'italic');
+                doc.text(`${companyName} - ${companyRif}`, pageW / 2, pageH - 10, { align: 'center' });
+            }
+
+            // Footer página 1 (siempre)
+            doc.setPage(1);
             doc.setFontSize(9);
             doc.setTextColor(120, 120, 120);
             doc.setFont('helvetica', 'italic');
-            doc.text(`Generado por ${companyName}`, pageW / 2, pageH - 10, { align: 'center' });
+            doc.text(`${companyName} - ${companyRif}`, pageW / 2, pageH - 10, { align: 'center' });
 
             // Descargar
-            const fileName = `Tarifario_${region}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const fileName = `Tarifas_FCL_China_Venezuela_${new Date().toISOString().split('T')[0]}.pdf`;
             doc.save(fileName);
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -211,7 +262,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region }) => {
                     <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
                         <p className="text-sm text-slate-700">
                             Se generará un PDF con todas las tarifas mostradas en la tabla actual,
-                            incluyendo información de aliados, rutas, precios y validez.
+                            incluyendo información de  rutas, precios y validez.
                         </p>
                     </div>
 
@@ -228,7 +279,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region }) => {
                             </li>
                             <li className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                                Información de validez y estado
+                                Información de validez
                             </li>
                             <li className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
