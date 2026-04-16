@@ -51,7 +51,14 @@ const NoteDetailModal = ({ note, onClose }) => {
                             <div>
                                 <p className="text-xs text-slate-400 mb-1">Cliente</p>
                                 <p className="font-medium text-slate-800">{n.client?.name || 'N/A'}</p>
-                                <p className="text-xs text-slate-500">{n.client?.rifOrId}</p>
+                                {n.client?.rifOrId && (
+                                    <p className="text-xs text-slate-500">{n.client.rifOrId}</p>
+                                )}
+                                {n.client?.address && (
+                                    <p className="text-xs text-slate-500 break-words whitespace-pre-line mt-1">
+                                        Dirección: {n.client.address}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">

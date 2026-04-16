@@ -191,6 +191,11 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                 doc.text(`RIF/Cedula: ${note.client.rifOrId}`, margin, yPos);
                 yPos += 4;
             }
+            if (note.client?.address) {
+                const addressLines = doc.splitTextToSize(`Dirección: ${note.client.address}`, pageWidth / 2 - margin - 5);
+                doc.text(addressLines, margin, yPos);
+                yPos += addressLines.length * 4;
+            }
             if (note.client?.contactPerson) {
                 doc.text(`Contacto: ${note.client.contactPerson}`, margin, yPos);
                 yPos += 4;
@@ -229,11 +234,6 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                 rightY += 4;
             }
 
-            if (companyRif) {
-                doc.text(`RIF Empresa: ${companyRif}`, rightX, rightY);
-                rightY += 4;
-            }
-
             if (note.deliveredTo) {
                 doc.text(`Recibido por: ${note.deliveredTo}`, rightX, rightY);
                 rightY += 4;
@@ -250,7 +250,6 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
             const tableData = items.map((item, i) => [
                 i + 1,
                 item.description,
-                item.allyCode,
                 item.quantity,
 				item.weight != null ? `${item.weight.toFixed(2)} KG` : '—',
 				item.cbm != null ? item.cbm.toFixed(3) : '—'
@@ -258,7 +257,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
 
             autoTable(doc, {
                 startY: yPos,
-				head: [['#', 'Descripción', 'Aliado', 'Cant.', 'Peso', 'CBM']],
+				head: [['#', 'Descripción', 'Cant.', 'Peso', 'CBM']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -271,10 +270,9 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
-					2: { cellWidth: 22, halign: 'left' },
-                    3: { cellWidth: 15, halign: 'center' },
-                    4: { cellWidth: 25, halign: 'right' },
-                    5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+                    2: { cellWidth: 15, halign: 'center' },
+                    3: { cellWidth: 35, halign: 'center' },
+                    4: { cellWidth: 30, halign: 'center', fontStyle: 'bold' }
                 },
                 margin: { left: margin, right: margin }
             });
@@ -321,6 +319,14 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                 pageHeight - 10,
                 { align: 'center' }
             );
+            if (companyRif) {
+                doc.text(
+                    `RIF: ${companyRif}`,
+                    pageWidth / 2,
+                    pageHeight - 6,
+                    { align: 'center' }
+                );
+            }
 
             const blob = doc.output('blob');
             const blobUrl = URL.createObjectURL(blob);
@@ -410,6 +416,9 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                                             {note.client?.email && (
                                                 <p className="text-xs text-slate-600">Email: {note.client.email}</p>
                                             )}
+                                            {note.client?.address && (
+                                                <p className="text-xs text-slate-600 break-words whitespace-pre-line">Dirección: {note.client.address}</p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -421,11 +430,8 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                                                 Origen: COT-{String(note.quote.number).padStart(5, '0')}
                                             </p>
                                         )}
-                                        {companyRif && (
-                                            <p className="text-xs text-slate-500">RIF Empresa: {companyRif}</p>
-                                        )}
                                         {note.deliveredTo && (
-                                            <p className="text-xs text-slate-500 mt-2">Recibido por: {note.deliveredTo}</p>
+                                            <p className="text-xs text-slate-500">Recibido por: {note.deliveredTo}</p>
                                         )}
                                         {note.deliveryAddress && (
                                             <p className="text-xs text-slate-500">Dirección de Entrega: {note.deliveryAddress}</p>
@@ -485,8 +491,11 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                                 </div>
 
                                 {/* Footer */}
-                                <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+                                <div className="mt-8 pt-4 border-t border-slate-100 text-center space-y-1">
                                     <p className="text-xs text-slate-400">{companyName} - {companySlogan}</p>
+                                    {companyRif && (
+                                        <p className="text-xs text-slate-400">RIF: {companyRif}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
