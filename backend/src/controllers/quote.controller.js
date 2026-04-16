@@ -100,10 +100,8 @@ export const getQuote = async (req, res) => {
         if (req.user.role === 'SALES' && quote.userId !== req.user.id) {
             return res.status(403).json({ message: 'No tienes permiso para ver esta cotización' });
         }
-
         res.json(quote);
     } catch (error) {
-        console.error('Error getting quote:', error);
         res.status(500).json({ message: 'Error al obtener la cotización' });
     }
 };

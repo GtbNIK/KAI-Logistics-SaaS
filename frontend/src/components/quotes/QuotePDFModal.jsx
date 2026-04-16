@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
+import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 
 // Valores por defecto si no hay configuración
 const DEFAULT_LOGO = '/1.png';
@@ -356,8 +357,8 @@ const QuotePDFModal = ({
             
             const today = new Date().toLocaleDateString('es-VE');
             const validUntil = quote.validUntil 
-                ? new Date(quote.validUntil).toLocaleDateString('es-VE') 
-                : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-VE');
+                ? toVenezuelanFormat(quote.validUntil) 
+                : toVenezuelanFormat(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000));
             
             doc.text(`Fecha: ${today}`, rightColX, rightColY);
             rightColY += 4;
@@ -581,9 +582,7 @@ const QuotePDFModal = ({
                                         Fecha: {new Date().toLocaleDateString('es-VE')}
                                     </p>
                                     <p className="text-xs text-slate-500">
-                                        Válida hasta: {quote.validUntil 
-                                            ? new Date(quote.validUntil).toLocaleDateString('es-VE') 
-                                            : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-VE')}
+                                        Válida hasta: {quote.validUntil ? toVenezuelanFormat(quote.validUntil) : toVenezuelanFormat(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000))}
                                     </p>
                                 </div>
                             </div>

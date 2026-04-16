@@ -1,4 +1,5 @@
 import { DollarSign, Ship, MapPin, Calendar, AlertCircle } from 'lucide-react';
+import { toDateString, toVenezuelanFormat } from '../utils/dateHelpers';
 
 export const rateConfig = {
     entityName: 'tarifa',
@@ -73,8 +74,8 @@ export const rateConfig = {
             render: (item) => {
                 const formatDate = (dateStr) => {
                     if (!dateStr) return '-';
-                    const date = new Date(dateStr);
-                    return date.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const s = toDateString(dateStr);
+                    return s ? toVenezuelanFormat(s) : '-';
                 };
                 
                 return (

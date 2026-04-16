@@ -1,4 +1,5 @@
 import { FileText, Calendar, Wallet } from 'lucide-react';
+import { toVenezuelanFormat } from '../utils/dateHelpers';
 
 export const quoteConfig = {
     entityName: 'Cotización',
@@ -18,7 +19,7 @@ export const quoteConfig = {
         { 
             header: 'Fecha', 
             accessor: 'date',
-            render: (item) => new Date(item.date || item.createdAt).toLocaleDateString('es-VE')
+            render: (item) => toVenezuelanFormat(item.date || item.createdAt)
         },
         { 
             header: 'Cliente', 
@@ -74,7 +75,7 @@ export const quoteConfig = {
                 const isExpired = validDate < today && item.status === 'SENT';
                 return (
                     <span className={isExpired ? 'text-red-500 font-medium' : 'text-slate-600'}>
-                        {validDate.toLocaleDateString('es-VE')}
+                        {toVenezuelanFormat(item.validUntil)}
                     </span>
                 );
             }

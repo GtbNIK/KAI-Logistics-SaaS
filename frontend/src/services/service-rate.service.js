@@ -9,7 +9,7 @@ const rateService = {
      * @returns Objeto con { found: boolean, rate?: objeto tarifa }
      */
     findRate: async (params) => {
-        const response = await axios.get(`${API_URL}/rates/find`, { 
+        const response = await axios.get(`${API_URL}/service-rates/find`, { 
             params,
             withCredentials: true 
         });
@@ -20,7 +20,7 @@ const rateService = {
      * Obtener lista de tarifas (para administración)
      */
     getRates: async (params) => {
-        const response = await axios.get(`${API_URL}/rates`, { 
+        const response = await axios.get(`${API_URL}/service-rates`, { 
             params,
             withCredentials: true 
         });

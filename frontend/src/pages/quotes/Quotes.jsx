@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import ChangeQuoteStatusModal from '../../components/quotes/ChangeQuoteStatusModal';
 import { formatQuantityLabel } from '../../utils/pricing';
+import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 
@@ -280,8 +281,8 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess, portsCatalog = [] })
                                 <span>Válida hasta</span>
                             </div>
                             <p className="font-semibold text-slate-800">
-                                {q.validUntil 
-                                    ? new Date(q.validUntil).toLocaleDateString('es-VE') 
+                                {q.validUntil
+                                    ? toVenezuelanFormat(q.validUntil)
                                     : 'Sin vencimiento'}
                             </p>
                         </div>
@@ -682,7 +683,7 @@ const Quotes = () => {
                         notes: printingQuote.notes,
                         showNotesToClient: printingQuote.showNotesToClient,
                         number: printingQuote.number,
-                        validUntil: printingQuote.validUntil ? new Date(printingQuote.validUntil) : null
+                        validUntil: printingQuote.validUntil
                     }}
                     services={pdfData.services}
                     allies={pdfData.allies}

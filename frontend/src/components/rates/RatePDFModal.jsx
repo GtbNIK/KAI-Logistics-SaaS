@@ -3,6 +3,7 @@ import { X, Download, Loader2, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
+import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
@@ -16,6 +17,26 @@ const hexToRgb = (hex) => {
         g: parseInt(result[2], 16),
         b: parseInt(result[3], 16)
     } : { r: 0, g: 51, b: 102 };
+};
+
+// Redimensionar PNG manteniendo proporción
+const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
+    const srcW = img.naturalWidth || img.width;
+    const srcH = img.naturalHeight || img.height;
+    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
+    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
+    const scale = Math.min(scaleW, scaleH, 1);
+    const outW = Math.max(1, Math.floor(srcW * scale));
+    const outH = Math.max(1, Math.floor(srcH * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.clearRect(0, 0, outW, outH);
+    ctx.drawImage(img, 0, 0, outW, outH);
+    return canvas.toDataURL('image/png');
 };
 
 const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = {}) => {
@@ -112,12 +133,26 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 }
             }
 
-            // Logo (usar PNG para mantener transparencia)
+            // Logo (usar PNG para mantener transparencia) con tamaño dinámico
             try {
                 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
-                const fullLogoUrl = logoUrl.startsWith('http') ? logoUrl : `${API_BASE}${logoUrl}`;
-                const logoDataUrl = await loadImageAsPngDataUrl(fullLogoUrl);
-                doc.addImage(logoDataUrl, 'PNG', 15, 15, 40, 15);
+                const fullLogoUrl = logoUrl.startsWith('http')
+                    ? logoUrl
+                    : (logoUrl.startsWith('/')
+                        ? (typeof window !== 'undefined' ? `${window.location.origin}${logoUrl}` : logoUrl)
+                        : `${API_BASE}/${logoUrl.replace(/^\//, '')}`);
+                const img = await new Promise((resolve, reject) => {
+                    const image = new Image();
+                    image.crossOrigin = 'anonymous';
+                    image.onload = () => resolve(image);
+                    image.onerror = reject;
+                    image.src = fullLogoUrl;
+                });
+                const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
+                const logoWidth = 50; // mm
+                const aspect = (img.naturalHeight || img.height) / (img.naturalWidth || img.width) || (13.5/50);
+                const logoHeight = Math.max(10, Math.min(18, logoWidth * aspect));
+                doc.addImage(logoPng, 'PNG', 15, 15, logoWidth, logoHeight);
             } catch (error) {
                 console.warn('Error loading logo:', error);
             }
@@ -143,7 +178,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 `$${(rate.sale40HC ?? 0).toFixed(2)}`,
                 (rate.shippingLine?.code || '-'),
                 `${rate.freeDays} días`,
-                new Date(rate.validUntil).toLocaleDateString('es-VE')
+                (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
             ]);
 
             // Centrado horizontal según anchos de columnas

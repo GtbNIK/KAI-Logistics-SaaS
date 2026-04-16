@@ -25,6 +25,7 @@ import QuickCreateZoneModal from '../../components/shared/QuickCreateZoneModal';
 import QuickCreateShippingLineModal from '../../components/shared/QuickCreateShippingLineModal';
 import QuickCreateAirLineModal from '../../components/shared/QuickCreateAirLineModal';
 import { calculateItemSubtotal, formatQuantityLabel } from '../../utils/pricing';
+import { toDateString } from '../../utils/dateHelpers';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -75,7 +76,7 @@ const QuoteItemRow = ({
 
             setSearchingRate(true);
             try {
-                const rateService = (await import('../../services/rate.service')).default;
+                const rateService = (await import('../../services/service-rate.service')).default;
                 const result = await rateService.findRate({
                     serviceId: item.serviceId,
                     allyId: item.allyId,
@@ -516,7 +517,7 @@ const CreateQuote = () => {
                     setNotes(quote.notes || '');
                     setShowNotesToClient(quote.showNotesToClient);
                     setNextQuoteNumber(quote.number);
-                    setValidUntil(new Date(quote.validUntil).toISOString().split('T')[0]);
+                    setValidUntil(toDateString(quote.validUntil));
                     
                     const mappedItems = quote.items.map(item => ({
                         id: item.id,
@@ -894,7 +895,7 @@ const CreateQuote = () => {
                     notes,
                     showNotesToClient,
                     number: nextQuoteNumber,
-                    validUntil: new Date(validUntil)
+                    validUntil: validUntil
                 }}
                 services={services}
                 allies={allies}
