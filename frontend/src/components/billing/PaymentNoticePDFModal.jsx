@@ -4,6 +4,7 @@ import { X, Download, Loader2, Receipt, Eye, EyeOff } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
+import { calculateItemSubtotal } from '../../utils/pricing';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
@@ -115,14 +116,21 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 destination = zonaPart.replace('Zona: ', '').trim();
             }
 
+            const quantity = Number(item.quantity) || 0;
+            const unitPrice = Number(item.unitPrice) || 0;
+            const serviceType = item.service?.type;
+            const subtotal = item.totalPrice != null
+                ? Number(item.totalPrice) || 0
+                : calculateItemSubtotal(quantity, unitPrice, serviceType);
+
             return {
                 service: serviceName,
                 allyCode,
                 allyName,
                 destination,
-                quantity: Number(item.quantity) || 0,
-                unitPrice: Number(item.unitPrice) || 0,
-                totalPrice: Number(item.totalPrice) || 0
+                quantity,
+                unitPrice,
+                subtotal
             };
         });
     };
@@ -270,7 +278,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 item.destination,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
-                `$${item.totalPrice.toFixed(2)}`
+                `$${item.subtotal.toFixed(2)}`
             ]);
 
             autoTable(doc, {
@@ -509,7 +517,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                                 <td className="py-2 px-3">{item.destination}</td>
                                                 <td className="py-2 px-3 text-center">{item.quantity}</td>
                                                 <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
-                                                <td className="py-2 px-3 text-right font-semibold">${item.totalPrice.toFixed(2)}</td>
+                                                <td className="py-2 px-3 text-right font-semibold">${item.subtotal.toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
