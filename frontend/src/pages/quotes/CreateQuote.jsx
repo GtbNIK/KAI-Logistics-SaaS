@@ -25,6 +25,21 @@ import QuickCreateZoneModal from '../../components/shared/QuickCreateZoneModal';
 import QuickCreateShippingLineModal from '../../components/shared/QuickCreateShippingLineModal';
 import QuickCreateAirLineModal from '../../components/shared/QuickCreateAirLineModal';
 
+const DOOR_TO_DOOR_FLAT_MAX_CBM = 0.16;
+
+const calculateItemSubtotal = (item, serviceType) => {
+    const quantity = Number(item.quantity) || 0;
+    const unitPrice = Number(item.unitPrice) || 0;
+
+    if (!unitPrice) return 0;
+
+    if (serviceType === 'DOOR_TO_DOOR' && quantity > 0 && quantity < DOOR_TO_DOOR_FLAT_MAX_CBM) {
+        return unitPrice;
+    }
+
+    return quantity * unitPrice;
+};
+
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
     item, 
@@ -122,7 +137,7 @@ const QuoteItemRow = ({
         return () => { isMounted = false; };
     }, [item.serviceId, item.allyId, item.zoneId, item.originPort, item.destinationPort]);
 
-    const subtotal = (item.quantity || 0) * (item.unitPrice || 0);
+    const subtotal = calculateItemSubtotal(item, serviceType);
 
     return (
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-4 relative group">
@@ -365,12 +380,12 @@ const QuoteItemRow = ({
                     </label>
                     <input 
                         type="number" 
-                        min={serviceType === 'DOOR_TO_DOOR' ? '0.01' : '1'}
-                        step={serviceType === 'DOOR_TO_DOOR' ? '0.01' : '1'}
+                        min={serviceType === 'DOOR_TO_DOOR' ? '0' : '0'}
+                        step={serviceType === 'DOOR_TO_DOOR' ? '0' : '0'}
                         value={item.quantity}
                         onChange={(e) => {
                             const value = parseFloat(e.target.value);
-                            const minValue = serviceType === 'DOOR_TO_DOOR' ? 0.01 : 1;
+                            const minValue = serviceType === 'DOOR_TO_DOOR' ? 0 : 0;
                             onUpdate(index, { quantity: value >= minValue ? value : minValue });
                         }}
                         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
@@ -576,7 +591,10 @@ const CreateQuote = () => {
 
     // Calcular totales
     const calculateTotals = () => {
-        const subtotals = items.map(item => (item.quantity || 0) * (item.unitPrice || 0));
+        const subtotals = items.map((item) => {
+            const serviceType = services.find(s => s.value === item.serviceId)?.data?.type;
+            return calculateItemSubtotal(item, serviceType);
+        });
         const total = subtotals.reduce((sum, st) => sum + st, 0);
         return { subtotals, total };
     };
@@ -801,10 +819,8 @@ const CreateQuote = () => {
                                 const service = services.find(s => s.value === item.serviceId);
                                 const ally = allies.find(a => a.value === item.allyId);
                                 const zone = zones.find(z => z.value === item.zoneId);
-                                const subtotal = (item.quantity || 0) * (item.unitPrice || 0);
-                                
-                                // Determinar destino según tipo de servicio
                                 const serviceType = service?.data?.type;
+                                const subtotal = calculateItemSubtotal(item, serviceType);
                                 const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
                                 
                                 // Extraer solo el nombre de la zona (sin el código)
@@ -813,7 +829,11 @@ const CreateQuote = () => {
                                 const destination = isPortService 
                                     ? (item.originPort && item.destinationPort ? `${item.originPort} → ${item.destinationPort}` : null)
                                     : zoneName;
-                                
+                                const formattedQuantity = Number(item.quantity) || 0;
+                                const quantityLabel = serviceType === 'DOOR_TO_DOOR'
+                                    ? `${formattedQuantity} CBM`
+                                    : `${formattedQuantity}x`;
+
                                 return (
                                     <div key={item.id} className="bg-white/5 rounded-lg px-4 py-3">
                                         <div className="flex justify-between items-start mb-1">
@@ -842,7 +862,7 @@ const CreateQuote = () => {
                                                 </p>
                                             )}
                                             <p className="text-slate-500">
-                                                {item.quantity}x @ ${item.unitPrice.toFixed(2)}
+                                                {quantityLabel} @ ${item.unitPrice.toFixed(2)}
                                             </p>
                                         </div>
                                     </div>

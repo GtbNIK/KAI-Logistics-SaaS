@@ -105,6 +105,7 @@ const QuotePDFModal = ({
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
     const quoteBgUrl = companySettings?.quoteBgUrl || null;
+    const companyRif = companySettings?.rif || '';
     const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
 
     const resolveClientName = () => {
@@ -251,6 +252,12 @@ const QuotePDFModal = ({
                 yPos += 4;
             }
             
+            if (quote.client?.data?.address) {
+                const addressLines = doc.splitTextToSize(`Dirección: ${quote.client.data.address}`, pageWidth / 2 - margin - 10);
+                doc.text(addressLines, margin, yPos);
+                yPos += addressLines.length * 4;
+            }
+            
             if (quote.client?.data?.contactPerson) {
                 doc.text(`Persona Contacto: ${quote.client.data.contactPerson}`, margin, yPos);
                 yPos += 4;
@@ -263,15 +270,6 @@ const QuotePDFModal = ({
             
             if (quote.client?.data?.email) {
                 doc.text(`Email: ${quote.client.data.email}`, margin, yPos);
-                yPos += 4;
-            }
-            
-            if (quote.client?.data?.address) {
-                const maxLength = 50;
-                const address = quote.client.data.address.length > maxLength 
-                    ? quote.client.data.address.substring(0, maxLength) + '...'
-                    : quote.client.data.address;
-                doc.text(`Dirección: ${address}`, margin, yPos);
                 yPos += 4;
             }
             
@@ -394,6 +392,14 @@ const QuotePDFModal = ({
                 pageHeight - 10, 
                 { align: 'center' }
             );
+            if (companyRif) {
+                doc.text(
+                    `RIF: ${companyRif}`,
+                    pageWidth / 2,
+                    pageHeight - 6,
+                    { align: 'center' }
+                );
+            }
 
             const blob = doc.output('blob');
             const blobUrl = URL.createObjectURL(blob);
@@ -500,7 +506,7 @@ const QuotePDFModal = ({
                                             <p className="text-xs text-slate-600">Email: {quote.client.data.email}</p>
                                         )}
                                         {quote.client?.data?.address && (
-                                            <p className="text-xs text-slate-600">Dirección: {quote.client.data.address}</p>
+                                            <p className="text-xs text-slate-600 break-words whitespace-pre-line">Dirección: {quote.client.data.address}</p>
                                         )}
                                         {/* Vendedor: autor de la cotización */}
                                         {quote.user?.name && (
@@ -565,8 +571,11 @@ const QuotePDFModal = ({
                             )}
 
                             {/* Footer */}
-                            <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+                            <div className="mt-8 pt-4 border-t border-slate-100 text-center space-y-1">
                                 <p className="text-xs text-slate-400">{companyName} - {companySlogan}</p>
+                                {companyRif && (
+                                    <p className="text-xs text-slate-400">RIF: {companyRif}</p>
+                                )}
                             </div>
                             </div>
                         </div>

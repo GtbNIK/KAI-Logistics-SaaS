@@ -91,6 +91,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
     const noticeBgUrl = companySettings?.noticeBgUrl || null;
+    const companyRif = companySettings?.rif || '';
     const paymentInfo = companySettings?.paymentInfo || '';
 
     // Parsear items de la descripción enriquecida (con aliado usando código interno)
@@ -220,6 +221,11 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 doc.text(`RIF/Cédula: ${notice.client.rifOrId}`, margin, yPos);
                 yPos += 4;
             }
+            if (notice.client?.address) {
+                const addressLines = doc.splitTextToSize(`Dirección: ${notice.client.address}`, pageWidth / 2 - margin - 5);
+                doc.text(addressLines, margin, yPos);
+                yPos += addressLines.length * 4;
+            }
             if (notice.client?.contactPerson) {
                 doc.text(`Contacto: ${notice.client.contactPerson}`, margin, yPos);
                 yPos += 4;
@@ -249,11 +255,6 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
             doc.setTextColor(100, 100, 100);
             doc.text(`Fecha de emisión: ${issueDate}`, rightX, rightY);
             rightY += 4;
-
-            if (notice.client?.address) {
-                doc.text(`Dirección: ${notice.client.address}`, rightX, rightY);
-                rightY += 4;
-            }
 
             if (notice.quote) {
                 doc.text(`Cotización origen: COT-${String(notice.quote.number).padStart(5, '0')}`, rightX, rightY);
@@ -365,6 +366,14 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 pageHeight - 10,
                 { align: 'center' }
             );
+            if (companyRif) {
+                doc.text(
+                    `RIF: ${companyRif}`,
+                    pageWidth / 2,
+                    pageHeight - 6,
+                    { align: 'center' }
+                );
+            }
 
             const blob = doc.output('blob');
             const blobUrl = URL.createObjectURL(blob);
@@ -429,7 +438,9 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                             <div className="relative z-10">
                                 {/* Header del documento */}
                                 <div className="flex items-start justify-between mb-6 pb-4 border-b border-slate-100">
-                                    <img src={logoUrl} alt="Logo" className="h-12" />
+                                    <div>
+                                        <img src={logoUrl} alt="Logo" className="h-12" />
+                                    </div>
                                     <div className="text-right">
                                         <h1 className="text-2xl font-bold text-slate-800">AVISO DE COBRO</h1>
                                         <p className="text-slate-500">{noticeNumber}</p>
@@ -452,6 +463,9 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                         <div className="space-y-1">
                                             {notice.client?.rifOrId && (
                                                 <p className="text-xs text-slate-600">RIF: {notice.client.rifOrId}</p>
+                                            )}
+                                            {notice.client?.address && (
+                                                <p className="text-xs text-slate-600 break-words whitespace-pre-line">Dirección: {notice.client.address}</p>
                                             )}
                                             {notice.client?.contactPerson && (
                                                 <p className="text-xs text-slate-600">Contacto: {notice.client.contactPerson}</p>
@@ -541,8 +555,11 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                 )}
 
                                 {/* Footer */}
-                                <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+                                <div className="mt-8 pt-4 border-t border-slate-100 text-center space-y-1">
                                     <p className="text-xs text-slate-400">{companyName} - {companySlogan}</p>
+                                    {companyRif && (
+                                        <p className="text-xs text-slate-400">RIF: {companyRif}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>

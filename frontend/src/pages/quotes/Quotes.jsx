@@ -218,6 +218,14 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess }) => {
                                 <span>Cliente</span>
                             </div>
                             <p className="font-semibold text-slate-800">{q.client?.name || 'N/A'}</p>
+                            {q.client?.rifOrId && (
+                                <p className="text-xs text-slate-400">{q.client.rifOrId}</p>
+                            )}
+                            {q.client?.address && (
+                                <p className="text-xs text-slate-400 break-words whitespace-pre-line">
+                                    Dirección: {q.client.address}
+                                </p>
+                            )}
                         </div>
                         <div className="bg-slate-50 rounded-xl p-4">
                             <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
