@@ -91,7 +91,6 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
     const noticeBgUrl = companySettings?.noticeBgUrl || null;
-    const companyRif = companySettings?.rif || '';
     const paymentInfo = companySettings?.paymentInfo || '';
 
     // Parsear items de la descripción enriquecida (con aliado usando código interno)
@@ -251,21 +250,15 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
             doc.text(`Fecha de emisión: ${issueDate}`, rightX, rightY);
             rightY += 4;
 
+            if (notice.client?.address) {
+                doc.text(`Dirección: ${notice.client.address}`, rightX, rightY);
+                rightY += 4;
+            }
+
             if (notice.quote) {
                 doc.text(`Cotización origen: COT-${String(notice.quote.number).padStart(5, '0')}`, rightX, rightY);
                 rightY += 4;
             }
-
-            if (companyRif) {
-                doc.text(`RIF Empresa: ${companyRif}`, rightX, rightY);
-                rightY += 4;
-            }
-
-            // Estado de cobro
-            const status = notice.receivable?.status;
-            const statusLabels = { PENDING: 'Pendiente', PARTIALLY_PAID: 'Parcialmente Pagado', PAID: 'Pagado' };
-            doc.text(`Estado: ${statusLabels[status] || 'Pendiente'}`, rightX, rightY);
-            rightY += 4;
 
             yPos = Math.max(clientEndY, rightY) + 10;
 
@@ -294,7 +287,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
-                    2: { cellWidth: 15, halign: 'center' },
+                    2: { cellWidth: 30, halign: 'center' },
                     3: { cellWidth: 22, halign: 'right' },
                     4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
                 },
@@ -478,9 +471,6 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                             <p className="text-xs text-slate-500">
                                                 Origen: COT-{String(notice.quote.number).padStart(5, '0')}
                                             </p>
-                                        )}
-                                        {companyRif && (
-                                            <p className="text-xs text-slate-500">RIF Empresa: {companyRif}</p>
                                         )}
                                     </div>
                                 </div>
