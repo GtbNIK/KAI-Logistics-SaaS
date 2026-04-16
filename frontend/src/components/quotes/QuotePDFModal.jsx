@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Loader2, FileText, Truck, MapPin } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
+import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 
 // Valores por defecto si no hay configuración
 const DEFAULT_LOGO = '/1.png';
@@ -91,7 +92,9 @@ const QuotePDFModal = ({
     quote,      // Datos de la cotización { clientName, items, total, notes, number, date, validUntil }
     services,   // Lista de servicios para obtener nombres
     allies,     // Lista de aliados
-    zones       // Lista de zonas
+    zones,      // Lista de zonas
+    shippingLines = [],
+    ports = []
 }) => {
     const [generating, setGenerating] = useState(false);
     const { settings: companySettings, loading: loadingSettings } = useSettings();
@@ -114,6 +117,45 @@ const QuotePDFModal = ({
         return c?.data?.name || c?.name || c?.label || quote?.clientName || 'Sin seleccionar';
     };
 
+    const portCodeMap = useMemo(() => {
+        const map = new Map();
+        (ports || []).forEach((port) => {
+            if (!port) return;
+            const code = (port.code || port.data?.code || '').trim();
+            const name = (port.name || port.data?.name || '').trim();
+            if (code) {
+                map.set(code.toLowerCase(), code.toUpperCase());
+            }
+            if (name && code) {
+                map.set(name.toLowerCase(), code.toUpperCase());
+            }
+        });
+        return map;
+    }, [ports]);
+
+    const resolvePortCode = (value) => {
+        if (!value) return '';
+        const str = String(value).trim();
+        if (!str) return '';
+        const lower = str.toLowerCase();
+        if (portCodeMap.has(lower)) {
+            return portCodeMap.get(lower);
+        }
+        if (str.includes(' - ')) {
+            const possible = str.split(' - ')[0].trim();
+            if (portCodeMap.has(possible.toLowerCase())) {
+                return portCodeMap.get(possible.toLowerCase());
+            }
+            if (/^[A-Za-z0-9]{2,6}$/.test(possible)) {
+                return possible.toUpperCase();
+            }
+        }
+        if (/^[A-Za-z0-9]{2,6}$/.test(str)) {
+            return str.toUpperCase();
+        }
+        return str;
+    };
+
     // Preparar datos para el PDF
     const prepareItems = () => {
         return quote.items.filter(item => item.serviceId).map(item => {
@@ -122,12 +164,15 @@ const QuotePDFModal = ({
             const ally = allies.find(a => a.value === item.allyId);
             const serviceType = service?.data?.type;
             const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
+            const isFclService = ['FCL_20', 'FCL_40', 'FCL_40HC'].includes(serviceType);
             
             // Extraer solo el nombre de la zona (sin el código)
             const zoneName = zone?.label ? zone.label.split(' - ')[1] || zone.label : '-';
             
+            const originCode = resolvePortCode(item.originPort);
+            const destinationCode = resolvePortCode(item.destinationPort);
             const destination = isPortService 
-                ? (item.originPort && item.destinationPort ? `${item.originPort} -> ${item.destinationPort}` : '-')
+                ? ((originCode || destinationCode) ? `${originCode || 'N/A'} -> ${destinationCode || 'N/A'}` : '-')
                 : zoneName;
 
             const quantity = Number(item.quantity) || 0;
@@ -136,6 +181,12 @@ const QuotePDFModal = ({
                 ? Number(item.totalPrice) || 0
                 : calculateItemSubtotal(quantity, unitPrice, serviceType);
 
+            const shippingLineOption = shippingLines.find(sl => sl.value === item.shippingLineId);
+            const shippingLineData = item.shippingLine || shippingLineOption?.data;
+            const carrierCode = isFclService
+                ? (shippingLineData?.code || '-')
+                : '-';
+
             return {
                 service: service?.label || 'Servicio',
                 allyName: ally?.label || '-',
@@ -143,7 +194,8 @@ const QuotePDFModal = ({
                 destination,
                 quantity,
                 unitPrice,
-                subtotal
+                subtotal,
+                carrierCode: carrierCode || '-'
             };
         });
     };
@@ -305,8 +357,8 @@ const QuotePDFModal = ({
             
             const today = new Date().toLocaleDateString('es-VE');
             const validUntil = quote.validUntil 
-                ? new Date(quote.validUntil).toLocaleDateString('es-VE') 
-                : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-VE');
+                ? toVenezuelanFormat(quote.validUntil) 
+                : toVenezuelanFormat(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000));
             
             doc.text(`Fecha: ${today}`, rightColX, rightColY);
             rightColY += 4;
@@ -330,6 +382,7 @@ const QuotePDFModal = ({
                 index + 1,
                 item.service,
                 item.destination,
+                item.carrierCode,
                 item.quantity,
                 `$${item.unitPrice.toFixed(2)}`,
                 `$${item.subtotal.toFixed(2)}`
@@ -337,7 +390,7 @@ const QuotePDFModal = ({
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Ruta / Zona', quantityLabel, 'P. Unit.', 'Subtotal']],
+                head: [['#', 'Servicio', 'Ruta / Zona', 'Carrier', quantityLabel, 'P. Unit.', 'Subtotal']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -355,9 +408,10 @@ const QuotePDFModal = ({
                 },
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
-                    3: { cellWidth: 15, halign: 'center' },
-                    4: { cellWidth: 22, halign: 'right' },
-                    5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+                    3: { cellWidth: 22, halign: 'center' },
+                    4: { cellWidth: 15, halign: 'center' },
+                    5: { cellWidth: 22, halign: 'right' },
+                    6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
                 },
                 margin: { left: margin, right: margin }
             });
@@ -528,9 +582,7 @@ const QuotePDFModal = ({
                                         Fecha: {new Date().toLocaleDateString('es-VE')}
                                     </p>
                                     <p className="text-xs text-slate-500">
-                                        Válida hasta: {quote.validUntil 
-                                            ? new Date(quote.validUntil).toLocaleDateString('es-VE') 
-                                            : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-VE')}
+                                        Válida hasta: {quote.validUntil ? toVenezuelanFormat(quote.validUntil) : toVenezuelanFormat(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000))}
                                     </p>
                                 </div>
                             </div>
@@ -542,6 +594,7 @@ const QuotePDFModal = ({
                                         <th className="py-2 px-3 text-left font-medium">#</th>
                                         <th className="py-2 px-3 text-left font-medium">Servicio</th>
                                         <th className="py-2 px-3 text-left font-medium">Ruta / Zona</th>
+                                        <th className="py-2 px-3 text-center font-medium">Carrier</th>
                                         <th className="py-2 px-3 text-center font-medium">Cant.</th>
                                         <th className="py-2 px-3 text-right font-medium">P. Unit.</th>
                                         <th className="py-2 px-3 text-right font-medium">Subtotal</th>
@@ -553,6 +606,7 @@ const QuotePDFModal = ({
                                             <td className="py-2 px-3 text-center">{index + 1}</td>
                                             <td className="py-2 px-3">{item.service}</td>
                                             <td className="py-2 px-3">{item.destination}</td>
+                                            <td className="py-2 px-3 text-center">{item.carrierCode}</td>
                                             <td className="py-2 px-3 text-center">{item.quantity}</td>
                                             <td className="py-2 px-3 text-right">${(Number(item.unitPrice) || 0).toFixed(2)}</td>
                                             <td className="py-2 px-3 text-right font-semibold">${(Number(item.subtotal) || 0).toFixed(2)}</td>

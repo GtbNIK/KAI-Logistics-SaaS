@@ -90,6 +90,11 @@ export const updateSettings = async (req, res) => {
                 await deleteOldFileFromStorage(existing.receiptBgUrl);
                 data.receiptBgUrl = await uploadToStorage(req.files.receiptBg[0], 'receipt');
             }
+            // Fondo de tarifas
+            if (req.files.rateBg?.[0]) {
+                await deleteOldFileFromStorage(existing.rateBgUrl);
+                data.rateBgUrl = await uploadToStorage(req.files.rateBg[0], 'rate');
+            }
         }
 
         // Comprobar si se solicita eliminar una imagen (sin reemplazar)
@@ -108,6 +113,10 @@ export const updateSettings = async (req, res) => {
         if (req.body.removeReceiptBg === 'true') {
             await deleteOldFileFromStorage(existing.receiptBgUrl);
             data.receiptBgUrl = null;
+        }
+        if (req.body.removeRateBg === 'true') {
+            await deleteOldFileFromStorage(existing.rateBgUrl);
+            data.rateBgUrl = null;
         }
 
         const updated = await prisma.companySettings.update({

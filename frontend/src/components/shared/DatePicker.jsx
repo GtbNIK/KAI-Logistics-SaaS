@@ -15,7 +15,7 @@ const getDaysInMonth = (month, year) => new Date(year, month, 0).getDate();
  * Provides a premium, select-based date picker.
  */
 const DatePicker = ({ value, onChange, label = "Seleccionar fecha" }) => {
-    const initialDate = value ? new Date(value) : new Date();
+    const initialDate = value ? new Date(value + 'T12:00:00') : new Date();
     
     const [day, setDay] = useState(initialDate.getDate());
     const [month, setMonth] = useState(initialDate.getMonth() + 1);
@@ -23,6 +23,18 @@ const DatePicker = ({ value, onChange, label = "Seleccionar fecha" }) => {
     const [showPopover, setShowPopover] = useState(false);
     
     const popoverRef = useRef(null);
+    const lastValueRef = useRef(value);
+
+    // Update internal state when value prop changes (e.g., when loading a quote for editing)
+    useEffect(() => {
+        if (value && value !== lastValueRef.current) {
+            lastValueRef.current = value;
+            const date = new Date(value + 'T12:00:00'); // Add time to avoid timezone issues
+            setDay(date.getDate());
+            setMonth(date.getMonth() + 1);
+            setYear(date.getFullYear());
+        }
+    }, [value]);
 
     // Close on outside click
     useEffect(() => {

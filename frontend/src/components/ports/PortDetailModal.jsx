@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
-import { X, Anchor, DollarSign, Building, Package, Clock } from 'lucide-react';
+import { X, Anchor, DollarSign, Building, Package, Clock, ArrowRight, AlertTriangle } from 'lucide-react';
 import portService from '../../services/port.service';
+import rateService from '../../services/rate.service';
+import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 
 const PortDetailModal = ({ isOpen, onClose, port }) => {
     const [portDetails, setPortDetails] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [tariffRates, setTariffRates] = useState([]);
+    const [loadingTariffRates, setLoadingTariffRates] = useState(false);
 
     useEffect(() => {
         if (isOpen && port?.id) {
             fetchPortDetails();
+            fetchTariffRates();
         }
     }, [isOpen, port?.id]);
 
@@ -21,6 +26,18 @@ const PortDetailModal = ({ isOpen, onClose, port }) => {
             console.error('Error fetching port details:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTariffRates = async () => {
+        setLoadingTariffRates(true);
+        try {
+            const result = await rateService.getRatesByPort(port.id);
+            setTariffRates(result.data || []);
+        } catch (error) {
+            console.error('Error fetching tariff rates:', error);
+        } finally {
+            setLoadingTariffRates(false);
         }
     };
 
@@ -49,7 +66,7 @@ const PortDetailModal = ({ isOpen, onClose, port }) => {
                         <X size={20} />
                     </button>
                 </div>
-
+                
                 <div className="p-6 space-y-6">
                     <div className="border-t border-slate-100 pt-6">
                         <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-4">
@@ -138,6 +155,97 @@ const PortDetailModal = ({ isOpen, onClose, port }) => {
                                                                 ? <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-red-50 text-red-500 border border-red-200">Vencida</span>
                                                                 : <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-50 text-green-600 border border-green-200">Vigente</span>;
                                                         })()}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Tarifario (Nuevo Rate) */}
+                    <div className="border-t border-slate-100 pt-6">
+                        <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                            <Package size={16} className="text-red-600" />
+                            Tarifas del Tarifario
+                            {tariffRates.length > 0 && (
+                                <span className="ml-2 px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">
+                                    {tariffRates.filter(r => r.isActive).length} activa(s) / {tariffRates.length} total
+                                </span>
+                            )}
+                        </h4>
+
+                        {loadingTariffRates ? (
+                            <div className="text-center py-8 text-slate-400">
+                                <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
+                                <p className="mt-2 text-sm">Cargando tarifas...</p>
+                            </div>
+                        ) : tariffRates.length === 0 ? (
+                            <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl">
+                                <Package size={32} className="mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">No hay tarifas del tarifario para este puerto</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-hidden rounded-xl border border-slate-200">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Aliado</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ruta</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Línea</th>
+                                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 20HC</th>
+                                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 40HC</th>
+                                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Validez</th>
+                                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {tariffRates.map(rate => {
+                                            const isExpired = new Date(rate.validUntil) < new Date();
+                                            const isOrigin = rate.originPort?.id === port.id;
+                                            return (
+                                                <tr key={rate.id} className={`hover:bg-slate-50/50 ${isExpired ? 'bg-red-50/30' : ''}`}>
+                                                    <td className="px-4 py-3 font-medium text-slate-700">
+                                                        {rate.ally?.name}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${isOrigin ? 'bg-blue-100 text-blue-700' : 'bg-slate-100'}`}>
+                                                                {rate.originPort?.code}
+                                                            </span>
+                                                            <ArrowRight size={12} className="text-slate-400" />
+                                                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${!isOrigin ? 'bg-blue-100 text-blue-700' : 'bg-slate-100'}`}>
+                                                                {rate.destinationPort?.code}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600 text-xs">
+                                                        {rate.shippingLine?.name || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-bold text-green-600">
+                                                        ${parseFloat(rate.sale20HC || 0).toFixed(2)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-bold text-green-600">
+                                                        ${parseFloat(rate.sale40HC || 0).toFixed(2)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${!isExpired ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+                                                            {isExpired && <AlertTriangle size={12} />}
+                                                            {toVenezuelanFormat(toDateString(rate.validUntil))}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        {rate.isActive ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700 font-medium">
+                                                                Activa
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-500">
+                                                                Inactiva
+                                                            </span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );

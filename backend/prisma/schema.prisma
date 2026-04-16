@@ -61,6 +61,11 @@ enum ShipmentStatus {
   DELIVERED
 }
 
+enum RateRegion {
+  CHINA
+  OTHER
+}
+
 // -----------------------------------------------------------------------------
 // USER MANAGEMENT
 // -----------------------------------------------------------------------------
@@ -140,6 +145,7 @@ model Ally {
 
   // Relations
   serviceRates   ServiceRate[]
+  rates          Rate[]
   payables       Payable[]
   quoteItems     QuoteItem[]
   paymentNoticeItems PaymentNoticeItem[]
@@ -184,6 +190,10 @@ model Port {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  ratesAsOrigin      Rate[] @relation("RateOriginPort")
+  ratesAsDestination Rate[] @relation("RateDestinationPort")
 }
 
 model ShippingLine {
@@ -199,6 +209,7 @@ model ShippingLine {
   shipments        Shipment[]
   quoteItems       QuoteItem[]
   noticeItems      PaymentNoticeItem[]
+  rates            Rate[]
 }
 
 model AirLine {
@@ -247,6 +258,60 @@ model ServiceRate {
   updatedAt DateTime @updatedAt
   
   @@unique([allyId, serviceId, zoneId]) // Prevent duplicates
+}
+
+// Nuevo sistema de tarifas por región (China, Otros Países)
+model Rate {
+  id        String     @id @default(uuid())
+  region    RateRegion @default(CHINA)
+  
+  // Relación con Aliado
+  allyId    String
+  ally      Ally       @relation(fields: [allyId], references: [id])
+  
+  // Puertos (FK a tabla Port)
+  originPortId      String
+  originPort        Port     @relation("RateOriginPort", fields: [originPortId], references: [id])
+  destinationPortId String
+  destinationPort   Port     @relation("RateDestinationPort", fields: [destinationPortId], references: [id])
+  
+  // Precios contenedores - COSTO (lo que pagamos al aliado)
+  cost20ft  Decimal  @db.Decimal(10, 2)
+  cost40ft  Decimal  @db.Decimal(10, 2)
+  
+  // Fees y Profits
+  bankFee     Decimal  @db.Decimal(10, 2)
+  profitYaho  Decimal  @db.Decimal(10, 2)
+  profitIS    Decimal  @db.Decimal(10, 2)
+  
+  // Precios de VENTA (calculados y guardados)
+  sale20HC  Decimal  @db.Decimal(10, 2)
+  sale40HC  Decimal  @db.Decimal(10, 2)
+  
+  // Línea naviera (solo marítimo)
+  shippingLineId String?
+  shippingLine   ShippingLine? @relation(fields: [shippingLineId], references: [id])
+  
+  // Días libres y validez
+  freeDays   Int      @default(21)
+  validUntil DateTime
+  
+  // Activación (para seleccionar aliado ganador)
+  isActive  Boolean   @default(true)
+  
+  // Soft delete
+  deletedAt DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Índices para optimizar búsquedas
+  @@index([region, deletedAt])
+  @@index([allyId])
+  @@index([originPortId, destinationPortId])
+  @@index([isActive])
+  @@index([validUntil])
 }
 
 // -----------------------------------------------------------------------------
