@@ -53,6 +53,7 @@ const shipmentService = {
     // Obtener usuarios vendedores/admins para el select
     getVendedores: async () => {
         const response = await axios.get(`${API_URL}/auth/users`, {
+            params: { limit: 999 },
             withCredentials: true
         });
         const users = response.data?.users || [];
@@ -72,6 +73,7 @@ const shipmentService = {
     // ── Líneas Navieras ──────────────────────────────────────────
     getShippingLines: async () => {
         const response = await axios.get(`${API_URL}/shipping-lines`, {
+            params: { all: 'true' },
             withCredentials: true
         });
         return response.data?.data || [];
@@ -86,7 +88,7 @@ const shipmentService = {
     // ── Puertos ──────────────────────────────────────────────────
     getPorts: async () => {
         const response = await axios.get(`${API_URL}/ports`, {
-            params: { limit: 999 },
+            params: { all: 'true' },
             withCredentials: true
         });
         return response.data?.data || response.data || [];
