@@ -117,8 +117,7 @@ export const createRate = async (req, res) => {
             profitIS,
             shippingLineId,
             freeDays = 21,
-            validUntil,
-            observations
+            validUntil
         } = req.body;
 
         // Validaciones
@@ -190,8 +189,7 @@ export const createRate = async (req, res) => {
                 sale40HC,
                 shippingLineId: shippingLineId || null,
                 freeDays: parseInt(freeDays),
-                validUntil: validUntilDate,
-                observations: observations || null
+                validUntil: validUntilDate
             },
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
@@ -240,8 +238,7 @@ export const updateRate = async (req, res) => {
             profitIS,
             shippingLineId,
             freeDays,
-            validUntil,
-            observations
+            validUntil
         } = req.body;
 
         // Verificar que la tarifa existe y no está eliminada
@@ -292,7 +289,6 @@ export const updateRate = async (req, res) => {
         if (shippingLineId !== undefined) updateData.shippingLineId = shippingLineId || null;
         if (freeDays !== undefined) updateData.freeDays = parseInt(freeDays);
         if (validUntil !== undefined) updateData.validUntil = new Date(validUntil);
-        if (observations !== undefined) updateData.observations = observations || null;
 
         // Recalcular precios de venta si cambiaron los costos/fees/profits
         const needsRecalculation = cost20ft !== undefined || cost40ft !== undefined || 

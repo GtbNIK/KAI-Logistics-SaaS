@@ -29,7 +29,6 @@ const emptyForm = {
     profitIS: '',
     freeDays: 21,
     validUntil: '',
-    observations: '',
     region: 'CHINA'
 };
 
@@ -65,7 +64,6 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                 profitIS: entityData.profitIS || '',
                 freeDays: entityData.freeDays ?? 21,
                 validUntil: entityData.validUntil ? entityData.validUntil.split('T')[0] : '',
-                observations: entityData.observations || '',
                 region: entityData.region || 'CHINA'
             });
         } else {
@@ -435,17 +433,6 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                         onChange={handleChange}
                                         required
                                         className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-sm font-medium text-slate-700 mb-1 block">Observaciones</label>
-                                    <textarea
-                                        name="observations"
-                                        value={formData.observations}
-                                        onChange={handleChange}
-                                        rows={3}
-                                        placeholder="Notas adicionales sobre esta tarifa... (saldrán luego en el PDF)"
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all resize-none"
                                     />
                                 </div>
                             </div>
