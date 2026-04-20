@@ -10,7 +10,9 @@ if (!supabaseUrl || !supabaseKey) {
     console.warn('⚠️  SUPABASE_URL o SUPABASE_SERVICE_KEY no están configurados');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+export const supabase = supabaseUrl && supabaseKey
+    ? createClient(supabaseUrl, supabaseKey)
+    : null;
 
 // Bucket name for background images
 export const BACKGROUNDS_BUCKET = 'backgrounds';

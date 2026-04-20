@@ -15,3 +15,13 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: #f8fafc; /* small gray-blue base for entire app */
 }
+
+/* Scrollbar invisible - permite scroll pero no se ve */
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+}

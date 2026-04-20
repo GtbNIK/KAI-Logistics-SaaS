@@ -67,6 +67,28 @@ export const updateSettings = async (req, res) => {
             paymentInfo
         };
 
+        const hasFilesToUpload = Boolean(
+            req.files?.quoteBg?.[0] ||
+            req.files?.noticeBg?.[0] ||
+            req.files?.deliveryNoteBg?.[0] ||
+            req.files?.receiptBg?.[0] ||
+            req.files?.rateBg?.[0]
+        );
+
+        const hasFilesToRemove = [
+            req.body.removeQuoteBg,
+            req.body.removeNoticeBg,
+            req.body.removeDeliveryNoteBg,
+            req.body.removeReceiptBg,
+            req.body.removeRateBg
+        ].some(value => value === 'true');
+
+        if (!supabase && (hasFilesToUpload || hasFilesToRemove)) {
+            return res.status(400).json({
+                message: 'Supabase Storage no está configurado en este entorno'
+            });
+        }
+
         // Procesar archivos subidos (si los hay) - usando Supabase Storage
         if (req.files) {
             // Fondo de cotización
@@ -135,6 +157,10 @@ export const updateSettings = async (req, res) => {
  * Sube un archivo a Supabase Storage
  */
 async function uploadToStorage(file, prefix) {
+    if (!supabase) {
+        throw new Error('Supabase Storage no está configurado');
+    }
+
     try {
         const timestamp = Date.now();
         const fileExt = file.originalname.split('.').pop();
@@ -168,7 +194,7 @@ async function uploadToStorage(file, prefix) {
  * Elimina un archivo antiguo de Supabase Storage
  */
 async function deleteOldFileFromStorage(fileUrl) {
-    if (!fileUrl) return;
+    if (!supabase || !fileUrl) return;
     try {
         // Si es URL de Supabase, extraer el nombre del archivo
         if (fileUrl.includes('supabase.co')) {
