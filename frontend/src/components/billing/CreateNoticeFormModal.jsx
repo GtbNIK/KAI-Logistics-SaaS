@@ -7,7 +7,9 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import QuickCreateServiceModal from '../shared/QuickCreateServiceModal';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
+import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
+import QuickCreateZoneModal from '../shared/QuickCreateZoneModal';
 import shippingLineService from '../../services/shippingLine.service';
 import airlineService from '../../services/airline.service';
 import { calculateItemSubtotal } from '../../utils/pricing';
@@ -67,6 +69,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const [quickCreateType, setQuickCreateType] = useState(null);
     const [currentItemIndex, setCurrentItemIndex] = useState(null);
+    const [currentPortField, setCurrentPortField] = useState(null); // 'originPort' | 'destinationPort'
     const { showSuccess, showError } = useToast();
 
     // ── Opciones de selects ──
@@ -96,16 +99,20 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
         [allies]
     );
 
-    const zoneOptions = useMemo(() =>
-        (zones || []).filter(z => z.isActive !== false).map(z => ({ value: z.id, label: z.name })),
-        [zones]
-    );
+    const zoneOptions = useMemo(() => {
+        const base = (zones || []).filter(z => z.isActive !== false).map(z => ({ value: z.id, label: z.name }));
+        return user?.role === 'ADMIN'
+            ? [...base, { value: 'NEW_ZONE', label: '+ Agregar nueva zona', isAction: true }]
+            : base;
+    }, [zones, user]);
 
     // Puertos: solo mostrar el nombre (sin código)
-    const portOptions = useMemo(() =>
-        (ports || []).filter(p => p.isActive !== false).map(p => ({ value: p.code, label: p.name })),
-        [ports]
-    );
+    const portOptions = useMemo(() => {
+        const base = (ports || []).filter(p => p.isActive !== false).map(p => ({ value: p.code, label: p.name }));
+        return user?.role === 'ADMIN'
+            ? [...base, { value: 'NEW_PORT', label: '+ Agregar nuevo puerto', isAction: true }]
+            : base;
+    }, [ports, user]);
 
     // ── Carga de catálogos al abrir ──
     useEffect(() => {
@@ -115,10 +122,10 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
             try {
                 const [cRes, sRes, aRes, zRes, pRes, slRes, alRes] = await Promise.all([
                     axios.get(`${API_URL}/clients?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/services`, { withCredentials: true }),
-                    axios.get(`${API_URL}/allies`, { withCredentials: true }),
-                    axios.get(`${API_URL}/zones`, { withCredentials: true }),
-                    axios.get(`${API_URL}/ports`, { withCredentials: true }),
+                    axios.get(`${API_URL}/services?all=true`, { withCredentials: true }),
+                    axios.get(`${API_URL}/allies?all=true`, { withCredentials: true }),
+                    axios.get(`${API_URL}/zones?all=true`, { withCredentials: true }),
+                    axios.get(`${API_URL}/ports?all=true`, { withCredentials: true }),
                     shippingLineService.getShippingLines(),
                     airlineService.getAirLines()
                 ]);
@@ -413,11 +420,22 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                                                         options={zoneOptions}
                                                         value={zoneOptions.find(o => o.value === item.zoneId) || null}
                                                         placeholder="Selecciona una zona..."
-                                                        onChange={(opt) => updateItem(idx, 'zoneId', opt?.value || '')}
+                                                        onChange={(opt) => {
+                                                            if (opt?.value === 'NEW_ZONE') { setCurrentItemIndex(idx); setQuickCreateType('ZONE'); return; }
+                                                            updateItem(idx, 'zoneId', opt?.value || '');
+                                                        }}
                                                         isClearable
                                                         menuPortalTarget={document.body}
                                                         menuPosition="fixed"
-                                                        styles={selectStyles}
+                                                        styles={{
+                                                            ...selectStyles,
+                                                            option: (base, state) => ({
+                                                                ...base,
+                                                                color: state.data?.isAction ? '#12284bff' : base.color,
+                                                                fontWeight: state.data?.isAction ? 'bold' : base.fontWeight,
+                                                                borderTop: state.data?.isAction ? '1px solid #e2e8f0' : 'none'
+                                                            })
+                                                        }}
                                                     />
                                                 </div>
                                             ) : (
@@ -428,11 +446,22 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                                                             options={portOptions}
                                                             value={portOptions.find(o => o.value === item.originPort) || null}
                                                             placeholder="Origen..."
-                                                            onChange={(opt) => updateItem(idx, 'originPort', opt?.value || '')}
+                                                            onChange={(opt) => {
+                                                                if (opt?.value === 'NEW_PORT') { setCurrentItemIndex(idx); setCurrentPortField('originPort'); setQuickCreateType('PORT'); return; }
+                                                                updateItem(idx, 'originPort', opt?.value || '');
+                                                            }}
                                                             isClearable
                                                             menuPortalTarget={document.body}
                                                             menuPosition="fixed"
-                                                            styles={selectStyles}
+                                                            styles={{
+                                                                ...selectStyles,
+                                                                option: (base, state) => ({
+                                                                    ...base,
+                                                                    color: state.data?.isAction ? '#12284bff' : base.color,
+                                                                    fontWeight: state.data?.isAction ? 'bold' : base.fontWeight,
+                                                                    borderTop: state.data?.isAction ? '1px solid #e2e8f0' : 'none'
+                                                                })
+                                                            }}
                                                         />
                                                     </div>
                                                     <div>
@@ -441,11 +470,22 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                                                             options={portOptions}
                                                             value={portOptions.find(o => o.value === item.destinationPort) || null}
                                                             placeholder="Destino..."
-                                                            onChange={(opt) => updateItem(idx, 'destinationPort', opt?.value || '')}
+                                                            onChange={(opt) => {
+                                                                if (opt?.value === 'NEW_PORT') { setCurrentItemIndex(idx); setCurrentPortField('destinationPort'); setQuickCreateType('PORT'); return; }
+                                                                updateItem(idx, 'destinationPort', opt?.value || '');
+                                                            }}
                                                             isClearable
                                                             menuPortalTarget={document.body}
                                                             menuPosition="fixed"
-                                                            styles={selectStyles}
+                                                            styles={{
+                                                                ...selectStyles,
+                                                                option: (base, state) => ({
+                                                                    ...base,
+                                                                    color: state.data?.isAction ? '#12284bff' : base.color,
+                                                                    fontWeight: state.data?.isAction ? 'bold' : base.fontWeight,
+                                                                    borderTop: state.data?.isAction ? '1px solid #e2e8f0' : 'none'
+                                                                })
+                                                            }}
                                                         />
                                                     </div>
                                                 </div>
@@ -539,6 +579,32 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                     onSuccess={(newLine) => {
                         setAirLines(prev => [...prev, newLine.data].sort((a, b) => a.name.localeCompare(b.name)));
                         if (currentItemIndex !== null) updateItem(currentItemIndex, 'airLineId', newLine.value);
+                        setQuickCreateType(null);
+                        setCurrentItemIndex(null);
+                    }}
+                />
+
+                <QuickCreatePortModal
+                    isOpen={quickCreateType === 'PORT'}
+                    onClose={() => { setQuickCreateType(null); setCurrentItemIndex(null); setCurrentPortField(null); }}
+                    onSuccess={(newPort) => {
+                        // newPort.data debe contener { id, code, name }
+                        setPorts(prev => [...prev, newPort.data].sort((a, b) => a.name.localeCompare(b.name)));
+                        if (currentItemIndex !== null && currentPortField) {
+                            updateItem(currentItemIndex, currentPortField, newPort.data.code);
+                        }
+                        setQuickCreateType(null);
+                        setCurrentItemIndex(null);
+                        setCurrentPortField(null);
+                    }}
+                />
+
+                <QuickCreateZoneModal
+                    isOpen={quickCreateType === 'ZONE'}
+                    onClose={() => { setQuickCreateType(null); setCurrentItemIndex(null); }}
+                    onSuccess={(newZone) => {
+                        setZones(prev => [...prev, newZone.data].sort((a, b) => a.name.localeCompare(b.name)));
+                        if (currentItemIndex !== null) updateItem(currentItemIndex, 'zoneId', newZone.value);
                         setQuickCreateType(null);
                         setCurrentItemIndex(null);
                     }}

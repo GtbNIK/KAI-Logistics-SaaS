@@ -165,6 +165,7 @@ const QuotePDFModal = ({
             const serviceType = service?.data?.type;
             const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
             const isFclService = ['FCL_20', 'FCL_40', 'FCL_40HC'].includes(serviceType);
+            const isDoorToDoor = serviceType === 'DOOR_TO_DOOR';
             
             // Extraer solo el nombre de la zona (sin el código)
             const zoneName = zone?.label ? zone.label.split(' - ')[1] || zone.label : '-';
@@ -195,7 +196,8 @@ const QuotePDFModal = ({
                 quantity,
                 unitPrice,
                 subtotal,
-                carrierCode: carrierCode || '-'
+                carrierCode: carrierCode || '-',
+                isDoorToDoor
             };
         });
     };
@@ -371,26 +373,20 @@ const QuotePDFModal = ({
             // Tabla de items con color primario dinámico
             const items = prepareItems();
             
-            // Detectar si hay servicios Door to Door para cambiar el header
-            const hasDoorToDoor = quote.items.some(item => {
-                const service = services.find(s => s.value === item.serviceId);
-                return service?.data?.type === 'DOOR_TO_DOOR';
-            });
-            const quantityLabel = hasDoorToDoor ? 'CBM' : 'Cant.';
             
             const tableData = items.map((item, index) => [
                 index + 1,
                 item.service,
                 item.destination,
                 item.carrierCode,
-                item.quantity,
+                `${item.quantity}${item.isDoorToDoor ? ' CBM' : ''}`,
                 `$${item.unitPrice.toFixed(2)}`,
                 `$${item.subtotal.toFixed(2)}`
             ]);
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['#', 'Servicio', 'Ruta / Zona', 'Carrier', quantityLabel, 'P. Unit.', 'Subtotal']],
+                head: [['#', 'Servicio', 'Ruta / Zona', 'Carrier', 'Cant.', 'P. Unit.', 'Subtotal']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -409,7 +405,7 @@ const QuotePDFModal = ({
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
                     3: { cellWidth: 22, halign: 'center' },
-                    4: { cellWidth: 15, halign: 'center' },
+                    4: { cellWidth: 20, halign: 'center' },
                     5: { cellWidth: 22, halign: 'right' },
                     6: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
                 },
@@ -607,7 +603,7 @@ const QuotePDFModal = ({
                                             <td className="py-2 px-3">{item.service}</td>
                                             <td className="py-2 px-3">{item.destination}</td>
                                             <td className="py-2 px-3 text-center">{item.carrierCode}</td>
-                                            <td className="py-2 px-3 text-center">{item.quantity}</td>
+                                            <td className="py-2 px-3 text-center">{item.quantity} {item.isDoorToDoor ? ' CBM' : ''}</td>
                                             <td className="py-2 px-3 text-right">${(Number(item.unitPrice) || 0).toFixed(2)}</td>
                                             <td className="py-2 px-3 text-right font-semibold">${(Number(item.subtotal) || 0).toFixed(2)}</td>
                                         </tr>
