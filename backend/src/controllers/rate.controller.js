@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma.js';
+import prisma from '../config/database.js';
 
 /**
  * Helper: Calcular precios de venta basados en costos, fees y profits

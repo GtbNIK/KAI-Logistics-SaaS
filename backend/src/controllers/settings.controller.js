@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma.js';
+import prisma from '../config/database.js';
 import { supabase, BACKGROUNDS_BUCKET } from '../lib/supabase.js';
 
 /**
