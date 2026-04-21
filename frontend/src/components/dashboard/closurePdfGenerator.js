@@ -10,6 +10,7 @@ import html2canvas from 'html2canvas';
 import dashboardService from '../../services/dashboard.service';
 
 const DEFAULT_LOGO = '/1.png';
+const CANVAS_EXPORT_QUALITY = 0.75;
 
 const loadImage = (url) => {
     return new Promise((resolve, reject) => {
@@ -32,6 +33,9 @@ const hexToRgb = (hex) => {
 
 const formatMoney = (val) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+const canvasToJpeg = (canvas, quality = CANVAS_EXPORT_QUALITY) =>
+    canvas.toDataURL('image/jpeg', quality);
 
 export const generateClosurePdf = async (settings, showSuccess, showError, setLoading, dateRange, chartRef, donutChartRef, metrics) => {
     if (setLoading) setLoading(true);
@@ -149,16 +153,13 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
         }
 
         // --- Capturas de las gráficas ---
-        let chartEndY = 110;
-
         const renderCharts = async () => {
-            let currentChartMaxY = 110;
 
             // Gráfica de líneas (55% del ancho)
             if (chartRef?.current) {
                 try {
                     const canvas = await html2canvas(chartRef.current, { backgroundColor: '#ffffff', scale: 2, logging: false });
-                    const chartImgData = canvas.toDataURL('image/png');
+                    const chartImgData = canvasToJpeg(canvas);
                     const chartWidth   = (pageWidth - 42) * 0.55;
                     const chartHeight  = (canvas.height / canvas.width) * chartWidth;
 
@@ -166,8 +167,7 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(51, 65, 85);
                     doc.text('Cotizaciones Creadas', 14, 110);
-                    doc.addImage(chartImgData, 'PNG', 14, 115, chartWidth, chartHeight);
-                    currentChartMaxY = Math.max(currentChartMaxY, 115 + chartHeight);
+                    doc.addImage(chartImgData, 'JPEG', 14, 115, chartWidth, chartHeight);
                 } catch (err) {
                     console.warn('No se pudo capturar la gráfica de líneas:', err);
                 }
@@ -177,28 +177,28 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
             if (donutChartRef?.current) {
                 try {
                     const canvas2 = await html2canvas(donutChartRef.current, { backgroundColor: '#ffffff', scale: 2, logging: false });
-                    const chartImgData2 = canvas2.toDataURL('image/png');
+                    const chartImgData2 = canvasToJpeg(canvas2);
                     const chartWidth2   = (pageWidth - 42) * 0.45;
                     const chartHeight2  = (canvas2.height / canvas2.width) * chartWidth2;
                     const startX        = 14 + ((pageWidth - 42) * 0.55) + 14;
 
-                    doc.addImage(chartImgData2, 'PNG', startX, 110, chartWidth2, chartHeight2);
-                    currentChartMaxY = Math.max(currentChartMaxY, 110 + chartHeight2);
+                    doc.addImage(chartImgData2, 'JPEG', startX, 110, chartWidth2, chartHeight2);
                 } catch (err) {
                     console.warn('No se pudo capturar la gráfica de donut:', err);
                 }
             }
 
-            chartEndY = currentChartMaxY + 10;
         };
 
         await renderCharts();
 
-        // --- Tabla de Movimientos ---
+        // --- Tabla de Movimientos (desde la página 2) ---
+        doc.addPage();
+        const tableHeadingY = 20;
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(51, 65, 85);
-        doc.text('Registro de Transacciones', 14, chartEndY);
+        doc.text('Registro de Transacciones', 14, tableHeadingY);
 
         const tableData = result.transactions.map((t, index) => [
             index + 1,
@@ -211,7 +211,7 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
         ]);
 
         autoTable(doc, {
-            startY: chartEndY + 5,
+            startY: tableHeadingY + 5,
             head: [['#', 'Fecha', 'Tipo', 'Nro. Cuenta', 'Método', 'Monto', 'Referencia']],
             body: tableData,
             theme: 'striped',

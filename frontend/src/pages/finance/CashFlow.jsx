@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Landmark, TrendingUp, TrendingDown, Wallet, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Landmark, TrendingUp, TrendingDown, Wallet, RefreshCw, FileText } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import cashFlowService from '../../services/cash-flow.service';
 import { useToast } from '../../context/ToastContext';
+import CashFlowReportPDF from '../../components/finance/CashFlowReportPDF';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const formatMoney = (val) =>
@@ -22,6 +23,30 @@ const PAYMENT_METHODS = {
     OTHER:         'Otro',
 };
 const getMethodLabel = (method) => PAYMENT_METHODS[method] || method || '—';
+
+const ITEMS_PER_PAGE = 15;
+
+const formatRangeLabel = ({
+    fromDay,
+    fromMonth,
+    fromYear,
+    toDay,
+    toMonth,
+    toYear
+}) => {
+    const formatParts = (day, month, year) => {
+        try {
+            return new Date(year, month - 1, day).toLocaleDateString('es-VE', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        } catch {
+            return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+        }
+    };
+    return `${formatParts(fromDay, fromMonth, fromYear)} al ${formatParts(toDay, toMonth, toYear)}`;
+};
 
 // Meses
 const MONTHS = [
@@ -85,22 +110,26 @@ const DateSelector = ({ label, day, month, year, onDay, onMonth, onYear }) => {
                     ))}
                 </select>
             </div>
+
         </div>
     );
 };
 
 // ─── Sub-componente: KPI Card ────────────────────────────────────────────────
-const KpiCard = ({ title, value, icon: Icon, colorClass, bgClass }) => (
-    <div className={`bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center gap-4`}>
-        <div className={`p-3 rounded-xl ${bgClass}`}>
-            <Icon className={`w-6 h-6 ${colorClass}`} />
+const KpiCard = ({ title, value, icon, colorClass, bgClass }) => {
+    const Icon = icon;
+    return (
+        <div className={`bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center gap-4`}>
+            <div className={`p-3 rounded-xl ${bgClass}`}>
+                <Icon className={`w-6 h-6 ${colorClass}`} />
+            </div>
+            <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</p>
+                <p className={`text-2xl font-bold mt-0.5 ${colorClass}`}>{value}</p>
+            </div>
         </div>
-        <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</p>
-            <p className={`text-2xl font-bold mt-0.5 ${colorClass}`}>{value}</p>
-        </div>
-    </div>
-);
+    );
+};
 
 // ─── Sub-componente: Tabla ───────────────────────────────────────────────────
 const TrEmpty = ({ colSpan, message }) => (
@@ -139,6 +168,9 @@ const CashFlow = () => {
     const [ingresos, setIngresos] = useState([]);
     const [egresos,  setEgresos]  = useState([]);
     const [loading,  setLoading]  = useState(true);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [incomePage, setIncomePage] = useState(1);
+    const [expensePage, setExpensePage] = useState(1);
 
     // Construye YYYY-MM-DD a partir de los selects
     const buildDate = (day, month, year) => {
@@ -157,13 +189,15 @@ const CashFlow = () => {
             setSummary(res.summary);
             setIngresos(res.ingresos);
             setEgresos(res.egresos);
+            setIncomePage(1);
+            setExpensePage(1);
         } catch (err) {
             console.error(err);
             showError('Error', 'No se pudo cargar el balance financiero');
         } finally {
             setLoading(false);
         }
-    }, [applied]);
+    }, [applied, showError]);
 
     // Sólo se ejecuta cuando cambia `applied` (al hacer clic en Aplicar)
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -174,6 +208,32 @@ const CashFlow = () => {
     };
 
     const balancePositive = summary.balance >= 0;
+    const dateRangeLabel = formatRangeLabel(applied);
+    const hasData = ingresos.length > 0 || egresos.length > 0;
+    const totalIncomePages = Math.max(1, Math.ceil(ingresos.length / ITEMS_PER_PAGE));
+    const totalExpensePages = Math.max(1, Math.ceil(egresos.length / ITEMS_PER_PAGE));
+
+    useEffect(() => {
+        if (incomePage > totalIncomePages) {
+            setIncomePage(totalIncomePages);
+        }
+    }, [incomePage, totalIncomePages]);
+
+    useEffect(() => {
+        if (expensePage > totalExpensePages) {
+            setExpensePage(totalExpensePages);
+        }
+    }, [expensePage, totalExpensePages]);
+
+    const pagedIngresos = useMemo(() => {
+        const start = (incomePage - 1) * ITEMS_PER_PAGE;
+        return ingresos.slice(start, start + ITEMS_PER_PAGE);
+    }, [ingresos, incomePage]);
+
+    const pagedEgresos = useMemo(() => {
+        const start = (expensePage - 1) * ITEMS_PER_PAGE;
+        return egresos.slice(start, start + ITEMS_PER_PAGE);
+    }, [egresos, expensePage]);
 
     return (
         <div className="space-y-6">
@@ -203,18 +263,29 @@ const CashFlow = () => {
                         day={toDay}   month={toMonth}   year={toYear}
                         onDay={setToDay} onMonth={setToMonth} onYear={setToYear}
                     />
-                    <button
-                        onClick={handleApply}
-                        disabled={loading}
-                        style={{ backgroundColor: primaryColor }}
-                        className="flex items-center gap-2 text-white px-5 py-2 rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                        {loading
-                            ? <RefreshCw className="w-4 h-4 animate-spin" />
-                            : <RefreshCw className="w-4 h-4" />
-                        }
-                        Aplicar
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                            onClick={handleApply}
+                            disabled={loading}
+                            style={{ backgroundColor: primaryColor }}
+                            className="flex items-center justify-center gap-2 text-white px-5 py-2 rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {loading
+                                ? <RefreshCw className="w-4 h-4 animate-spin" />
+                                : <RefreshCw className="w-4 h-4" />
+                            }
+                            Aplicar
+                        </button>
+                        <button
+                            onClick={() => setReportModalOpen(true)}
+                            disabled={loading || !hasData}
+                            style={{ backgroundColor: '#F58927' }}
+                            className="flex items-center justify-center gap-2 text-sm font-medium px-5 py-2 rounded-lg text-white hover:brightness-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Generar PDF
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -269,9 +340,9 @@ const CashFlow = () => {
                                     <TrEmpty colSpan={6} message="Cargando..." />
                                 ) : ingresos.length === 0 ? (
                                     <TrEmpty colSpan={6} message="Sin ingresos en este período" />
-                                ) : ingresos.map(t => (
+                                ) : pagedIngresos.map(t => (
                                     <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
-                                        <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(t.createdAt)}</td>
+                                        <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(t.date || t.createdAt)}</td>
                                         <td className="px-1 py-3 text-slate-800 font-medium max-w-[120px] truncate">
                                             {t.receivable?.client?.name || '—'}
                                         </td>
@@ -288,6 +359,25 @@ const CashFlow = () => {
                             </tbody>
                         </table>
                     </div>
+                    {totalIncomePages > 1 && (
+                        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-slate-50/60">
+                            <button
+                                onClick={() => setIncomePage(p => Math.max(1, p - 1))}
+                                disabled={incomePage === 1}
+                                className="px-3 py-1 rounded-md border border-slate-200 bg-white disabled:opacity-50"
+                            >
+                                Anterior
+                            </button>
+                            <span>Página {incomePage} de {totalIncomePages}</span>
+                            <button
+                                onClick={() => setIncomePage(p => Math.min(totalIncomePages, p + 1))}
+                                disabled={incomePage === totalIncomePages}
+                                className="px-3 py-1 rounded-md border border-slate-200 bg-white disabled:opacity-50"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Tabla Egresos */}
@@ -304,19 +394,20 @@ const CashFlow = () => {
                                     <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Concepto / Parte</th>
                                     <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Monto</th>
                                     <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Método</th>
+                                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Referencia</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {loading ? (
-                                    <TrEmpty colSpan={4} message="Cargando..." />
+                                    <TrEmpty colSpan={5} message="Cargando..." />
                                 ) : egresos.length === 0 ? (
-                                    <TrEmpty colSpan={4} message="Sin egresos en este período" />
-                                ) : egresos.map(t => {
+                                    <TrEmpty colSpan={5} message="Sin egresos en este período" />
+                                ) : pagedEgresos.map(t => {
                                     // ally o svcProvider, no ambos
                                     const parte = t.payable?.ally?.name || t.payable?.svcProvider?.name || '—';
                                     return (
                                         <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
-                                            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(t.date)}</td>
+                                            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(t.date || t.createdAt)}</td>
                                             <td className="px-4 py-3 max-w-[160px]">
                                                 <p className="font-medium text-slate-800 truncate">{t.payable?.description || '—'}</p>
                                                 <p className="text-xs text-slate-400 truncate">{parte}</p>
@@ -325,15 +416,44 @@ const CashFlow = () => {
                                                 {formatMoney(t.amount)}
                                             </td>
                                             <td className="px-4 py-3 text-slate-500 text-xs">{getMethodLabel(t.method)}</td>
+                                            <td className="px-4 py-3 text-slate-400 text-xs">{t.reference || '---'}</td>
                                         </tr>
                                     );
                                 })}
                             </tbody>
                         </table>
                     </div>
+                    {totalExpensePages > 1 && (
+                        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-slate-50/60">
+                            <button
+                                onClick={() => setExpensePage(p => Math.max(1, p - 1))}
+                                disabled={expensePage === 1}
+                                className="px-3 py-1 rounded-md border border-slate-200 bg-white disabled:opacity-50"
+                            >
+                                Anterior
+                            </button>
+                            <span>Página {expensePage} de {totalExpensePages}</span>
+                            <button
+                                onClick={() => setExpensePage(p => Math.min(totalExpensePages, p + 1))}
+                                disabled={expensePage === totalExpensePages}
+                                className="px-3 py-1 rounded-md border border-slate-200 bg-white disabled:opacity-50"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    )}
                 </div>
 
             </div>
+
+            <CashFlowReportPDF
+                isOpen={reportModalOpen}
+                onClose={() => setReportModalOpen(false)}
+                ingresos={ingresos}
+                egresos={egresos}
+                dateRangeLabel={dateRangeLabel}
+                paymentMethodsMap={PAYMENT_METHODS}
+            />
         </div>
     );
 };

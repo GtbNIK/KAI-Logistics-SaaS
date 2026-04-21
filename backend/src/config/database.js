@@ -1,12 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+const createClient = () => new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
 });
 
-// Manejo de desconexión
-process.on('beforeExit', async () => {
-    await prisma.$disconnect();
-});
+const globalForPrisma = globalThis;
+
+const prisma = globalForPrisma.__prisma ?? createClient();
+
+if (process.env.NODE_ENV !== 'production') {
+    globalForPrisma.__prisma = prisma;
+}
 
 export default prisma;
