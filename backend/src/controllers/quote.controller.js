@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma.js';
+import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
 

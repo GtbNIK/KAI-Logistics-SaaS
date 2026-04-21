@@ -5,7 +5,7 @@ let boss;
 
 export const initPgBoss = async () => {
     try {
-        const connectionString = process.env.DATABASE_URL;
+        const connectionString = process.env.PG_BOSS_DATABASE_URL || process.env.DATABASE_URL;
         if (!connectionString) {
             console.error('DATABASE_URL not found, skipping pg-boss initialization');
             return null;
@@ -14,8 +14,16 @@ export const initPgBoss = async () => {
         const PgBossModule = await import('pg-boss');
         const PgBoss = PgBossModule.PgBoss || PgBossModule.default || PgBossModule;
 
+        const bossPoolMax = parseInt(process.env.PG_BOSS_DB_MAX || '2', 10);
+
         // Configuración robusta, el motor creará el esquema pgboss si no existe en la BD.
-        boss = new PgBoss(connectionString);
+        boss = new PgBoss({
+            connectionString,
+            db: {
+                max: bossPoolMax,
+                connectionTimeoutMillis: 30_000
+            }
+        });
         
         boss.on('error', error => console.error('pg-boss error:', error));
 
