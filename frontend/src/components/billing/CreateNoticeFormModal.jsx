@@ -51,7 +51,7 @@ const emptyItem = () => ({
     description: '',
 });
 
-const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
+const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null }) => {
     const [clients, setClients] = useState([]);
     const [services, setServices] = useState([]);
     const [allies, setAllies] = useState([]);
@@ -143,12 +143,37 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
 
         fetchAll();
 
-        // Reset form
-        setClientId('');
-        setClientInputValue('');
-        setNotes('');
-        setItems([emptyItem()]);
-    }, [isOpen]);
+        // Reset o pre-poblar según modo
+        if (noticeToEdit) {
+            setClientId(noticeToEdit.clientId || '');
+            setClientInputValue('');
+            setNotes(noticeToEdit.notes || '');
+            setItems(
+                (noticeToEdit.items || []).map(item => {
+                    // originPort / destinationPort no se guardan como campo separado en
+                    // PaymentNoticeItem; se reconstruyen desde el texto "Ruta: X → Y"
+                    const routeMatch = item.description?.match(/Ruta:\s*(.+?)\s*→\s*(.+?)(?:\s*·|$)/);
+                    return {
+                        serviceId:      item.serviceId      || '',
+                        allyId:         item.allyId         || '',
+                        zoneId:         item.zoneId         || '',
+                        originPort:     routeMatch ? routeMatch[1].trim() : '',
+                        destinationPort:routeMatch ? routeMatch[2].trim() : '',
+                        shippingLineId: item.shippingLineId || '',
+                        airLineId:      item.airLineId      || '',
+                        quantity:       item.quantity       ?? 1,
+                        unitPrice:      item.unitPrice      || '',
+                        description:    item.description    || '',
+                    };
+                })
+            );
+        } else {
+            setClientId('');
+            setClientInputValue('');
+            setNotes('');
+            setItems([emptyItem()]);
+        }
+    }, [isOpen, noticeToEdit]);
 
     // ── Helpers de items ──
     const updateItem = (index, field, value) => {
@@ -196,30 +221,36 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
         if (items.some(i => !i.serviceId)) return showError('Validación', 'Todos los items deben tener un servicio seleccionado');
         if (items.some(i => !i.unitPrice || Number(i.unitPrice) <= 0)) return showError('Validación', 'Todos los items deben tener un precio válido');
 
+        const payload = {
+            clientId,
+            notes: notes || undefined,
+            items: items.map(item => ({
+                serviceId:       item.serviceId,
+                allyId:          item.allyId          || undefined,
+                zoneId:          item.zoneId          || undefined,
+                originPort:      item.originPort      || undefined,
+                destinationPort: item.destinationPort || undefined,
+                shippingLineId:  item.shippingLineId  || undefined,
+                airLineId:       item.airLineId       || undefined,
+                quantity:        Number(item.quantity) || 1,
+                unitPrice:       Number(item.unitPrice),
+                description:     item.description     || undefined,
+            })),
+        };
+
         setSaving(true);
         try {
-            await axios.post(`${API_URL}/payment-notices`, {
-                clientId,
-                notes: notes || undefined,
-                items: items.map(item => ({
-                    serviceId: item.serviceId,
-                    allyId: item.allyId || undefined,
-                    zoneId: item.zoneId || undefined,
-                    originPort: item.originPort || undefined,
-                    destinationPort: item.destinationPort || undefined,
-                    shippingLineId: item.shippingLineId || undefined,
-                    airLineId: item.airLineId || undefined,
-                    quantity: Number(item.quantity) || 1,
-                    unitPrice: Number(item.unitPrice),
-                    description: item.description || undefined,
-                })),
-            }, { withCredentials: true });
-
-            showSuccess('¡Creado!', 'Aviso de Cobro creado exitosamente');
+            if (noticeToEdit) {
+                await axios.put(`${API_URL}/payment-notices/${noticeToEdit.id}`, payload, { withCredentials: true });
+                showSuccess('¡Actualizado!', 'Aviso de Cobro actualizado exitosamente');
+            } else {
+                await axios.post(`${API_URL}/payment-notices`, payload, { withCredentials: true });
+                showSuccess('¡Creado!', 'Aviso de Cobro creado exitosamente');
+            }
             onSuccess?.();
             onClose?.();
         } catch (err) {
-            showError('Error', err.response?.data?.message || 'No se pudo crear el aviso de cobro');
+            showError('Error', err.response?.data?.message || 'No se pudo guardar el aviso de cobro');
         } finally {
             setSaving(false);
         }
@@ -239,7 +270,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                             <Receipt className="text-blue-600" size={22} />
                         </div>
                         <h3 className="text-lg font-bold text-slate-800">
-                            Nuevo Aviso de Cobro
+                            {noticeToEdit ? `Editar Aviso AVC-${String(noticeToEdit.number).padStart(5, '0')}` : 'Nuevo Aviso de Cobro'}
                         </h3>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full">
@@ -543,7 +574,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess }) => {
                     </button>
                     <button onClick={handleSubmit} disabled={saving}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
-                        {saving ? <><Loader2 className="animate-spin" size={18} /> Guardando...</> : <><Check size={18} /> Crear Aviso de Cobro</>}
+                        {saving ? <><Loader2 className="animate-spin" size={18} /> Guardando...</> : <><Check size={18} /> {noticeToEdit ? 'Guardar Cambios' : 'Crear Aviso de Cobro'}</>}
                     </button>
                 </div>
 

@@ -1,6 +1,23 @@
 import prisma from '../config/database.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
 
+const parseRouteFromDescription = (description = '') => {
+    const match = description.match(/Ruta:\s*(.+?)\s*→\s*(.+?)(?:\s*·|$)/);
+    if (!match) {
+        return { originPort: '', destinationPort: '' };
+    }
+
+    const normalize = (value) => {
+        const trimmed = value.trim();
+        return trimmed === 'N/A' ? '' : trimmed;
+    };
+
+    return {
+        originPort: normalize(match[1]),
+        destinationPort: normalize(match[2])
+    };
+};
+
 /**
  * @route   DELETE /api/payment-notices/:id
  * @desc    Eliminar un aviso de cobro y su cuenta por cobrar asociada
@@ -277,10 +294,144 @@ export const getPaymentNoticeById = async (req, res) => {
             return res.status(403).json({ message: 'No tienes permisos para ver el aviso de cobro de este cliente' });
         }
 
-        res.json(notice);
+        const noticeWithRouteInfo = {
+            ...notice,
+            items: notice.items.map(item => {
+                const { originPort, destinationPort } = parseRouteFromDescription(item.description || '');
+                return {
+                    ...item,
+                    originPort,
+                    destinationPort
+                };
+            })
+        };
+
+        res.json(noticeWithRouteInfo);
     } catch (error) {
         console.error('Error in getPaymentNoticeById:', error);
         res.status(500).json({ message: 'Error al obtener aviso de cobro' });
+    }
+};
+
+/**
+ * @route   PUT /api/payment-notices/:id
+ * @desc    Actualizar un Aviso de Cobro existente
+ * @access  Private (ADMIN only)
+ */
+export const updatePaymentNotice = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { clientId, items, notes } = req.body;
+
+        if (!clientId) return res.status(400).json({ message: 'El cliente es requerido' });
+        if (!items || !Array.isArray(items) || items.length === 0)
+            return res.status(400).json({ message: 'Debe incluir al menos un servicio' });
+
+        const notice = await prisma.paymentNotice.findUnique({
+            where: { id },
+            include: { receivable: { select: { id: true, paidAmount: true } } }
+        });
+        if (!notice) return res.status(404).json({ message: 'Aviso de Cobro no encontrado' });
+
+        if (notice.receivable?.status === 'PAID') {
+            return res.status(400).json({ message: 'El Aviso de Cobro ya está pagado y no se puede editar.' });
+        }
+
+        const processedItems = [];
+        let totalAmount = 0;
+
+        for (const item of items) {
+            if (!item.serviceId) return res.status(400).json({ message: 'Cada item debe tener un servicio seleccionado' });
+
+            const quantity = Number(item.quantity) || 1;
+            const unitPrice = Number(item.unitPrice) || 0;
+
+            const service = await prisma.service.findUnique({
+                where: { id: item.serviceId },
+                select: { name: true, type: true }
+            });
+
+            const totalPrice = calculateItemSubtotal(service?.type, quantity, unitPrice);
+            totalAmount += totalPrice;
+
+            const ally = item.allyId
+                ? await prisma.ally.findUnique({ where: { id: item.allyId }, select: { internalCode: true } })
+                : null;
+            const zone = item.zoneId
+                ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
+                : null;
+            const shippingLine = item.shippingLineId
+                ? await prisma.shippingLine.findUnique({ where: { id: item.shippingLineId }, select: { name: true } })
+                : null;
+            const airLine = item.airLineId
+                ? await prisma.airLine.findUnique({ where: { id: item.airLineId }, select: { name: true } })
+                : null;
+
+            const parts = [];
+            if (service?.name) parts.push(service.name);
+            if (ally?.internalCode) parts.push(`Aliado: ${ally.internalCode}`);
+            if (shippingLine?.name) parts.push(`Línea Naviera: ${shippingLine.name}`);
+            if (airLine?.name) parts.push(`Línea Aérea: ${airLine.name}`);
+            if (zone?.name) parts.push(`Zona: ${zone.name}`);
+            if (item.originPort || item.destinationPort) {
+                parts.push(`Ruta: ${item.originPort || 'N/A'} → ${item.destinationPort || 'N/A'}`);
+            }
+            const description = item.description || parts.join(' · ') || 'Servicio de Logística';
+
+            processedItems.push({
+                serviceId: item.serviceId,
+                allyId: item.allyId || null,
+                zoneId: item.zoneId || null,
+                shippingLineId: item.shippingLineId || null,
+                airLineId: item.airLineId || null,
+                description,
+                quantity,
+                unitPrice,
+                totalPrice
+            });
+        }
+
+        if (totalAmount <= 0) return res.status(400).json({ message: 'El monto total debe ser mayor a 0' });
+
+        const result = await prisma.$transaction(async (tx) => {
+            await tx.paymentNoticeItem.deleteMany({ where: { paymentNoticeId: id } });
+
+            const updated = await tx.paymentNotice.update({
+                where: { id },
+                data: {
+                    clientId,
+                    totalAmount,
+                    notes: notes || null,
+                    items: { create: processedItems }
+                },
+                include: {
+                    client: { select: { name: true, rifOrId: true } },
+                    items: true
+                }
+            });
+
+            if (notice.receivable) {
+                const paidAmount = parseFloat(notice.receivable.paidAmount) || 0;
+                const newBalance = totalAmount - paidAmount;
+                await tx.receivable.update({
+                    where: { id: notice.receivable.id },
+                    data: {
+                        clientId,
+                        totalAmount,
+                        balance: newBalance < 0 ? 0 : newBalance,
+                        status: newBalance <= 0 ? 'PAID' : paidAmount > 0 ? 'PARTIALLY_PAID' : 'PENDING'
+                    }
+                });
+            }
+
+            return updated;
+        });
+
+        res.json({ message: 'Aviso de Cobro actualizado exitosamente', paymentNotice: result });
+
+    } catch (error) {
+        console.error('Error in updatePaymentNotice:', error);
+        res.status(500).json({ message: 'Error al actualizar Aviso de Cobro', error: error.message });
     }
 };
 

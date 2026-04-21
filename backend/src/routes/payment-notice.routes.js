@@ -2,6 +2,7 @@ import express from 'express';
 import {
     convertFromQuote,
     createPaymentNotice,
+    updatePaymentNotice,
     getPaymentNotices,
     getPaymentNoticeById,
     deletePaymentNotice
@@ -40,6 +41,13 @@ router.get('/', getPaymentNotices);
  * @access  Private
  */
 router.get('/:id', getPaymentNoticeById);
+
+/**
+ * @route   PUT /api/payment-notices/:id
+ * @desc    Actualizar un aviso de cobro existente
+ * @access  Private (ADMIN only)
+ */
+router.put('/:id', authorize('ADMIN'), updatePaymentNotice);
 
 /**
  * @route   DELETE /api/payment-notices/:id

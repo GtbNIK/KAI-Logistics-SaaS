@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Receipt, Plus } from 'lucide-react';
+import { Receipt, Plus, Pencil } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -55,6 +55,7 @@ const PaymentNotices = () => {
     const [printingNotice, setPrintingNotice] = useState(null);
     const [showPDFModal, setShowPDFModal] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingNotice, setEditingNotice] = useState(null);
     const [deletingNotice, setDeletingNotice] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const { showError, showSuccess } = useToast();
@@ -71,6 +72,15 @@ const PaymentNotices = () => {
         } catch (error) {
             console.error('Error loading notice for print:', error);
             showError('Error', 'No se pudo cargar el aviso para imprimir');
+        }
+    };
+
+    const handleEdit = async (item) => {
+        try {
+            const res = await axios.get(`${API_URL}/payment-notices/${item.id}`, { withCredentials: true });
+            setEditingNotice(res.data);
+        } catch {
+            showError('Error', 'No se pudo cargar el aviso para editar');
         }
     };
 
@@ -123,10 +133,11 @@ const PaymentNotices = () => {
                 onPageChange={setPage}
                 showStatusFilter={false}
                 showToggle={false}
-                canEdit={false}
+                canEdit={user?.role === 'ADMIN'}
                 canDelete={user?.role === 'ADMIN'}
                 canPrint={true}
                 onView={(item) => setViewingNotice(item)}
+                onEdit={handleEdit}
                 onPrint={handlePrint}
                 onDelete={(item) => setDeletingNotice(item)}
             />
@@ -147,6 +158,13 @@ const PaymentNotices = () => {
                 isOpen={isFormOpen}
                 onClose={() => setIsFormOpen(false)}
                 onSuccess={refresh}
+            />
+
+            <CreateNoticeFormModal
+                isOpen={!!editingNotice}
+                onClose={() => setEditingNotice(null)}
+                onSuccess={() => { setEditingNotice(null); refresh(); }}
+                noticeToEdit={editingNotice}
             />
 
             {deletingNotice && (

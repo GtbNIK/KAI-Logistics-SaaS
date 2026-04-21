@@ -14,8 +14,8 @@ export const initPgBoss = async () => {
         const PgBossModule = await import('pg-boss');
         const PgBoss = PgBossModule.PgBoss || PgBossModule.default || PgBossModule;
 
-        // Configuración robusta, el motor creará el esquema pgboss si no existe en la BD.
-        boss = new PgBoss(connectionString);
+        // family: 4 fuerza IPv4 para evitar ENETUNREACH en hosts sin soporte IPv6
+        boss = new PgBoss({ connectionString, family: 4 });
         
         boss.on('error', error => console.error('pg-boss error:', error));
 
