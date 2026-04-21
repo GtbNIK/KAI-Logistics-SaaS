@@ -1,9 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
-
-// Usar global.prisma si ya existe para evitar múltiples conexiones en dev
-const prisma = global.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 
 // Normalizar RIF/Cédula: eliminar guiones, espacios y convertir a mayúsculas
 const normalizeRifOrId = (rifOrId) => {

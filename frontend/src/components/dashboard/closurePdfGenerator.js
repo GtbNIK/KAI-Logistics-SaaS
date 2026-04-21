@@ -10,7 +10,9 @@ import html2canvas from 'html2canvas';
 import dashboardService from '../../services/dashboard.service';
 
 const DEFAULT_LOGO = '/1.png';
-const CANVAS_EXPORT_QUALITY = 0.75;
+const CANVAS_EXPORT_QUALITY = 0.6;
+const CANVAS_SCALE = 1.2;
+const PDF_OPTIONS = { compress: true };
 
 const loadImage = (url) => {
     return new Promise((resolve, reject) => {
@@ -45,7 +47,7 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
             endDate:   dateRange?.endDate
         });
 
-        const doc = new jsPDF();
+        const doc = new jsPDF(PDF_OPTIONS);
         const pageWidth  = doc.internal.pageSize.getWidth();
         const primaryColor = settings?.primaryColor || '#0ea5e9';
         const rgbColor     = hexToRgb(primaryColor);
@@ -158,7 +160,7 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
             // Gráfica de líneas (55% del ancho)
             if (chartRef?.current) {
                 try {
-                    const canvas = await html2canvas(chartRef.current, { backgroundColor: '#ffffff', scale: 2, logging: false });
+                    const canvas = await html2canvas(chartRef.current, { backgroundColor: '#ffffff', scale: CANVAS_SCALE, logging: false });
                     const chartImgData = canvasToJpeg(canvas);
                     const chartWidth   = (pageWidth - 42) * 0.55;
                     const chartHeight  = (canvas.height / canvas.width) * chartWidth;
@@ -176,7 +178,7 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
             // Gráfica de Donut (45% del ancho, al lado derecho)
             if (donutChartRef?.current) {
                 try {
-                    const canvas2 = await html2canvas(donutChartRef.current, { backgroundColor: '#ffffff', scale: 2, logging: false });
+                    const canvas2 = await html2canvas(donutChartRef.current, { backgroundColor: '#ffffff', scale: CANVAS_SCALE, logging: false });
                     const chartImgData2 = canvasToJpeg(canvas2);
                     const chartWidth2   = (pageWidth - 42) * 0.45;
                     const chartHeight2  = (canvas2.height / canvas2.width) * chartWidth2;
