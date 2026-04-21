@@ -118,7 +118,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             </div>
 
             {/* Navigation Groups */}
-            <div className="flex-1 py-6 px-3 space-y-6 overflow-y-auto scrollbar-hide">
+            <div className="flex-1 py-6 px-3 space-y-6 flex-1 py-6 px-3 space-y-6 overflow-y-auto scrollbar-hide">
                 
                 {/* Dashboard Home - Item suelto */}
                 <NavLink

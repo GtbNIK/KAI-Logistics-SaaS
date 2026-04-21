@@ -20,11 +20,13 @@ const formatDate = (dateStr) => {
     return date.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+/*
 // Helper para obtener fecha de hoy en formato YYYY-MM-DD
 const getTodayDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
 };
+*/
 
 const AllyDetailModal = ({ isOpen, onClose, ally }) => {
     const { user } = useAuth();
@@ -91,7 +93,7 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
 
     if (!isOpen || !ally) return null;
 
-    const validRates = rates.filter(isRateValid);
+    //const validRates = rates.filter(isRateValid);
     const expiredRates = rates.filter(r => !isRateValid(r));
 
     return (
