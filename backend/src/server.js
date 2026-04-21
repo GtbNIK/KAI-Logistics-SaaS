@@ -33,6 +33,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 process.env.TZ = 'America/Caracas';
 
+// Necesario cuando la app corre detrás de un reverse proxy (Render, Railway, etc.)
+app.set('trust proxy', 1);
+
 // Seguridad: headers HTTP de protección
 app.use(helmet());
 
