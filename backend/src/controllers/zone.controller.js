@@ -1,7 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = global.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
+import prisma from '../config/database.js';
 
 // Generar código interno automático
 const generateInternalCode = async () => {
