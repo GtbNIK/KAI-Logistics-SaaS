@@ -14,7 +14,9 @@ const useEntityCRUD = ({
     entityName = 'elemento',
     limit = 10,
     hasStatusField = true, // Si la entidad tiene campo isActive
-    onError
+    onError,
+    initialCustomFilters = null,
+    dependencies = []
 }) => {
     // Estado de datos
     const [items, setItems] = useState([]);
@@ -29,7 +31,8 @@ const useEntityCRUD = ({
     // Estado de filtros
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('active');
-    const [customFilters, setCustomFilters] = useState({});
+    const [customFilters, setCustomFilters] = useState(initialCustomFilters || {});
+    const dependenciesKey = JSON.stringify(dependencies || []);
     
     // Estado de modales
     const [selectedItem, setSelectedItem] = useState(null);
@@ -44,6 +47,13 @@ const useEntityCRUD = ({
 
     // Toast para notificaciones
     const toast = useToast();
+
+    // Sincronizar filtros iniciales cuando cambian
+    useEffect(() => {
+        if (initialCustomFilters) {
+            setCustomFilters(initialCustomFilters);
+        }
+    }, [initialCustomFilters]);
 
     // Función para obtener datos
     const fetchItems = useCallback(async () => {
@@ -87,23 +97,13 @@ const useEntityCRUD = ({
         }
     }, [page, search, filterStatus, customFilters, service, entityName, limit, hasStatusField, onError]);
 
-    // Efecto principal: se ejecuta cuando cambian filtros/búsqueda O al montar
+    // Efecto principal: se ejecuta cuando cambian filtros/búsqueda/página o dependencias externas
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             fetchItems();
         }, 500);
         return () => clearTimeout(delayDebounceFn);
-    }, [search, filterStatus, customFilters]);
-
-    // Efecto de paginación: solo corre cuando cambia la página (no en el primer render)
-    const isFirstRender = useState(true);
-    useEffect(() => {
-        if (isFirstRender[0]) {
-            isFirstRender[1](false);
-            return;
-        }
-        fetchItems();
-    }, [page]);
+    }, [page, search, filterStatus, customFilters, fetchItems, dependenciesKey]);
 
     // Handlers de modales
     const openCreateForm = useCallback(() => {

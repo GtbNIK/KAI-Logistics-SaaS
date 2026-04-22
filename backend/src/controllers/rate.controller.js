@@ -2,14 +2,51 @@ import prisma from '../config/database.js';
 
 /**
  * Helper: Calcular precios de venta basados en costos, fees y profits
+ * Para region='OTHER', fees y profits son opcionales (0 por defecto)
  */
-const calculateSalePrices = (cost20ft, cost40ft, bankFee, profitYaho, profitIS) => {
-    const sale20HC = parseFloat(cost20ft) + parseFloat(bankFee) + parseFloat(profitYaho) + parseFloat(profitIS);
-    const sale40HC = parseFloat(cost40ft) + parseFloat(bankFee) + parseFloat(profitYaho) + parseFloat(profitIS);
+const calculateSalePrices = (cost20ft, cost40ft, bankFee = 0, profitYaho = 0, profitIS = 0) => {
+    const sale20HC = parseFloat(cost20ft) + parseFloat(bankFee || 0) + parseFloat(profitYaho || 0) + parseFloat(profitIS || 0);
+    const sale40HC = parseFloat(cost40ft) + parseFloat(bankFee || 0) + parseFloat(profitYaho || 0) + parseFloat(profitIS || 0);
     
     return {
         sale20HC: parseFloat(sale20HC.toFixed(2)),
         sale40HC: parseFloat(sale40HC.toFixed(2))
+    };
+};
+
+/**
+ * Helper: Resolver múltiples puertos desde array de IDs
+ */
+const resolvePorts = async (portIds) => {
+    if (!portIds || portIds.length === 0) return [];
+    return await prisma.port.findMany({
+        where: { id: { in: portIds } },
+        select: { id: true, name: true, code: true }
+    });
+};
+
+const normalizeDecimals = (rate) => ({
+    ...rate,
+    cost20ft: parseFloat(rate.cost20ft),
+    cost40ft: parseFloat(rate.cost40ft),
+    bankFee: rate.bankFee !== null && rate.bankFee !== undefined ? parseFloat(rate.bankFee) : null,
+    profitYaho: rate.profitYaho !== null && rate.profitYaho !== undefined ? parseFloat(rate.profitYaho) : null,
+    profitIS: rate.profitIS !== null && rate.profitIS !== undefined ? parseFloat(rate.profitIS) : null,
+    sale20HC: parseFloat(rate.sale20HC),
+    sale40HC: parseFloat(rate.sale40HC)
+});
+
+const formatRateWithPorts = async (rate) => {
+    if (!rate) return null;
+    const [originPorts, destinationPorts] = await Promise.all([
+        resolvePorts(rate.originPortIds),
+        resolvePorts(rate.destinationPortIds)
+    ]);
+
+    return {
+        ...normalizeDecimals(rate),
+        originPorts,
+        destinationPorts
     };
 };
 
@@ -21,7 +58,8 @@ export const getRates = async (req, res) => {
     try {
         const { 
             region, 
-            allyId, 
+            allyId,
+            countryId,
             originPortId, 
             destinationPortId, 
             shippingLineId,
@@ -41,8 +79,9 @@ export const getRates = async (req, res) => {
 
         if (region) where.region = region;
         if (allyId) where.allyId = allyId;
-        if (originPortId) where.originPortId = originPortId;
-        if (destinationPortId) where.destinationPortId = destinationPortId;
+        if (countryId) where.countryId = countryId;
+        if (originPortId) where.originPortIds = { has: originPortId };
+        if (destinationPortId) where.destinationPortIds = { has: destinationPortId };
         if (shippingLineId) where.shippingLineId = shippingLineId;
         if (isActive === 'true') where.isActive = true;
         if (isActive === 'false') where.isActive = false;
@@ -60,8 +99,7 @@ export const getRates = async (req, res) => {
                 where,
                 include: {
                     ally: { select: { id: true, name: true, internalCode: true } },
-                    originPort: { select: { id: true, name: true, code: true } },
-                    destinationPort: { select: { id: true, name: true, code: true } },
+                    country: { select: { id: true, name: true, code: true } },
                     shippingLine: { select: { id: true, name: true, code: true } }
                 },
                 orderBy: { updatedAt: 'desc' },
@@ -71,17 +109,8 @@ export const getRates = async (req, res) => {
             prisma.rate.count({ where })
         ]);
 
-        // Convertir Decimals a números
-        const formattedRates = rates.map(rate => ({
-            ...rate,
-            cost20ft: parseFloat(rate.cost20ft),
-            cost40ft: parseFloat(rate.cost40ft),
-            bankFee: parseFloat(rate.bankFee),
-            profitYaho: parseFloat(rate.profitYaho),
-            profitIS: parseFloat(rate.profitIS),
-            sale20HC: parseFloat(rate.sale20HC),
-            sale40HC: parseFloat(rate.sale40HC)
-        }));
+        // Resolver múltiples puertos y convertir Decimals
+        const formattedRates = await Promise.all(rates.map(formatRateWithPorts));
 
         res.json({
             data: formattedRates,
@@ -108,8 +137,9 @@ export const createRate = async (req, res) => {
         const {
             region = 'CHINA',
             allyId,
-            originPortId,
-            destinationPortId,
+            countryId,
+            originPortIds,  // Array de IDs
+            destinationPortIds,  // Array de IDs
             cost20ft,
             cost40ft,
             bankFee,
@@ -121,24 +151,38 @@ export const createRate = async (req, res) => {
         } = req.body;
 
         // Validaciones
-        if (!allyId || !originPortId || !destinationPortId) {
-            return res.status(400).json({ 
-                message: 'Se requiere allyId, originPortId y destinationPortId' 
-            });
+        if (!allyId) {
+            return res.status(400).json({ message: 'Se requiere allyId' });
         }
 
-        if (originPortId === destinationPortId) {
-            return res.status(400).json({ 
-                message: 'El puerto de origen debe ser diferente al puerto de destino' 
-            });
+        if (!originPortIds || !Array.isArray(originPortIds) || originPortIds.length === 0) {
+            return res.status(400).json({ message: 'Se requiere al menos un puerto de origen' });
         }
 
-        const numericFields = { cost20ft, cost40ft, bankFee, profitYaho, profitIS };
-        for (const [field, value] of Object.entries(numericFields)) {
-            if (value === undefined || value === null || parseFloat(value) < 0) {
-                return res.status(400).json({ 
-                    message: `El campo ${field} debe ser un número mayor o igual a 0` 
-                });
+        if (!destinationPortIds || !Array.isArray(destinationPortIds) || destinationPortIds.length === 0) {
+            return res.status(400).json({ message: 'Se requiere al menos un puerto de destino' });
+        }
+
+        // Si region es OTHER, countryId es obligatorio
+        if (region === 'OTHER' && !countryId) {
+            return res.status(400).json({ message: 'El país es obligatorio para tarifas de "Otros Países"' });
+        }
+
+        // Validar campos numéricos obligatorios
+        if (cost20ft === undefined || cost20ft === null || parseFloat(cost20ft) < 0) {
+            return res.status(400).json({ message: 'cost20ft debe ser un número mayor o igual a 0' });
+        }
+        if (cost40ft === undefined || cost40ft === null || parseFloat(cost40ft) < 0) {
+            return res.status(400).json({ message: 'cost40ft debe ser un número mayor o igual a 0' });
+        }
+
+        // Para CHINA, fees y profits son obligatorios
+        if (region === 'CHINA') {
+            const chinaFields = { bankFee, profitYaho, profitIS };
+            for (const [field, value] of Object.entries(chinaFields)) {
+                if (value === undefined || value === null || parseFloat(value) < 0) {
+                    return res.status(400).json({ message: `${field} es obligatorio para tarifas de China` });
+                }
             }
         }
 
@@ -150,21 +194,25 @@ export const createRate = async (req, res) => {
         }
 
         // Verificar que existan las entidades relacionadas
-        const [ally, originPort, destPort, shippingLine] = await Promise.all([
+        const [ally, originPorts, destPorts, country, shippingLine] = await Promise.all([
             prisma.ally.findUnique({ where: { id: allyId } }),
-            prisma.port.findUnique({ where: { id: originPortId } }),
-            prisma.port.findUnique({ where: { id: destinationPortId } }),
+            prisma.port.findMany({ where: { id: { in: originPortIds } } }),
+            prisma.port.findMany({ where: { id: { in: destinationPortIds } } }),
+            countryId ? prisma.country.findUnique({ where: { id: countryId } }) : null,
             shippingLineId ? prisma.shippingLine.findUnique({ where: { id: shippingLineId } }) : null
         ]);
 
         if (!ally) {
             return res.status(404).json({ message: 'Aliado no encontrado' });
         }
-        if (!originPort) {
-            return res.status(404).json({ message: 'Puerto de origen no encontrado' });
+        if (originPorts.length !== originPortIds.length) {
+            return res.status(404).json({ message: 'Uno o más puertos de origen no encontrados' });
         }
-        if (!destPort) {
-            return res.status(404).json({ message: 'Puerto de destino no encontrado' });
+        if (destPorts.length !== destinationPortIds.length) {
+            return res.status(404).json({ message: 'Uno o más puertos de destino no encontrados' });
+        }
+        if (countryId && !country) {
+            return res.status(404).json({ message: 'País no encontrado' });
         }
         if (shippingLineId && !shippingLine) {
             return res.status(404).json({ message: 'Línea naviera no encontrada' });
@@ -178,13 +226,14 @@ export const createRate = async (req, res) => {
             data: {
                 region,
                 allyId,
-                originPortId,
-                destinationPortId,
+                countryId: countryId || null,
+                originPortIds,
+                destinationPortIds,
                 cost20ft: parseFloat(cost20ft),
                 cost40ft: parseFloat(cost40ft),
-                bankFee: parseFloat(bankFee),
-                profitYaho: parseFloat(profitYaho),
-                profitIS: parseFloat(profitIS),
+                bankFee: bankFee !== undefined ? parseFloat(bankFee) : null,
+                profitYaho: profitYaho !== undefined ? parseFloat(profitYaho) : null,
+                profitIS: profitIS !== undefined ? parseFloat(profitIS) : null,
                 sale20HC,
                 sale40HC,
                 shippingLineId: shippingLineId || null,
@@ -193,23 +242,13 @@ export const createRate = async (req, res) => {
             },
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } },
+                country: { select: { id: true, name: true, code: true } },
                 shippingLine: { select: { id: true, name: true, code: true } }
             }
         });
 
-        // Convertir Decimals
-        const formattedRate = {
-            ...rate,
-            cost20ft: parseFloat(rate.cost20ft),
-            cost40ft: parseFloat(rate.cost40ft),
-            bankFee: parseFloat(rate.bankFee),
-            profitYaho: parseFloat(rate.profitYaho),
-            profitIS: parseFloat(rate.profitIS),
-            sale20HC: parseFloat(rate.sale20HC),
-            sale40HC: parseFloat(rate.sale40HC)
-        };
+        // Resolver puertos y convertir Decimals
+        const formattedRate = await formatRateWithPorts(rate);
 
         res.status(201).json(formattedRate);
 
@@ -229,8 +268,9 @@ export const updateRate = async (req, res) => {
         const {
             region,
             allyId,
-            originPortId,
-            destinationPortId,
+            countryId,
+            originPortIds,
+            destinationPortIds,
             cost20ft,
             cost40ft,
             bankFee,
@@ -250,19 +290,18 @@ export const updateRate = async (req, res) => {
             return res.status(404).json({ message: 'Tarifa no encontrada' });
         }
 
-        // Validaciones si se proporcionan
-        if (originPortId && destinationPortId && originPortId === destinationPortId) {
-            return res.status(400).json({ 
-                message: 'El puerto de origen debe ser diferente al puerto de destino' 
-            });
+        // Validaciones
+        if (originPortIds && (!Array.isArray(originPortIds) || originPortIds.length === 0)) {
+            return res.status(400).json({ message: 'originPortIds debe ser un array con al menos un elemento' });
+        }
+        if (destinationPortIds && (!Array.isArray(destinationPortIds) || destinationPortIds.length === 0)) {
+            return res.status(400).json({ message: 'destinationPortIds debe ser un array con al menos un elemento' });
         }
 
-        const numericFields = { cost20ft, cost40ft, bankFee, profitYaho, profitIS };
+        const numericFields = { cost20ft, cost40ft };
         for (const [field, value] of Object.entries(numericFields)) {
             if (value !== undefined && value !== null && parseFloat(value) < 0) {
-                return res.status(400).json({ 
-                    message: `El campo ${field} debe ser un número mayor o igual a 0` 
-                });
+                return res.status(400).json({ message: `${field} debe ser un número mayor o igual a 0` });
             }
         }
 
@@ -279,13 +318,14 @@ export const updateRate = async (req, res) => {
         const updateData = {};
         if (region !== undefined) updateData.region = region;
         if (allyId !== undefined) updateData.allyId = allyId;
-        if (originPortId !== undefined) updateData.originPortId = originPortId;
-        if (destinationPortId !== undefined) updateData.destinationPortId = destinationPortId;
+        if (countryId !== undefined) updateData.countryId = countryId || null;
+        if (originPortIds !== undefined) updateData.originPortIds = originPortIds;
+        if (destinationPortIds !== undefined) updateData.destinationPortIds = destinationPortIds;
         if (cost20ft !== undefined) updateData.cost20ft = parseFloat(cost20ft);
         if (cost40ft !== undefined) updateData.cost40ft = parseFloat(cost40ft);
-        if (bankFee !== undefined) updateData.bankFee = parseFloat(bankFee);
-        if (profitYaho !== undefined) updateData.profitYaho = parseFloat(profitYaho);
-        if (profitIS !== undefined) updateData.profitIS = parseFloat(profitIS);
+        if (bankFee !== undefined) updateData.bankFee = bankFee !== null ? parseFloat(bankFee) : null;
+        if (profitYaho !== undefined) updateData.profitYaho = profitYaho !== null ? parseFloat(profitYaho) : null;
+        if (profitIS !== undefined) updateData.profitIS = profitIS !== null ? parseFloat(profitIS) : null;
         if (shippingLineId !== undefined) updateData.shippingLineId = shippingLineId || null;
         if (freeDays !== undefined) updateData.freeDays = parseInt(freeDays);
         if (validUntil !== undefined) updateData.validUntil = new Date(validUntil);
@@ -315,23 +355,13 @@ export const updateRate = async (req, res) => {
             data: updateData,
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } },
+                country: { select: { id: true, name: true, code: true } },
                 shippingLine: { select: { id: true, name: true, code: true } }
             }
         });
 
-        // Convertir Decimals
-        const formattedRate = {
-            ...rate,
-            cost20ft: parseFloat(rate.cost20ft),
-            cost40ft: parseFloat(rate.cost40ft),
-            bankFee: parseFloat(rate.bankFee),
-            profitYaho: parseFloat(rate.profitYaho),
-            profitIS: parseFloat(rate.profitIS),
-            sale20HC: parseFloat(rate.sale20HC),
-            sale40HC: parseFloat(rate.sale40HC)
-        };
+        // Resolver puertos y convertir Decimals
+        const formattedRate = await formatRateWithPorts(rate);
 
         res.json(formattedRate);
 
@@ -391,24 +421,13 @@ export const getExpiredRates = async (req, res) => {
             },
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } },
+                country: { select: { id: true, name: true, code: true } },
                 shippingLine: { select: { id: true, name: true, code: true } }
             },
             orderBy: { validUntil: 'asc' }
         });
 
-        // Convertir Decimals
-        const formattedRates = rates.map(rate => ({
-            ...rate,
-            cost20ft: parseFloat(rate.cost20ft),
-            cost40ft: parseFloat(rate.cost40ft),
-            bankFee: parseFloat(rate.bankFee),
-            profitYaho: parseFloat(rate.profitYaho),
-            profitIS: parseFloat(rate.profitIS),
-            sale20HC: parseFloat(rate.sale20HC),
-            sale40HC: parseFloat(rate.sale40HC)
-        }));
+        const formattedRates = await Promise.all(rates.map(formatRateWithPorts));
 
         res.json({
             data: formattedRates,
@@ -424,17 +443,6 @@ export const getExpiredRates = async (req, res) => {
 /**
  * Helper: Formatear rate con Decimals convertidos a number
  */
-const formatRate = (rate) => ({
-    ...rate,
-    cost20ft: parseFloat(rate.cost20ft),
-    cost40ft: parseFloat(rate.cost40ft),
-    bankFee: parseFloat(rate.bankFee),
-    profitYaho: parseFloat(rate.profitYaho),
-    profitIS: parseFloat(rate.profitIS),
-    sale20HC: parseFloat(rate.sale20HC),
-    sale40HC: parseFloat(rate.sale40HC)
-});
-
 /**
  * PATCH /api/rates/:id/toggle-active
  * Activar/desactivar una tarifa individual
@@ -460,13 +468,13 @@ export const toggleActive = async (req, res) => {
             data: { isActive: !existingRate.isActive },
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } },
+                country: { select: { id: true, name: true, code: true } },
                 shippingLine: { select: { id: true, name: true, code: true } }
             }
         });
+        const formattedRate = await formatRateWithPorts(rate);
 
-        res.json(formatRate(rate));
+        res.json(formattedRate);
     } catch (error) {
         console.error('Error toggling rate active:', error);
         res.status(500).json({ message: 'Error al cambiar estado de la tarifa' });
@@ -555,8 +563,8 @@ export const findRate = async (req, res) => {
         const now = new Date();
         const where = {
             allyId,
-            originPortId,
-            destinationPortId,
+            originPortIds: { has: originPortId },
+            destinationPortIds: { has: destinationPortId },
             isActive: true,
             deletedAt: null,
             validUntil: { gte: now }
@@ -568,8 +576,7 @@ export const findRate = async (req, res) => {
             where,
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } },
+                country: { select: { id: true, name: true, code: true } },
                 shippingLine: { select: { id: true, name: true, code: true } }
             },
             orderBy: { updatedAt: 'desc' }
@@ -579,7 +586,9 @@ export const findRate = async (req, res) => {
             return res.json({ found: false, rate: null });
         }
 
-        res.json({ found: true, rate: formatRate(rate) });
+        const formattedRate = await formatRateWithPorts(rate);
+
+        res.json({ found: true, rate: formattedRate });
     } catch (error) {
         console.error('Error finding rate:', error);
         res.status(500).json({ message: 'Error al buscar tarifa' });
@@ -597,14 +606,16 @@ export const getRatesByAlly = async (req, res) => {
         const rates = await prisma.rate.findMany({
             where: { allyId, deletedAt: null },
             include: {
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } },
+                ally: { select: { id: true, name: true, internalCode: true } },
+                country: { select: { id: true, name: true, code: true } },
                 shippingLine: { select: { id: true, name: true, code: true } }
             },
             orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
         });
 
-        res.json({ data: rates.map(formatRate), total: rates.length });
+        const formattedRates = await Promise.all(rates.map(formatRateWithPorts));
+
+        res.json({ data: formattedRates, total: formattedRates.length });
     } catch (error) {
         console.error('Error getting rates by ally:', error);
         res.status(500).json({ message: 'Error al obtener tarifas del aliado' });
@@ -623,20 +634,21 @@ export const getRatesByPort = async (req, res) => {
             where: {
                 deletedAt: null,
                 OR: [
-                    { originPortId: portId },
-                    { destinationPortId: portId }
+                    { originPortIds: { has: portId } },
+                    { destinationPortIds: { has: portId } }
                 ]
             },
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } },
+                country: { select: { id: true, name: true, code: true } },
                 shippingLine: { select: { id: true, name: true, code: true } }
             },
             orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
         });
 
-        res.json({ data: rates.map(formatRate), total: rates.length });
+        const formattedRates = await Promise.all(rates.map(formatRateWithPorts));
+
+        res.json({ data: formattedRates, total: formattedRates.length });
     } catch (error) {
         console.error('Error getting rates by port:', error);
         res.status(500).json({ message: 'Error al obtener tarifas del puerto' });
@@ -655,13 +667,14 @@ export const getRatesByShippingLine = async (req, res) => {
             where: { shippingLineId, deletedAt: null },
             include: {
                 ally: { select: { id: true, name: true, internalCode: true } },
-                originPort: { select: { id: true, name: true, code: true } },
-                destinationPort: { select: { id: true, name: true, code: true } }
+                country: { select: { id: true, name: true, code: true } }
             },
             orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }]
         });
 
-        res.json({ data: rates.map(formatRate), total: rates.length });
+        const formattedRates = await Promise.all(rates.map(formatRateWithPorts));
+
+        res.json({ data: formattedRates, total: formattedRates.length });
     } catch (error) {
         console.error('Error getting rates by shipping line:', error);
         res.status(500).json({ message: 'Error al obtener tarifas de la línea naviera' });

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import rateService from '../../services/rate.service';
 import allyService from '../../services/ally.service';
+import countryService from '../../services/country.service';
 import { rateConfig } from '../../config/rateConfig.jsx';
 import useEntityCRUD from '../../hooks/useEntityCRUD';
 import EntityTable from '../../components/shared/EntityTable';
@@ -13,13 +14,13 @@ import RateDetailModal from '../../components/rates/RateDetailModal';
 import RatePDFModal from '../../components/rates/RatePDFModal';
 import CreateRateModal from '../../components/rates/CreateRateModal';
 
-// Adaptar servicio para el hook
-const adaptedService = {
-    getAll: (params) => rateService.getRates({ ...params, region: 'CHINA' }),
+// Función para adaptar servicio según región activa
+const createAdaptedService = (region) => ({
+    getAll: (params) => rateService.getRates({ ...params, region }),
     create: rateService.createRate,
     update: rateService.updateRate,
     delete: rateService.deleteRate
-};
+});
 
 const Rates = () => {
     const { user } = useAuth();
@@ -27,6 +28,7 @@ const Rates = () => {
     const [activeTab, setActiveTab] = useState('CHINA');
     const [detailItem, setDetailItem] = useState(null);
     const [allies, setAllies] = useState([]);
+    const [countries, setCountries] = useState([]);
     const [bulkLoading, setBulkLoading] = useState(false);
     const [toggleModal, setToggleModal] = useState({ open: false, target: null, type: null }); // type: 'single' | 'bulk-activate' | 'bulk-deactivate'
     const [toggling, setToggling] = useState(false);
@@ -38,7 +40,10 @@ const Rates = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editItem, setEditItem] = useState(null);
     
-    // Hook genérico con toda la lógica CRUD
+    // Hook genérico con toda la lógica CRUD (dinámico según región activa)
+    const adaptedService = useMemo(() => createAdaptedService(activeTab), [activeTab]);
+    const baseFilters = useMemo(() => ({ status: 'valid' }), []);
+
     const {
         items,
         loading,
@@ -48,34 +53,44 @@ const Rates = () => {
         search,
         setSearch,
         setPage,
+        customFilters,
+        setCustomFilters,
         selectedItem,
         isDeleteOpen,
         openDeleteConfirm,
         closeAllModals,
         handleDelete,
         handleFormSuccess,
-        actionLoading,
-        customFilters,
-        setCustomFilters
+        actionLoading
     } = useEntityCRUD({
         service: adaptedService,
         entityName: rateConfig.entityName,
         limit: 20,
         hasStatusField: false,
-        customFilters: { status: 'valid' }
+        initialCustomFilters: baseFilters,
+        dependencies: [activeTab] // Refrescar datos al cambiar de tab
     });
 
-    // Cargar aliados para el filtro
     useEffect(() => {
-        const loadAllies = async () => {
+        setCustomFilters({ status: 'valid' });
+        setPage(1);
+    }, [activeTab, setCustomFilters, setPage]);
+
+    // Cargar aliados y países para los filtros
+    useEffect(() => {
+        const loadCatalogs = async () => {
             try {
-                const data = await allyService.getAllies({ all: 'true', isActive: 'true' });
-                setAllies(data.data || []);
+                const [alliesData, countriesData] = await Promise.all([
+                    allyService.getAllies({ all: 'true', isActive: 'true' }),
+                    countryService.getCountries()
+                ]);
+                setAllies(alliesData.data || []);
+                setCountries(countriesData || []);
             } catch (error) {
-                console.error('Error loading allies:', error);
+                console.error('Error loading catalogs:', error);
             }
         };
-        loadAllies();
+        loadCatalogs();
     }, []);
 
     const selectedAllyId = customFilters?.allyId || '';
@@ -83,6 +98,24 @@ const Rates = () => {
         () => allies.find(a => a.id === selectedAllyId),
         [allies, selectedAllyId]
     );
+
+    const enrichedItems = useMemo(() => {
+        return (items || []).map((item) => {
+            const countryFallback = item.country || countries.find((c) => c.id === item.countryId) || null;
+            return {
+                ...item,
+                region: item.region || activeTab,
+                country: countryFallback
+            };
+        });
+    }, [items, countries, activeTab]);
+
+    const getRouteLabel = (item) => {
+        if (!item) return '';
+        const origin = (item.originPorts || []).map((p) => p?.code).filter(Boolean).join(', ') || item.originPort?.code || '-';
+        const destination = (item.destinationPorts || []).map((p) => p?.code).filter(Boolean).join(', ') || item.destinationPort?.code || '-';
+        return `${origin} → ${destination}`;
+    };
 
     // Handlers para acciones masivas
     const openBulkActivateModal = () => {
@@ -99,6 +132,9 @@ const Rates = () => {
         if (!toggleModal.open) return;
         setToggling(true);
         try {
+            if (toggleModal.type?.startsWith('bulk')) {
+                setBulkLoading(true);
+            }
             if (toggleModal.type === 'single') {
                 await rateService.toggleActive(toggleModal.target.id);
                 showSuccess(
@@ -119,6 +155,9 @@ const Rates = () => {
             showError('Error', error.response?.data?.message || 'Error al ejecutar la acción');
         } finally {
             setToggling(false);
+            if (toggleModal.type?.startsWith('bulk')) {
+                setBulkLoading(false);
+            }
         }
     };
 
@@ -148,7 +187,7 @@ const Rates = () => {
                 onConfirm={handleDelete}
                 title={`Eliminar ${rateConfig.entityName}`}
                 message={`¿Estás seguro de que deseas eliminar esta ${rateConfig.entityName}?`}
-                itemName={selectedItem ? `${selectedItem.originPort?.code} → ${selectedItem.destinationPort?.code}` : ''}
+                itemName={selectedItem ? getRouteLabel(selectedItem) : ''}
                 loading={actionLoading}
             />
             
@@ -161,7 +200,7 @@ const Rates = () => {
             <RatePDFModal
                 isOpen={showPDFModal}
                 onClose={() => setShowPDFModal(false)}
-                rates={items}
+                rates={enrichedItems}
                 region={activeTab}
                 observations={pdfNote}
             />
@@ -171,7 +210,7 @@ const Rates = () => {
                 onClose={() => setToggleModal({ open: false, target: null, type: null })}
                 onConfirm={handleConfirmToggle}
                 entityName={toggleModal.type?.startsWith('bulk') ? 'tarifas' : 'tarifa'}
-                name={toggleModal.type === 'single' ? `${toggleModal.target?.originPort?.code || ''} → ${toggleModal.target?.destinationPort?.code || ''}` : selectedAlly?.name}
+                name={toggleModal.type === 'single' ? getRouteLabel(toggleModal.target) : selectedAlly?.name}
                 isActive={toggleModal.type === 'single' ? !!toggleModal.target?.isActive : toggleModal.type === 'bulk-deactivate'}
                 loading={toggling}
                 showNote={false}
@@ -237,7 +276,7 @@ const Rates = () => {
                     )}
                     <button
                         onClick={() => setShowPdfNoteModal(true)}
-                        disabled={items.length === 0}
+                        disabled={enrichedItems.length === 0}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <FileText size={18} />
@@ -281,25 +320,25 @@ const Rates = () => {
                         setActiveTab('OTHER');
                         setPage(1);
                     }}
-                    disabled
-                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px opacity-50 cursor-not-allowed ${
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
                         activeTab === 'OTHER'
                             ? 'border-blue-500 text-blue-600'
-                            : 'border-transparent text-slate-500'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
                     }`}
-                    title="Próximamente"
                 >
                     <Globe size={16} />
                     Otros Países
-                    <span className="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full">
-                        Próximamente
-                    </span>
+                    {activeTab === 'OTHER' && totalItems > 0 && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
+                            {totalItems}
+                        </span>
+                    )}
                 </button>
             </div>
 
             <EntityTable
-                items={items}
-                columns={rateConfig.columns}
+                items={enrichedItems}
+                columns={rateConfig.getColumns(activeTab)}
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
@@ -319,9 +358,34 @@ const Rates = () => {
                 codeColor={rateConfig.codeColor}
                 extraFilters={
                     <div className="flex items-center gap-2 flex-wrap">
+                        {/* Filtro de País (solo para OTHER) */}
+                        {activeTab === 'OTHER' && (
+                            <select
+                                value={customFilters?.countryId || ''}
+                                onChange={(e) => {
+                                    const value = e.target.value || undefined;
+                                    const nextFilters = { ...customFilters, countryId: value };
+                                    setCustomFilters(nextFilters);
+                                    setPage(1);
+                                }}
+                                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                            >
+                                <option value="">Todos los países</option>
+                                {countries.map(country => (
+                                    <option key={country.id} value={country.id}>
+                                        {country.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
                         <select
                             value={customFilters?.allyId || ''}
-                            onChange={(e) => setCustomFilters({ ...customFilters, allyId: e.target.value || undefined })}
+                            onChange={(e) => {
+                                const value = e.target.value || undefined;
+                                const nextFilters = { ...customFilters, allyId: value };
+                                setCustomFilters(nextFilters);
+                                setPage(1);
+                            }}
                             className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
                         >
                             <option value="">Todos los aliados</option>
@@ -333,7 +397,12 @@ const Rates = () => {
                         </select>
                         <select
                             value={customFilters?.isActive || ''}
-                            onChange={(e) => setCustomFilters({ ...customFilters, isActive: e.target.value || undefined })}
+                            onChange={(e) => {
+                                const value = e.target.value || undefined;
+                                const nextFilters = { ...customFilters, isActive: value };
+                                setCustomFilters(nextFilters);
+                                setPage(1);
+                            }}
                             className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
                         >
                             <option value="">Activas e inactivas</option>
@@ -342,7 +411,12 @@ const Rates = () => {
                         </select>
                         <select
                             value={customFilters?.status || 'valid'}
-                            onChange={(e) => setCustomFilters({ ...customFilters, status: e.target.value })}
+                            onChange={(e) => {
+                                const value = e.target.value || 'valid';
+                                const nextFilters = { ...customFilters, status: value };
+                                setCustomFilters(nextFilters);
+                                setPage(1);
+                            }}
                             className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
                         >
                             <option value="valid">Vigentes</option>
