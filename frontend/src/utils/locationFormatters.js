@@ -85,7 +85,7 @@ export const formatPortValue = (value, lookup, { fallbackToValue = true } = {}) 
     return fallbackToValue ? raw : '';
 };
 
-export const formatPortList = (values, lookup, { fallback = '' } = {}) => {
+export const formatPortList = (values, lookup, { fallback = '', separator = ', ' } = {}) => {
     if (!values) return fallback;
     const array = Array.isArray(values) ? values : [values];
     const names = array
@@ -102,7 +102,7 @@ export const formatPortList = (values, lookup, { fallback = '' } = {}) => {
         return firstRaw || fallback;
     }
     const unique = [...new Set(names)];
-    return unique.join(', ');
+    return unique.join(separator);
 };
 
 export const formatRouteDisplay = ({ origin, destination, lookup, fallback = '-', arrow = '->' }) => {

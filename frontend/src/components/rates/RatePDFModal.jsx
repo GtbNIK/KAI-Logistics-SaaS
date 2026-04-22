@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Download, Loader2, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
+import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
+import axios from 'axios';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_PRIMARY_COLOR = '#003366';
 const DEFAULT_COMPANY_RIF = 'J-00000000-0';
-
-const formatPortCodes = (ports = []) => ports.map((port) => port?.code).filter(Boolean).join(', ') || '-';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -106,6 +107,22 @@ const loadImageAsPngDataUrl = async (url) => {
 const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => {
     const { settings } = useSettings();
     const [generating, setGenerating] = useState(false);
+    const [portCatalog, setPortCatalog] = useState([]);
+
+    const portLookup = useMemo(() => buildPortLookup(portCatalog), [portCatalog]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const fetchPorts = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+                setPortCatalog(res.data.data || res.data || []);
+            } catch (error) {
+                console.error('Error loading ports for Rate PDF:', error);
+            }
+        };
+        fetchPorts();
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -180,8 +197,8 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                     return {
                         head: [['POL', 'POD', '20HC', '40HC', 'Carrier', 'Días Libres', 'Validez']],
                         body: rates.map((rate) => [
-                            formatPortCodes(rate.originPorts),
-                            formatPortCodes(rate.destinationPorts),
+                            formatPortList(rate.originPorts, portLookup, { fallback: '-', separator: ' / ' }),
+                            formatPortList(rate.destinationPorts, portLookup, { fallback: '-', separator: ' / ' }),
                             `$${(rate.sale20HC ?? 0).toFixed(2)}`,
                             `$${(rate.sale40HC ?? 0).toFixed(2)}`,
                             rate.shippingLine?.code || '-',
@@ -205,8 +222,8 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                     head: [['País', 'Puertos Origen', 'Puertos Destino', 'Carrier', 'Días Libres', 'Validez']],
                     body: rates.map((rate) => [
                         rate.country?.name || '-',
-                        formatPortCodes(rate.originPorts),
-                        formatPortCodes(rate.destinationPorts),
+                        formatPortList(rate.originPorts, portLookup, { fallback: '-', separator: ' / ' }),
+                        formatPortList(rate.destinationPorts, portLookup, { fallback: '-', separator: ' / ' }),
                         rate.shippingLine?.code || '-',
                         `${rate.freeDays} días`,
                         (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
