@@ -48,7 +48,6 @@ const emptyItem = () => ({
     airLineId: '',
     quantity: 1,
     unitPrice: '',
-    description: '',
 });
 
 const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null }) => {
@@ -163,7 +162,6 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                         airLineId:      item.airLineId      || '',
                         quantity:       item.quantity       ?? 1,
                         unitPrice:      item.unitPrice      || '',
-                        description:    item.description    || '',
                     };
                 })
             );
@@ -234,7 +232,6 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                 airLineId:       item.airLineId       || undefined,
                 quantity:        Number(item.quantity) || 1,
                 unitPrice:       Number(item.unitPrice),
-                description:     item.description     || undefined,
             })),
         };
 

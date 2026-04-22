@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Loader2, Receipt, Eye, EyeOff } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
+import axios from 'axios';
+import { buildPortLookup, formatRouteDisplay, replaceRouteCodesWithNames } from '../../utils/locationFormatters';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
@@ -14,18 +16,6 @@ const DEFAULT_PRIMARY_COLOR = '#003366';
 const hexToRgb = (hex) => {
     const num = parseInt(hex.replace('#', ''), 16);
     return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
-};
-
-const getJsPdfImageFormatFromUrl = (url) => {
-    if (!url) return null;
-
-    const cleanUrl = String(url).split('?')[0].split('#')[0];
-    const ext = cleanUrl.split('.').pop()?.toLowerCase();
-
-    if (ext === 'jpg' || ext === 'jpeg') return 'JPEG';
-    if (ext === 'png') return 'PNG';
-    if (ext === 'webp') return 'WEBP';
-    return null;
 };
 
 const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = {}) => {
@@ -77,10 +67,27 @@ const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
 /**
  * Modal para vista previa y generación de PDF de aviso de cobro
  */
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const [generating, setGenerating] = useState(false);
     const [showNotes, setShowNotes] = useState(true);
+    const [portCatalog, setPortCatalog] = useState([]);
     const { settings: companySettings, loading: loadingSettings } = useSettings();
+    const portLookup = useMemo(() => buildPortLookup(portCatalog), [portCatalog]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const fetchPorts = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+                setPortCatalog(res.data.data || res.data || []);
+            } catch (error) {
+                console.error('Error loading ports for PaymentNotice PDF:', error);
+            }
+        };
+        fetchPorts();
+    }, [isOpen]);
 
     if (!isOpen || !notice) return null;
     if (typeof document === 'undefined') return null;
@@ -98,24 +105,21 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     // Parsear items de la descripción enriquecida (con aliado usando código interno)
     const parseItems = () => {
         return (notice.items || []).map(item => {
-            const parts = (item.description || '').split(' · ');
-            const serviceName = parts[0] || 'Servicio';
+            const formattedDescription = replaceRouteCodesWithNames(item.description || '', portLookup);
+            const parts = formattedDescription.split(' · ');
+            const serviceName = item.service?.name || parts[0] || 'Servicio';
             const serviceType = item.service?.type;
 
             // Extraer aliado, ruta o zona según el tipo de servicio
             const allyPart = parts.find(p => p.startsWith('Aliado:'));
-            const rutaPart = parts.find(p => p.startsWith('Ruta:'));
             const zonaPart = parts.find(p => p.startsWith('Zona:'));
 
             const allyCode = allyPart ? allyPart.replace('Aliado: ', '').trim() : '-';
             const allyName = item.ally?.name || '-';
-            let destination = '-';
-            if (rutaPart) {
-                // Reemplazar → por -> (jsPDF no soporta Unicode con helvetica)
-                destination = rutaPart.replace('Ruta: ', '').trim().replace('→', '->');
-            } else if (zonaPart) {
-                destination = zonaPart.replace('Zona: ', '').trim();
-            }
+            const hasRoute = item.originPort || item.destinationPort;
+            const destination = hasRoute
+                ? formatRouteDisplay({ origin: item.originPort, destination: item.destinationPort, lookup: portLookup })
+                : (zonaPart ? zonaPart.replace('Zona: ', '').trim() : '-');
 
             const isFclService = ['FCL_20', 'FCL_40', 'FCL_40HC'].includes(serviceType);
             const carrierCode = isFclService ? (item.shippingLine?.code || '-') : '-';

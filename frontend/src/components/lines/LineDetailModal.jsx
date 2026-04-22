@@ -1,21 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Ship, Plane, X, Hash, Package, ArrowRight, AlertTriangle } from 'lucide-react';
 import rateService from '../../services/rate.service';
 import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
+import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const LineDetailModal = ({ isOpen, onClose, item, type }) => {
     const [tariffRates, setTariffRates] = useState([]);
     const [loadingTariffRates, setLoadingTariffRates] = useState(false);
+    const [portCatalog, setPortCatalog] = useState([]);
 
-    useEffect(() => {
-        if (isOpen && item?.id && type === 'shipping') {
-            fetchTariffRates();
-        } else {
-            setTariffRates([]);
+    const portLookup = useMemo(() => buildPortLookup(portCatalog), [portCatalog]);
+
+    const fetchPorts = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+            setPortCatalog(res.data.data || res.data || []);
+        } catch (error) {
+            console.error('Error loading ports for Line detail:', error);
         }
-    }, [isOpen, item?.id, type]);
+    }, []);
 
-    const fetchTariffRates = async () => {
+    const fetchTariffRates = useCallback(async () => {
+        if (!item?.id) return;
         setLoadingTariffRates(true);
         try {
             const result = await rateService.getRatesByShippingLine(item.id);
@@ -25,7 +34,16 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
         } finally {
             setLoadingTariffRates(false);
         }
-    };
+    }, [item?.id]);
+
+    useEffect(() => {
+        if (isOpen && item?.id && type === 'shipping') {
+            fetchTariffRates();
+            fetchPorts();
+        } else {
+            setTariffRates([]);
+        }
+    }, [isOpen, item?.id, type, fetchTariffRates, fetchPorts]);
 
     if (!isOpen || !item) return null;
 
@@ -127,7 +145,10 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
                                         <thead className="bg-slate-50">
                                             <tr>
                                                 <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Aliado</th>
-                                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Ruta</th>
+                                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Región</th>
+                                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">País</th>
+                                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Origen</th>
+                                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Destino</th>
                                                 <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">20HC</th>
                                                 <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">40HC</th>
                                                 <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase">Validez</th>
@@ -137,16 +158,22 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
                                         <tbody className="divide-y divide-slate-100">
                                             {tariffRates.map(rate => {
                                                 const isExpired = new Date(rate.validUntil) < new Date();
+                                                const originPorts = rate.originPorts || [];
+                                                const destinationPorts = rate.destinationPorts || [];
+                                                const originLabel = formatPortList(originPorts, portLookup, { fallback: '-' });
+                                                const destinationLabel = formatPortList(destinationPorts, portLookup, { fallback: '-' });
+                                                const countryDisplay = rate.region === 'CHINA' ? 'China' : (rate.country?.name || '-');
                                                 return (
                                                     <tr key={rate.id} className={`hover:bg-slate-50/50 ${isExpired ? 'bg-red-50/30' : ''}`}>
                                                         <td className="px-3 py-2 font-medium text-slate-700 text-xs">{rate.ally?.name}</td>
                                                         <td className="px-3 py-2">
-                                                            <div className="flex items-center gap-1">
-                                                                <span className="text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded">{rate.originPort?.code}</span>
-                                                                <ArrowRight size={10} className="text-slate-400" />
-                                                                <span className="text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded">{rate.destinationPort?.code}</span>
-                                                            </div>
+                                                            <span className="text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                                                                {rate.region === 'CHINA' ? '🇨🇳 China' : '🌎 Otros'}
+                                                            </span>
                                                         </td>
+                                                        <td className="px-3 py-2 text-slate-600 text-xs">{countryDisplay}</td>
+                                                        <td className="px-3 py-2 text-slate-600 text-xs">{originLabel}</td>
+                                                        <td className="px-3 py-2 text-slate-600 text-xs">{destinationLabel}</td>
                                                         <td className="px-3 py-2 text-right font-bold text-green-600 text-xs">${parseFloat(rate.sale20HC || 0).toFixed(2)}</td>
                                                         <td className="px-3 py-2 text-right font-bold text-green-600 text-xs">${parseFloat(rate.sale40HC || 0).toFixed(2)}</td>
                                                         <td className="px-3 py-2 text-center">

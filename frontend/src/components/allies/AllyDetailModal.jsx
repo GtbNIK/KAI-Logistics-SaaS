@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Building, FileText, MapPin, DollarSign, Trash2, AlertTriangle, Ship, ArrowRight, Plane, Package } from 'lucide-react';
 import allyService from '../../services/ally.service';
 import rateService from '../../services/rate.service';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
+import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
+import axios from 'axios';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 
 // Helper para verificar si una tarifa está vigente
@@ -28,12 +30,15 @@ const getTodayDate = () => {
 };
 */
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 const AllyDetailModal = ({ isOpen, onClose, ally }) => {
     const { user } = useAuth();
     const [rates, setRates] = useState([]);
     const [loadingRates, setLoadingRates] = useState(false);
     const [tariffRates, setTariffRates] = useState([]);
     const [loadingTariffRates, setLoadingTariffRates] = useState(false);
+    const [portCatalog, setPortCatalog] = useState([]);
     
     // Estado para confirmar eliminación de tarifa
     const [deleteRateModal, setDeleteRateModal] = useState({ open: false, rate: null });
@@ -42,14 +47,19 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
     // Toast para notificaciones
     const toast = useToast();
 
-    useEffect(() => {
-        if (isOpen && ally) {
-            fetchRates();
-            fetchTariffRates();
-        }
-    }, [isOpen, ally]);
+    const portLookup = useMemo(() => buildPortLookup(portCatalog), [portCatalog]);
 
-    const fetchRates = async () => {
+    const fetchPorts = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+            setPortCatalog(res.data.data || res.data || []);
+        } catch (error) {
+            console.error('Error loading ports for Ally detail:', error);
+        }
+    }, []);
+
+    const fetchRates = useCallback(async () => {
+        if (!ally?.id) return;
         setLoadingRates(true);
         try {
             const data = await allyService.getAllyRates(ally.id);
@@ -59,9 +69,10 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
         } finally {
             setLoadingRates(false);
         }
-    };
+    }, [ally?.id]);
 
-    const fetchTariffRates = async () => {
+    const fetchTariffRates = useCallback(async () => {
+        if (!ally?.id) return;
         setLoadingTariffRates(true);
         try {
             const result = await rateService.getRatesByAlly(ally.id);
@@ -71,7 +82,15 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
         } finally {
             setLoadingTariffRates(false);
         }
-    };
+    }, [ally?.id]);
+
+    useEffect(() => {
+        if (isOpen && ally) {
+            fetchRates();
+            fetchTariffRates();
+            fetchPorts();
+        }
+    }, [isOpen, ally, fetchRates, fetchTariffRates, fetchPorts]);
 
     const openDeleteRateConfirm = (rate) => setDeleteRateModal({ open: true, rate });
 
@@ -288,7 +307,9 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
                                         <thead className="bg-slate-50">
                                             <tr>
                                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Región</th>
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ruta</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">País</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Origen</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Destino</th>
                                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Línea</th>
                                                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 20HC</th>
                                                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 40HC</th>
@@ -299,6 +320,11 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
                                         <tbody className="divide-y divide-slate-100">
                                             {tariffRates.map(rate => {
                                                 const isExpired = new Date(rate.validUntil) < new Date();
+                                                const originPorts = rate.originPorts || [];
+                                                const destinationPorts = rate.destinationPorts || [];
+                                                const originLabel = formatPortList(originPorts, portLookup, { fallback: '-' });
+                                                const destinationLabel = formatPortList(destinationPorts, portLookup, { fallback: '-' });
+                                                const countryDisplay = rate.region === 'CHINA' ? 'China' : (rate.country?.name || '-');
                                                 return (
                                                     <tr key={rate.id} className={`hover:bg-slate-50/50 ${isExpired ? 'bg-red-50/30' : ''}`}>
                                                         <td className="px-4 py-3">
@@ -306,12 +332,14 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
                                                                 {rate.region === 'CHINA' ? '🇨🇳 China' : '🌎 Otros'}
                                                             </span>
                                                         </td>
-                                                        <td className="px-4 py-3 text-slate-600">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-medium bg-slate-100 px-2 py-0.5 rounded">{rate.originPort?.code}</span>
-                                                                <ArrowRight size={12} className="text-slate-400" />
-                                                                <span className="text-xs font-medium bg-slate-100 px-2 py-0.5 rounded">{rate.destinationPort?.code}</span>
-                                                            </div>
+                                                        <td className="px-4 py-3 text-slate-600 text-xs">
+                                                            {countryDisplay}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-600 text-xs">
+                                                            {originLabel}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-600 text-xs">
+                                                            {destinationLabel}
                                                         </td>
                                                         <td className="px-4 py-3 text-slate-600 text-xs">
                                                             {rate.shippingLine?.name || '-'}
