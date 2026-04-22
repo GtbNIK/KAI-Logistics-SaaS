@@ -5,7 +5,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
-import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
+import { toVenezuelanFormat } from '../../utils/dateHelpers';
+import { buildPortLookup, formatRouteDisplay, formatZoneLabel } from '../../utils/locationFormatters';
 
 // Valores por defecto si no hay configuración
 const DEFAULT_LOGO = '/1.png';
@@ -98,6 +99,7 @@ const QuotePDFModal = ({
 }) => {
     const [generating, setGenerating] = useState(false);
     const { settings: companySettings, loading: loadingSettings } = useSettings();
+    const portLookup = useMemo(() => buildPortLookup(ports), [ports]);
 
     if (!isOpen) return null;
     if (typeof document === 'undefined') return null;
@@ -117,45 +119,6 @@ const QuotePDFModal = ({
         return c?.data?.name || c?.name || c?.label || quote?.clientName || 'Sin seleccionar';
     };
 
-    const portCodeMap = useMemo(() => {
-        const map = new Map();
-        (ports || []).forEach((port) => {
-            if (!port) return;
-            const code = (port.code || port.data?.code || '').trim();
-            const name = (port.name || port.data?.name || '').trim();
-            if (code) {
-                map.set(code.toLowerCase(), code.toUpperCase());
-            }
-            if (name && code) {
-                map.set(name.toLowerCase(), code.toUpperCase());
-            }
-        });
-        return map;
-    }, [ports]);
-
-    const resolvePortCode = (value) => {
-        if (!value) return '';
-        const str = String(value).trim();
-        if (!str) return '';
-        const lower = str.toLowerCase();
-        if (portCodeMap.has(lower)) {
-            return portCodeMap.get(lower);
-        }
-        if (str.includes(' - ')) {
-            const possible = str.split(' - ')[0].trim();
-            if (portCodeMap.has(possible.toLowerCase())) {
-                return portCodeMap.get(possible.toLowerCase());
-            }
-            if (/^[A-Za-z0-9]{2,6}$/.test(possible)) {
-                return possible.toUpperCase();
-            }
-        }
-        if (/^[A-Za-z0-9]{2,6}$/.test(str)) {
-            return str.toUpperCase();
-        }
-        return str;
-    };
-
     // Preparar datos para el PDF
     const prepareItems = () => {
         return quote.items.filter(item => item.serviceId).map(item => {
@@ -168,12 +131,10 @@ const QuotePDFModal = ({
             const isDoorToDoor = serviceType === 'DOOR_TO_DOOR';
             
             // Extraer solo el nombre de la zona (sin el código)
-            const zoneName = zone?.label ? zone.label.split(' - ')[1] || zone.label : '-';
+            const zoneName = formatZoneLabel(zone, { includeCode: false });
             
-            const originCode = resolvePortCode(item.originPort);
-            const destinationCode = resolvePortCode(item.destinationPort);
             const destination = isPortService 
-                ? ((originCode || destinationCode) ? `${originCode || 'N/A'} -> ${destinationCode || 'N/A'}` : '-')
+                ? formatRouteDisplay({ origin: item.originPort, destination: item.destinationPort, lookup: portLookup })
                 : zoneName;
 
             const quantity = Number(item.quantity) || 0;
