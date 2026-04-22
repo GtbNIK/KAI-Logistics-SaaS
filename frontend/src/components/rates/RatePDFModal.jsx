@@ -10,6 +10,8 @@ const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_PRIMARY_COLOR = '#003366';
 const DEFAULT_COMPANY_RIF = 'J-00000000-0';
 
+const formatPortCodes = (ports = []) => ports.map((port) => port?.code).filter(Boolean).join(', ') || '-';
+
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -157,11 +159,13 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 console.warn('Error loading logo:', error);
             }
 
+            const regionLabel = region === 'CHINA' ? 'China' : 'Otros Países';
+
             // Título
             doc.setFontSize(20);
             doc.setTextColor(rgb.r, rgb.g, rgb.b);
             doc.setFont('helvetica', 'bold');
-            doc.text('TARIFAS CHINA - VENEZUELA', pageW / 2, 25, { align: 'center' });
+            doc.text(`TARIFAS ${regionLabel.toUpperCase()}`, pageW / 2, 25, { align: 'center' });
 
             // Fecha (se elimina texto de región)
             doc.setFontSize(12);
@@ -170,25 +174,61 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
             //doc.text(`Región: ${region === 'CHINA' ? 'China' : 'Otros Países'}`, 15, 38);
             doc.text(`Fecha: ${new Date().toLocaleDateString('es-VE')}`, pageW - 15, 38, { align: 'right' });
 
-            // Tabla
-            const tableData = rates.map(rate => [
-                rate.originPort?.code || '-',
-                rate.destinationPort?.code || '-',
-                `$${(rate.sale20HC ?? 0).toFixed(2)}`,
-                `$${(rate.sale40HC ?? 0).toFixed(2)}`,
-                (rate.shippingLine?.code || '-'),
-                `${rate.freeDays} días`,
-                (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
-            ]);
+            // Tabla (dinámica según región)
+            const tableConfig = (() => {
+                if (region === 'CHINA') {
+                    return {
+                        head: [['POL', 'POD', '20HC', '40HC', 'Carrier', 'Días Libres', 'Validez']],
+                        body: rates.map((rate) => [
+                            formatPortCodes(rate.originPorts),
+                            formatPortCodes(rate.destinationPorts),
+                            `$${(rate.sale20HC ?? 0).toFixed(2)}`,
+                            `$${(rate.sale40HC ?? 0).toFixed(2)}`,
+                            rate.shippingLine?.code || '-',
+                            `${rate.freeDays} días`,
+                            (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
+                        ]),
+                        columnStyles: {
+                            0: { cellWidth: 35, halign: 'center' },
+                            1: { cellWidth: 35, halign: 'center' },
+                            2: { cellWidth: 25, halign: 'right' },
+                            3: { cellWidth: 25, halign: 'right' },
+                            4: { cellWidth: 35 },
+                            5: { cellWidth: 25, halign: 'center' },
+                            6: { cellWidth: 28, halign: 'center' }
+                        },
+                        totalWidth: 35 + 35 + 25 + 25 + 35 + 25 + 28
+                    };
+                }
 
-            // Centrado horizontal según anchos de columnas
-            const tableTotalWidth = 30 + 30 + 25 + 25 + 35 + 22 + 25;
-            const leftRight = Math.max(10, (pageW - tableTotalWidth) / 2);
+                return {
+                    head: [['País', 'Puertos Origen', 'Puertos Destino', 'Carrier', 'Días Libres', 'Validez']],
+                    body: rates.map((rate) => [
+                        rate.country?.name || '-',
+                        formatPortCodes(rate.originPorts),
+                        formatPortCodes(rate.destinationPorts),
+                        rate.shippingLine?.code || '-',
+                        `${rate.freeDays} días`,
+                        (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
+                    ]),
+                    columnStyles: {
+                        0: { cellWidth: 30 },
+                        1: { cellWidth: 45 },
+                        2: { cellWidth: 45 },
+                        3: { cellWidth: 30 },
+                        4: { cellWidth: 25, halign: 'center' },
+                        5: { cellWidth: 30, halign: 'center' }
+                    },
+                    totalWidth: 30 + 45 + 45 + 30 + 25 + 30
+                };
+            })();
+
+            const leftRight = Math.max(10, (pageW - tableConfig.totalWidth) / 2);
 
             autoTable(doc, {
                 startY: 45,
-                head: [['POL', 'POD', '20HC', '40HC', 'Carrier', 'Días Libres', 'Validez']],
-                body: tableData,
+                head: tableConfig.head,
+                body: tableConfig.body,
                 theme: 'grid',
                 headStyles: {
                     fillColor: [rgb.r, rgb.g, rgb.b],
@@ -201,15 +241,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                     fontSize: 8,
                     textColor: [40, 40, 40]
                 },
-                columnStyles: {
-                    0: { cellWidth: 30, halign: 'center' }, // POL
-                    1: { cellWidth: 30, halign: 'center' }, // POD
-                    2: { cellWidth: 25, halign: 'right' },  // 20HC
-                    3: { cellWidth: 25, halign: 'right' },  // 40HC
-                    4: { cellWidth: 35 },                  // Carrier
-                    5: { cellWidth: 22, halign: 'center' }, // Días Libres
-                    6: { cellWidth: 25, halign: 'center' }  // Validez
-                },
+                columnStyles: tableConfig.columnStyles,
                 margin: { left: leftRight, right: leftRight },
             });
 
@@ -257,7 +289,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
             doc.text(`${companyName} - ${companyRif}`, pageW / 2, pageH - 10, { align: 'center' });
 
             // Descargar
-            const fileName = `Tarifas_FCL_China_Venezuela_${new Date().toISOString().split('T')[0]}.pdf`;
+            const fileName = `Tarifas_${regionLabel.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
             doc.save(fileName);
         } catch (error) {
             console.error('Error generating PDF:', error);

@@ -24,6 +24,7 @@ import shippingLineRoutes from './routes/shipping-line.routes.js';
 import airLineRoutes from './routes/airline.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import cashFlowRoutes from './routes/cash-flow.routes.js';
+import countryRoutes from './routes/country.routes.js';
 import { verifyToken } from './middleware/auth.middleware.js';
 
 // Cargar variables de entorno
@@ -104,6 +105,8 @@ app.use('/api/services', verifyToken, serviceRoutes);
 app.use('/api/zones', verifyToken, zoneRoutes);
 // Rutas de puertos (requiere autenticación)
 app.use('/api/ports', verifyToken, portRoutes);
+// Rutas de países (requiere autenticación)
+app.use('/api/countries', countryRoutes);
 // Rutas de cotizaciones (requiere autenticación)
 app.use('/api/quotes', verifyToken, quoteRoutes);
 // Rutas de tarifas ServiceRate (sistema antiguo - requiere autenticación)

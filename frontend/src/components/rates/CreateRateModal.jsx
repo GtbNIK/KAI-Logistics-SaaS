@@ -7,9 +7,11 @@ import { useToast } from '../../context/ToastContext';
 import rateService from '../../services/rate.service';
 import allyService from '../../services/ally.service';
 import portService from '../../services/port.service';
+import countryService from '../../services/country.service';
 import shippingLineService from '../../services/shippingLine.service';
 import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
+import QuickCreateCountryModal from '../shared/QuickCreateCountryModal';
 
 const selectStyles = {
     control: (base) => ({ ...base, borderRadius: '0.75rem', borderColor: '#e2e8f0', minHeight: '40px', '&:hover': { borderColor: '#3b82f6' } }),
@@ -18,9 +20,11 @@ const selectStyles = {
 };
 
 const emptyForm = {
+    region: 'CHINA',
     allyId: '',
-    originPortId: '',
-    destinationPortId: '',
+    countryId: '',
+    originPortIds: [],  // Array de IDs
+    destinationPortIds: [],  // Array de IDs
     shippingLineId: '',
     cost20ft: '',
     cost40ft: '',
@@ -28,8 +32,7 @@ const emptyForm = {
     profitYaho: '',
     profitIS: '',
     freeDays: 21,
-    validUntil: '',
-    region: 'CHINA'
+    validUntil: ''
 };
 
 const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityData = null }) => {
@@ -41,6 +44,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
     // Catálogos
     const [allies, setAllies] = useState([]);
     const [ports, setPorts] = useState([]);
+    const [countries, setCountries] = useState([]);
     const [shippingLines, setShippingLines] = useState([]);
 
     // Quick create modals
@@ -53,18 +57,19 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
         loadCatalogs();
         if (editMode && entityData) {
             setFormData({
+                region: entityData.region || 'CHINA',
                 allyId: entityData.allyId || '',
-                originPortId: entityData.originPortId || '',
-                destinationPortId: entityData.destinationPortId || '',
+                countryId: entityData.countryId || '',
+                originPortIds: entityData.originPortIds || [],
+                destinationPortIds: entityData.destinationPortIds || [],
                 shippingLineId: entityData.shippingLineId || '',
-                cost20ft: entityData.cost20ft || '',
-                cost40ft: entityData.cost40ft || '',
-                bankFee: entityData.bankFee || '',
-                profitYaho: entityData.profitYaho || '',
-                profitIS: entityData.profitIS || '',
+                cost20ft: entityData.cost20ft ?? '',
+                cost40ft: entityData.cost40ft ?? '',
+                bankFee: entityData.bankFee ?? '',
+                profitYaho: entityData.profitYaho ?? '',
+                profitIS: entityData.profitIS ?? '',
                 freeDays: entityData.freeDays ?? 21,
-                validUntil: entityData.validUntil ? entityData.validUntil.split('T')[0] : '',
-                region: entityData.region || 'CHINA'
+                validUntil: entityData.validUntil ? entityData.validUntil.split('T')[0] : ''
             });
         } else {
             setFormData(emptyForm);
@@ -73,13 +78,15 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
 
     const loadCatalogs = async () => {
         try {
-            const [alliesData, portsData, linesData] = await Promise.all([
+            const [alliesData, portsData, countriesData, linesData] = await Promise.all([
                 allyService.getAllies({ all: 'true' }),
                 portService.getPorts({ all: 'true' }),
+                countryService.getCountries(),
                 shippingLineService.getShippingLines({ all: 'true' })
             ]);
             setAllies(alliesData.data || []);
             setPorts(portsData.data || []);
+            setCountries(countriesData || []);
             setShippingLines(linesData.data || []);
         } catch (error) {
             console.error('Error loading catalogs:', error);
@@ -94,16 +101,6 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
         [allies]
     );
 
-    const portOptions = useMemo(() => {
-        const base = ports.filter(p => p.isActive !== false).map(p => ({
-            value: p.id, label: `${p.name} (${p.code})`
-        }));
-        if (user?.role === 'ADMIN') {
-            return [...base, { value: 'NEW', label: 'Agregar nuevo puerto', isAction: true }];
-        }
-        return base;
-    }, [ports, user]);
-
     const shippingLineOptions = useMemo(() => {
         const base = shippingLines.filter(l => l.isActive !== false).map(l => ({
             value: l.id, label: l.name
@@ -113,6 +110,16 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
         }
         return base;
     }, [shippingLines, user]);
+
+    const countryOptions = useMemo(() => {
+        const base = countries.map(c => ({
+            value: c.id, label: c.name
+        }));
+        if (user?.role === 'ADMIN') {
+            return [...base, { value: 'NEW', label: '+ Agregar nuevo país', isAction: true }];
+        }
+        return base;
+    }, [countries, user]);
 
     // Precios calculados
     const sale20HC = useMemo(() => {
@@ -133,8 +140,8 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
 
     const handleSelectChange = (field, option) => {
         if (option?.isAction) {
-            if (field === 'originPortId' || field === 'destinationPortId') {
-                setQuickCreateType('port');
+            if (field === 'countryId') {
+                setQuickCreateType('country');
                 setQuickCreateOpen(true);
             } else if (field === 'shippingLineId') {
                 setQuickCreateType('shippingLine');
@@ -145,6 +152,16 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
         setFormData(prev => ({ ...prev, [field]: option?.value || '' }));
     };
 
+    const handlePortCheckbox = (portId, field) => {
+        setFormData(prev => {
+            const currentIds = prev[field] || [];
+            const newIds = currentIds.includes(portId)
+                ? currentIds.filter(id => id !== portId)
+                : [...currentIds, portId];
+            return { ...prev, [field]: newIds };
+        });
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -152,24 +169,60 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.allyId || !formData.originPortId || !formData.destinationPortId) {
-            showError('Campos requeridos', 'Selecciona aliado, puerto de salida y llegada');
+        
+        // Validaciones
+        if (!formData.allyId) {
+            showError('Campos requeridos', 'Selecciona un aliado');
+            return;
+        }
+        if (!formData.originPortIds || formData.originPortIds.length === 0) {
+            showError('Campos requeridos', 'Selecciona al menos un puerto de origen');
+            return;
+        }
+        if (!formData.destinationPortIds || formData.destinationPortIds.length === 0) {
+            showError('Campos requeridos', 'Selecciona al menos un puerto de destino');
+            return;
+        }
+        if (formData.region === 'OTHER' && !formData.countryId) {
+            showError('Campos requeridos', 'El país es obligatorio para tarifas de "Otros Países"');
+            return;
+        }
+
+        if (!formData.validUntil) {
+            showError('Campos requeridos', 'Selecciona una fecha de validez para la tarifa');
             return;
         }
 
         setSaving(true);
         try {
             const payload = {
-                ...formData,
-                sale20HC,
-                sale40HC,
+                region: formData.region,
+                allyId: formData.allyId,
+                originPortIds: formData.originPortIds,
+                destinationPortIds: formData.destinationPortIds,
                 cost20ft: parseFloat(formData.cost20ft) || 0,
                 cost40ft: parseFloat(formData.cost40ft) || 0,
-                bankFee: parseFloat(formData.bankFee) || 0,
-                profitYaho: parseFloat(formData.profitYaho) || 0,
-                profitIS: parseFloat(formData.profitIS) || 0,
-                freeDays: parseInt(formData.freeDays) || 0,
+                freeDays: parseInt(formData.freeDays) || 21,
+                validUntil: formData.validUntil,
+                shippingLineId: formData.shippingLineId || undefined
             };
+
+            // Agregar país si es OTHER
+            if (formData.region === 'OTHER') {
+                payload.countryId = formData.countryId;
+            }
+
+            // Agregar fees y profits solo si es CHINA o si tienen valor
+            if (formData.region === 'CHINA') {
+                payload.bankFee = parseFloat(formData.bankFee) || 0;
+                payload.profitYaho = parseFloat(formData.profitYaho) || 0;
+                payload.profitIS = parseFloat(formData.profitIS) || 0;
+            } else if (formData.bankFee || formData.profitYaho || formData.profitIS) {
+                // Para OTHER, solo enviar si tienen valor
+                if (formData.bankFee) payload.bankFee = parseFloat(formData.bankFee);
+                if (formData.profitYaho) payload.profitYaho = parseFloat(formData.profitYaho);
+                if (formData.profitIS) payload.profitIS = parseFloat(formData.profitIS);
+            }
 
             if (editMode && entityData) {
                 await rateService.updateRate(entityData.id, payload);
@@ -208,6 +261,15 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                     loadCatalogs();
                 }}
             />
+            <QuickCreateCountryModal
+                isOpen={quickCreateOpen && quickCreateType === 'country'}
+                onClose={() => setQuickCreateOpen(false)}
+                onSuccess={(newCountry) => {
+                    setQuickCreateOpen(false);
+                    loadCatalogs();
+                    setFormData(prev => ({ ...prev, countryId: newCountry.id }));
+                }}
+            />
 
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -220,7 +282,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold text-slate-800">
-                                    {editMode ? 'Editar Tarifa' : 'Nueva Tarifa China'}
+                                    {editMode ? 'Editar Tarifa' : `Nueva Tarifa ${formData.region === 'CHINA' ? 'China' : 'Otros Países'}`}
                                 </h3>
                                 <p className="text-sm text-slate-500">
                                     {editMode ? 'Actualizar información de la tarifa' : 'Registrar nueva tarifa de importación'}
@@ -241,6 +303,47 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                 <Ship size={14} /> Información General
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Región */}
+                                <div>
+                                    <label className="text-sm font-medium text-slate-700 mb-1 block">
+                                        Región <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        name="region"
+                                        value={formData.region}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
+                                    >
+                                        <option value="CHINA">China</option>
+                                        <option value="OTHER">Otros Países</option>
+                                    </select>
+                                </div>
+
+                                {/* País (solo si region es OTHER) */}
+                                {formData.region === 'OTHER' && (
+                                    <div>
+                                        <label className="text-sm font-medium text-slate-700 mb-1 block">
+                                            País <span className="text-red-500">*</span>
+                                        </label>
+                                        <Select
+                                            options={countryOptions}
+                                            value={countryOptions.find(o => o.value === formData.countryId) || null}
+                                            onChange={(opt) => handleSelectChange('countryId', opt)}
+                                            placeholder="Seleccionar país..."
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPortalTarget={document.body}
+                                            menuPosition="fixed"
+                                            noOptionsMessage={() => 'Sin resultados'}
+                                            formatOptionLabel={(opt) => opt.isAction
+                                                ? <span className="text-blue-600 font-medium flex items-center gap-1"><Plus size={14} />{opt.label}</span>
+                                                : opt.label
+                                            }
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Aliado */}
                                 <div>
                                     <label className="text-sm font-medium text-slate-700 mb-1 block">
                                         Aliado <span className="text-red-500">*</span>
@@ -257,6 +360,8 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                         noOptionsMessage={() => 'Sin resultados'}
                                     />
                                 </div>
+
+                                {/* Línea Naviera */}
                                 <div>
                                     <label className="text-sm font-medium text-slate-700 mb-1 block">
                                         Línea Naviera
@@ -277,45 +382,45 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                         }
                                     />
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-slate-700 mb-1 block">
-                                        Puerto de Salida <span className="text-red-500">*</span>
-                                    </label>
-                                    <Select
-                                        options={portOptions}
-                                        value={portOptions.find(o => o.value === formData.originPortId) || null}
-                                        onChange={(opt) => handleSelectChange('originPortId', opt)}
-                                        placeholder="Seleccionar puerto de salida..."
-                                        isClearable
-                                        styles={selectStyles}
-                                        menuPortalTarget={document.body}
-                                        menuPosition="fixed"
-                                        noOptionsMessage={() => 'Sin resultados'}
-                                        formatOptionLabel={(opt) => opt.isAction
-                                            ? <span className="text-blue-600 font-medium flex items-center gap-1"><Plus size={14} />{opt.label}</span>
-                                            : opt.label
-                                        }
-                                    />
+                            </div>
+
+                            {/* Puertos de Origen (Checkboxes) */}
+                            <div>
+                                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                                    Puertos de Origen <span className="text-red-500">*</span>
+                                </label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                    {ports.filter(p => p.isActive !== false).map(port => (
+                                        <label key={port.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-2 rounded-lg transition-colors">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.originPortIds.includes(port.id)}
+                                                onChange={() => handlePortCheckbox(port.id, 'originPortIds')}
+                                                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm text-slate-700">{port.name} ({port.code})</span>
+                                        </label>
+                                    ))}
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-slate-700 mb-1 block">
-                                        Puerto de Llegada <span className="text-red-500">*</span>
-                                    </label>
-                                    <Select
-                                        options={portOptions}
-                                        value={portOptions.find(o => o.value === formData.destinationPortId) || null}
-                                        onChange={(opt) => handleSelectChange('destinationPortId', opt)}
-                                        placeholder="Seleccionar puerto de llegada..."
-                                        isClearable
-                                        styles={selectStyles}
-                                        menuPortalTarget={document.body}
-                                        menuPosition="fixed"
-                                        noOptionsMessage={() => 'Sin resultados'}
-                                        formatOptionLabel={(opt) => opt.isAction
-                                            ? <span className="text-blue-600 font-medium flex items-center gap-1"><Plus size={14} />{opt.label}</span>
-                                            : opt.label
-                                        }
-                                    />
+                            </div>
+
+                            {/* Puertos de Destino (Checkboxes) */}
+                            <div>
+                                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                                    Puertos de Destino <span className="text-red-500">*</span>
+                                </label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                    {ports.filter(p => p.isActive !== false).map(port => (
+                                        <label key={port.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-2 rounded-lg transition-colors">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.destinationPortIds.includes(port.id)}
+                                                onChange={() => handlePortCheckbox(port.id, 'destinationPortIds')}
+                                                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm text-slate-700">{port.name} ({port.code})</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -353,11 +458,12 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                             </div>
                         </div>
 
-                        {/* Sección: Fees y Márgenes */}
-                        <div className="space-y-4">
-                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                                <DollarSign size={14} /> Fees y Márgenes de Ganancia
-                            </h4>
+                        {/* Sección: Fees y Márgenes (solo para CHINA) */}
+                        {formData.region === 'CHINA' && (
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                    <DollarSign size={14} /> Fees y Márgenes de Ganancia
+                                </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-slate-700 mb-1 block">Bank Fee (USD)</label>
@@ -405,7 +511,8 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                            </div>
+                        )}
 
                         {/* Sección: Detalles Adicionales */}
                         <div className="space-y-4">

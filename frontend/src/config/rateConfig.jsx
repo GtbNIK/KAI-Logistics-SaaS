@@ -1,12 +1,22 @@
-import { DollarSign, Ship, MapPin, Calendar, AlertCircle } from 'lucide-react';
+import { DollarSign, Ship, MapPin, Calendar, AlertCircle, Globe } from 'lucide-react';
 import { toDateString, toVenezuelanFormat } from '../utils/dateHelpers';
 
-export const rateConfig = {
-    entityName: 'tarifa',
-    entityNamePlural: 'tarifas',
-    codeColor: 'red',
+const formatPortCodes = (ports = []) => ports.map((port) => port?.code).filter(Boolean).join(', ') || '-';
+const formatPortNames = (ports = []) => ports.map((port) => port?.name).filter(Boolean).join(', ') || '-';
 
-    columns: [
+const buildRouteCell = (item) => (
+    <div>
+        <div className="text-sm text-slate-700">
+            {formatPortCodes(item.originPorts)} → {formatPortCodes(item.destinationPorts)}
+        </div>
+        <div className="text-xs text-slate-500">
+            {formatPortNames(item.originPorts)} → {formatPortNames(item.destinationPorts)}
+        </div>
+    </div>
+);
+
+const buildColumns = (region = 'CHINA') => {
+    const columns = [
         {
             header: 'Aliado',
             accessor: 'ally',
@@ -20,16 +30,7 @@ export const rateConfig = {
         {
             header: 'Ruta',
             accessor: 'route',
-            render: (item) => (
-                <div>
-                    <div className="text-sm text-slate-700">
-                        {item.originPort?.code} → {item.destinationPort?.code}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                        {item.originPort?.name} - {item.destinationPort?.name}
-                    </div>
-                </div>
-            )
+            render: buildRouteCell
         },
         {
             header: 'Venta 20HC',
@@ -77,7 +78,7 @@ export const rateConfig = {
                     const s = toDateString(dateStr);
                     return s ? toVenezuelanFormat(s) : '-';
                 };
-                
+
                 return (
                     <div className="flex items-center gap-1">
                         <Calendar size={14} className="text-slate-400" />
@@ -120,7 +121,35 @@ export const rateConfig = {
                 )
             )
         }
-    ],
+    ];
+
+    if (region === 'OTHER') {
+        columns.splice(2, 0, {
+            header: 'País',
+            accessor: 'country',
+            render: (item) => (
+                <div className="text-sm text-slate-700 flex items-center gap-2">
+                    <Globe size={14} className="text-slate-400" />
+                    <span>
+                        {item.country?.name || '-'}
+                        {item.country?.code ? (
+                            <span className="text-xs text-slate-400 ml-1">({item.country.code})</span>
+                        ) : null}
+                    </span>
+                </div>
+            )
+        });
+    }
+
+    return columns;
+};
+
+export const rateConfig = {
+    entityName: 'tarifa',
+    entityNamePlural: 'tarifas',
+    codeColor: 'red',
+    columns: buildColumns('CHINA'),
+    getColumns: buildColumns,
 
     formSections: [
         {

@@ -1,4 +1,4 @@
-import { X, DollarSign, Ship, MapPin, Calendar, FileText, Anchor, Clock, AlertCircle } from 'lucide-react';
+import { X, DollarSign, Ship, MapPin, Calendar, Anchor, Clock, AlertCircle, Globe } from 'lucide-react';
 
 const RateDetailModal = ({ isOpen, onClose, rate }) => {
     if (!isOpen || !rate) return null;
@@ -9,7 +9,30 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
         return date.toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' });
     };
 
+    const formatPortCodes = (ports = []) => ports.map((port) => port?.code).filter(Boolean).join(', ') || '—';
+    const formatPortNames = (ports = []) => ports.map((port) => port?.name).filter(Boolean).join(', ') || '—';
+    const renderPortBadges = (ports = [], color = 'blue') => (
+        ports.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+                {ports.map((port) => (
+                    <span
+                        key={port.id}
+                        className={`px-2 py-1 text-xs font-medium rounded-full border bg-${color}-50 text-${color}-700 border-${color}-100`}
+                    >
+                        {port.code} · {port.name}
+                    </span>
+                ))}
+            </div>
+        ) : (
+            <p className="text-sm text-slate-500">No se han registrado puertos</p>
+        )
+    );
+
     const isExpired = rate.validUntil && new Date(rate.validUntil) < new Date();
+    const originSummary = formatPortCodes(rate.originPorts);
+    const destinationSummary = formatPortCodes(rate.destinationPorts);
+    const mainRoute = `${originSummary} → ${destinationSummary}`;
+    const showFees = rate.region === 'CHINA';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
@@ -23,7 +46,7 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-slate-800">
-                                {rate.originPort?.code} → {rate.destinationPort?.code}
+                                {mainRoute}
                             </h3>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className={`px-2.5 py-0.5 text-xs font-medium rounded-md border ${
@@ -74,6 +97,18 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                                     {rate.region === 'CHINA' ? 'China' : 'Otros Países'}
                                 </p>
                             </div>
+                            {rate.region === 'OTHER' && (
+                                <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
+                                    <Globe className="text-slate-400 mt-0.5" size={18} />
+                                    <div>
+                                        <p className="text-xs text-slate-400 mb-1">País</p>
+                                        <p className="font-medium text-slate-800">{rate.country?.name || '—'}</p>
+                                        {rate.country?.code && (
+                                            <p className="text-xs text-slate-500 mt-0.5">Código: {rate.country.code}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
                                 <Clock className="text-slate-400 mt-0.5" size={18} />
                                 <div>
@@ -91,15 +126,17 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                                <p className="text-xs text-blue-500 mb-1">Puerto de Salida</p>
-                                <p className="font-medium text-slate-800">{rate.originPort?.name}</p>
-                                <p className="text-xs text-slate-500 mt-0.5">{rate.originPort?.code}</p>
+                                <p className="text-xs text-blue-500 mb-2">Puertos de Salida</p>
+                                {renderPortBadges(rate.originPorts, 'blue')}
                             </div>
                             <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                                <p className="text-xs text-emerald-500 mb-1">Puerto de Llegada</p>
-                                <p className="font-medium text-slate-800">{rate.destinationPort?.name}</p>
-                                <p className="text-xs text-slate-500 mt-0.5">{rate.destinationPort?.code}</p>
+                                <p className="text-xs text-emerald-500 mb-2">Puertos de Llegada</p>
+                                {renderPortBadges(rate.destinationPorts, 'emerald')}
                             </div>
+                        </div>
+                        <div className="text-sm text-slate-500">
+                            <span className="font-semibold text-slate-700">Resumen: </span>
+                            {formatPortNames(rate.originPorts)} → {formatPortNames(rate.destinationPorts)}
                         </div>
                     </div>
 
@@ -123,25 +160,27 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                     </div>
 
                     {/* Sección: Fees y Márgenes */}
-                    <div className="space-y-3">
-                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <DollarSign size={14} /> Fees y Márgenes
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="p-4 bg-slate-50 rounded-xl">
-                                <p className="text-xs text-slate-400 mb-1">Bank Fee</p>
-                                <p className="text-lg font-bold text-slate-800">${rate.bankFee?.toFixed(2)}</p>
-                            </div>
-                            <div className="p-4 bg-slate-50 rounded-xl">
-                                <p className="text-xs text-slate-400 mb-1">Profit Yaho</p>
-                                <p className="text-lg font-bold text-slate-800">${rate.profitYaho?.toFixed(2)}</p>
-                            </div>
-                            <div className="p-4 bg-slate-50 rounded-xl">
-                                <p className="text-xs text-slate-400 mb-1">Profit IS</p>
-                                <p className="text-lg font-bold text-slate-800">${rate.profitIS?.toFixed(2)}</p>
+                    {showFees && (
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                <DollarSign size={14} /> Fees y Márgenes
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                    <p className="text-xs text-slate-400 mb-1">Bank Fee</p>
+                                    <p className="text-lg font-bold text-slate-800">${(rate.bankFee ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                    <p className="text-xs text-slate-400 mb-1">Profit Yaho</p>
+                                    <p className="text-lg font-bold text-slate-800">${(rate.profitYaho ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl">
+                                    <p className="text-xs text-slate-400 mb-1">Profit IS</p>
+                                    <p className="text-lg font-bold text-slate-800">${(rate.profitIS ?? 0).toFixed(2)}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Sección: Validez */}
                     <div className="space-y-3">

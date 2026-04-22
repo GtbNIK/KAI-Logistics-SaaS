@@ -190,10 +190,15 @@ model Port {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
 
+model Country {
+  id    String @id @default(uuid())
+  name  String @unique
+  code  String? // Código ISO opcional (ej: "US", "MX")
+  
   // Relations
-  ratesAsOrigin      Rate[] @relation("RateOriginPort")
-  ratesAsDestination Rate[] @relation("RateDestinationPort")
+  rates Rate[]
 }
 
 model ShippingLine {
@@ -269,20 +274,22 @@ model Rate {
   allyId    String
   ally      Ally       @relation(fields: [allyId], references: [id])
   
-  // Puertos (FK a tabla Port)
-  originPortId      String
-  originPort        Port     @relation("RateOriginPort", fields: [originPortId], references: [id])
-  destinationPortId String
-  destinationPort   Port     @relation("RateDestinationPort", fields: [destinationPortId], references: [id])
+  // País (solo para region='OTHER')
+  countryId String?
+  country   Country? @relation(fields: [countryId], references: [id])
+  
+  // Múltiples puertos (arrays de IDs, sin FK directo)
+  originPortIds      String[]
+  destinationPortIds String[]
   
   // Precios contenedores - COSTO (lo que pagamos al aliado)
   cost20ft  Decimal  @db.Decimal(10, 2)
   cost40ft  Decimal  @db.Decimal(10, 2)
   
-  // Fees y Profits
-  bankFee     Decimal  @db.Decimal(10, 2)
-  profitYaho  Decimal  @db.Decimal(10, 2)
-  profitIS    Decimal  @db.Decimal(10, 2)
+  // Fees y Profits (solo para CHINA, opcionales)
+  bankFee     Decimal?  @db.Decimal(10, 2)
+  profitYaho  Decimal?  @db.Decimal(10, 2)
+  profitIS    Decimal?  @db.Decimal(10, 2)
   
   // Precios de VENTA (calculados y guardados)
   sale20HC  Decimal  @db.Decimal(10, 2)
@@ -309,7 +316,9 @@ model Rate {
   // Índices para optimizar búsquedas
   @@index([region, deletedAt])
   @@index([allyId])
-  @@index([originPortId, destinationPortId])
+  @@index([countryId])
+  @@index([originPortIds])
+  @@index([destinationPortIds])
   @@index([isActive])
   @@index([validUntil])
 }
