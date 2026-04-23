@@ -184,59 +184,59 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
             doc.setFont('helvetica', 'bold');
             doc.text(`TARIFAS ${regionLabel.toUpperCase()}`, pageW / 2, 25, { align: 'center' });
 
-            // Fecha (se elimina texto de región)
+            // Fecha  (se elimina texto de región)
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(60, 60, 60);
             //doc.text(`Región: ${region === 'CHINA' ? 'China' : 'Otros Países'}`, 15, 38);
-            doc.text(`Fecha: ${new Date().toLocaleDateString('es-VE')}`, pageW - 15, 38, { align: 'right' });
+            doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-VE')}`, pageW - 15, 38, { align: 'right' });
 
             // Tabla (dinámica según región)
             const tableConfig = (() => {
                 if (region === 'CHINA') {
                     return {
-                        head: [['POL', 'POD', '20HC', '40HC', 'Carrier', 'Días Libres', 'Validez']],
+                        head: [['Carrier', 'POL', 'POD', '20HC', '40HC', 'Días Libres', 'Validez']],
                         body: rates.map((rate) => [
+                            rate.shippingLine?.code || '-',
                             formatPortList(rate.originPorts, portLookup, { fallback: '-', separator: ' / ' }),
                             formatPortList(rate.destinationPorts, portLookup, { fallback: '-', separator: ' / ' }),
                             `$${(rate.sale20HC ?? 0).toFixed(2)}`,
                             `$${(rate.sale40HC ?? 0).toFixed(2)}`,
-                            rate.shippingLine?.code || '-',
                             `${rate.freeDays} días`,
                             (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
                         ]),
                         columnStyles: {
-                            0: { cellWidth: 35, halign: 'center' },
-                            1: { cellWidth: 35, halign: 'center' },
-                            2: { cellWidth: 25, halign: 'right' },
-                            3: { cellWidth: 25, halign: 'right' },
-                            4: { cellWidth: 35 },
-                            5: { cellWidth: 25, halign: 'center' },
-                            6: { cellWidth: 28, halign: 'center' }
+                            0: { cellWidth: 45, halign: 'center' },
+                            1: { cellWidth: 45, halign: 'center' },
+                            2: { cellWidth: 45, halign: 'center' },
+                            3: { cellWidth: 35, halign: 'center' },
+                            4: { cellWidth: 35, halign: 'center' },
+                            5: { cellWidth: 35, halign: 'center' },
+                            6: { cellWidth: 38, halign: 'center' }
                         },
-                        totalWidth: 35 + 35 + 25 + 25 + 35 + 25 + 28
+                        totalWidth: 45 + 45 + 45 + 35 + 35 + 35 + 38
                     };
                 }
 
                 return {
-                    head: [['País', 'Puertos Origen', 'Puertos Destino', 'Carrier', 'Días Libres', 'Validez']],
+                    head: [['Carrier', 'País', 'Puertos Origen', 'Puertos Destino', 'Días Libres', 'Validez']],
                     body: rates.map((rate) => [
+                        rate.shippingLine?.code || '-',
                         rate.country?.name || '-',
                         formatPortList(rate.originPorts, portLookup, { fallback: '-', separator: ' / ' }),
                         formatPortList(rate.destinationPorts, portLookup, { fallback: '-', separator: ' / ' }),
-                        rate.shippingLine?.code || '-',
                         `${rate.freeDays} días`,
                         (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
                     ]),
                     columnStyles: {
-                        0: { cellWidth: 30 },
-                        1: { cellWidth: 45 },
-                        2: { cellWidth: 45 },
-                        3: { cellWidth: 30 },
-                        4: { cellWidth: 25, halign: 'center' },
-                        5: { cellWidth: 30, halign: 'center' }
+                        0: { cellWidth: 40, halign: 'center' },
+                        1: { cellWidth: 40 },
+                        2: { cellWidth: 55 },
+                        3: { cellWidth: 55 },
+                        4: { cellWidth: 35, halign: 'center' },
+                        5: { cellWidth: 40, halign: 'center' }
                     },
-                    totalWidth: 30 + 45 + 45 + 30 + 25 + 30
+                    totalWidth: 40 + 40 + 55 + 55 + 35 + 40
                 };
             })();
 
