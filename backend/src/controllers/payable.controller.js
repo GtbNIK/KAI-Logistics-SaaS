@@ -152,6 +152,92 @@ export const createPayable = async (req, res) => {
 };
 
 /**
+ * @route   PUT /api/payables/:id
+ * @desc    Actualizar información general de una cuenta por pagar
+ */
+export const updatePayable = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.payable.findUnique({ where: { id } });
+
+        if (!existing) {
+            return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
+        }
+
+        const {
+            allyId,
+            svcProviderId,
+            description,
+            amount,
+            dueDate,
+            relatedOperationId,
+            invoiceNr
+        } = req.body;
+
+        const nextAllyId = allyId !== undefined ? allyId : existing.allyId;
+        const nextProviderId = svcProviderId !== undefined ? svcProviderId : existing.svcProviderId;
+
+        if (!nextAllyId && !nextProviderId) {
+            return res.status(400).json({ message: 'Debe seleccionar un aliado o un proveedor de servicios' });
+        }
+        if (nextAllyId && nextProviderId) {
+            return res.status(400).json({ message: 'Solo puede seleccionar un aliado o un proveedor, no ambos' });
+        }
+
+        const newDescription = description !== undefined ? description.trim() : existing.description;
+        if (!newDescription) {
+            return res.status(400).json({ message: 'La descripción es requerida' });
+        }
+
+        const parsedAmount = amount !== undefined ? Number(amount) : Number(existing.amount);
+        if (!parsedAmount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+            return res.status(400).json({ message: 'El monto debe ser mayor a 0' });
+        }
+
+        const paidAmount = Number(existing.paidAmount);
+        if (parsedAmount < paidAmount) {
+            return res.status(400).json({ message: 'El monto total no puede ser menor al monto ya pagado' });
+        }
+
+        const newBalance = parsedAmount - paidAmount;
+        let newStatus = 'PENDING';
+        if (newBalance <= 0) {
+            newStatus = 'PAID';
+        } else if (paidAmount > 0) {
+            newStatus = 'PARTIALLY_PAID';
+        }
+
+        const updated = await prisma.payable.update({
+            where: { id },
+            data: {
+                allyId: nextAllyId || null,
+                svcProviderId: nextProviderId || null,
+                description: newDescription,
+                amount: parsedAmount,
+                balance: newBalance,
+                status: newStatus,
+                dueDate: dueDate === undefined ? existing.dueDate : (dueDate ? new Date(dueDate) : null),
+                relatedOperationId: relatedOperationId !== undefined ? relatedOperationId : existing.relatedOperationId,
+                invoiceNr: invoiceNr !== undefined ? (invoiceNr?.toString().trim() || null) : existing.invoiceNr
+            },
+            include: {
+                ally: { select: { id: true, name: true } },
+                svcProvider: { select: { id: true, name: true } },
+                payments: { orderBy: { date: 'desc' } }
+            }
+        });
+
+        res.json({
+            message: 'Cuenta por pagar actualizada correctamente',
+            data: updated
+        });
+    } catch (error) {
+        console.error('Error in updatePayable:', error);
+        res.status(500).json({ message: 'Error al actualizar cuenta por pagar' });
+    }
+};
+
+/**
  * @route   POST /api/payables/:id/payments
  * @desc    Registrar un abono/pago a una cuenta por pagar
  */

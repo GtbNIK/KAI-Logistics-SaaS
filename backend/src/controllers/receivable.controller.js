@@ -48,6 +48,76 @@ export const createReceivable = async (req, res) => {
 };
 
 /**
+ * @route   PUT /api/receivables/:id
+ * @desc    Actualizar información general de una cuenta por cobrar
+ */
+export const updateReceivable = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.receivable.findUnique({ where: { id } });
+
+        if (!existing) {
+            return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
+        }
+
+        const { clientId, totalAmount, manualNotes } = req.body;
+
+        const nextClientId = clientId || existing.clientId;
+        if (!nextClientId) {
+            return res.status(400).json({ message: 'El cliente es requerido' });
+        }
+
+        const parsedAmount = totalAmount !== undefined ? Number(totalAmount) : Number(existing.totalAmount);
+        if (!parsedAmount || Number.isNaN(parsedAmount) || parsedAmount < 0) {
+            return res.status(400).json({ message: 'El monto total debe ser mayor a 0' });
+        }
+
+        const paidAmount = Number(existing.paidAmount);
+        if (parsedAmount < paidAmount) {
+            return res.status(400).json({ message: 'El monto total no puede ser menor al monto ya pagado' });
+        }
+
+        const newBalance = parsedAmount - paidAmount;
+        let newStatus = 'PENDING';
+        if (newBalance <= 0) {
+            newStatus = 'PAID';
+        } else if (paidAmount > 0) {
+            newStatus = 'PARTIALLY_PAID';
+        }
+
+        const updated = await prisma.receivable.update({
+            where: { id },
+            data: {
+                clientId: nextClientId,
+                totalAmount: parsedAmount,
+                balance: newBalance,
+                status: newStatus,
+                manualNotes: manualNotes !== undefined ? (manualNotes || null) : existing.manualNotes
+            },
+            include: {
+                client: { select: { name: true, rifOrId: true } },
+                paymentNotice: {
+                    select: {
+                        number: true,
+                        issueDate: true,
+                        client: { select: { name: true, rifOrId: true } }
+                    }
+                },
+                payments: { orderBy: { date: 'desc' } }
+            }
+        });
+
+        res.json({
+            message: 'Cuenta por cobrar actualizada correctamente',
+            data: updated
+        });
+    } catch (error) {
+        console.error('Error in updateReceivable:', error);
+        res.status(500).json({ message: 'Error al actualizar cuenta por cobrar' });
+    }
+};
+
+/**
  * @route   DELETE /api/receivables/:id
  * @desc    Eliminar cuenta por cobrar junto a sus pagos y recibos asociados
  */

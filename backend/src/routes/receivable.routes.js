@@ -5,7 +5,8 @@ import {
     getReceivableById,
     registerPayment,
     deleteReceivablePayment,
-    deleteReceivable
+    deleteReceivable,
+    updateReceivable
 } from '../controllers/receivable.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 
@@ -33,6 +34,13 @@ router.get('/', authorize('ADMIN'), getReceivables);
  * @access  Private
  */
 router.get('/:id', authorize('ADMIN'), getReceivableById);
+
+/**
+ * @route   PUT /api/receivables/:id
+ * @desc    Actualizar una cuenta por cobrar
+ * @access  Private (ADMIN)
+ */
+router.put('/:id', authorize('ADMIN'), updateReceivable);
 
 /**
  * @route   POST /api/receivables/:id/payments

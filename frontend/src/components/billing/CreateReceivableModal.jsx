@@ -7,7 +7,7 @@ import { useToast } from '../../context/ToastContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const CreateReceivableModal = ({ isOpen, onClose, onSuccess }) => {
+const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
     const [clients, setClients] = useState([]);
     const [clientId, setClientId] = useState('');
     const [clientInputValue, setClientInputValue] = useState('');
@@ -15,6 +15,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess }) => {
     const [manualNotes, setManualNotes] = useState('');
     const [saving, setSaving] = useState(false);
     const { showSuccess, showError } = useToast();
+    const isEdit = Boolean(receivable);
 
     const clientOptions = useMemo(() => {
         return (clients || []).map(c => ({ value: c.id, label: `${c.name} — ${c.rifOrId}` }));
@@ -31,12 +32,22 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess }) => {
         axios.get(`${API_URL}/clients?all=true`, { withCredentials: true })
             .then(res => setClients(res.data.data || []))
             .catch(() => {});
-
-        setClientId('');
-        setClientInputValue('');
-        setTotalAmount('');
-        setManualNotes('');
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (receivable) {
+            setClientId(receivable.clientId || receivable.client?.id || '');
+            setClientInputValue('');
+            setTotalAmount(receivable.totalAmount ? Number(receivable.totalAmount).toString() : '');
+            setManualNotes(receivable.manualNotes || '');
+        } else {
+            setClientId('');
+            setClientInputValue('');
+            setTotalAmount('');
+            setManualNotes('');
+        }
+    }, [isOpen, receivable]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -45,17 +56,24 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess }) => {
 
         setSaving(true);
         try {
-            await axios.post(`${API_URL}/receivables`, {
+            const payload = {
                 clientId,
                 totalAmount: parseFloat(totalAmount),
                 manualNotes: manualNotes || undefined,
-            }, { withCredentials: true });
+            };
 
-            showSuccess('Creada', 'Cuenta por cobrar creada correctamente');
+            if (isEdit) {
+                await axios.put(`${API_URL}/receivables/${receivable.id}`, payload, { withCredentials: true });
+                showSuccess('Actualizada', 'La cuenta por cobrar se actualizó correctamente');
+            } else {
+                await axios.post(`${API_URL}/receivables`, payload, { withCredentials: true });
+                showSuccess('Creada', 'Cuenta por cobrar creada correctamente');
+            }
+
             onSuccess?.();
             onClose?.();
         } catch (error) {
-            showError('Error', error.response?.data?.message || 'No se pudo crear la cuenta por cobrar');
+            showError('Error', error.response?.data?.message || 'No se pudo guardar la cuenta por cobrar');
         } finally {
             setSaving(false);
         }
@@ -72,8 +90,8 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess }) => {
                             <TrendingUp className="text-secondary" size={20} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-800">Nueva Cuenta por Cobrar</h3>
-                            <p className="text-xs text-slate-500">Creación manual</p>
+                            <h3 className="font-bold text-slate-800">{isEdit ? 'Editar Cuenta por Cobrar' : 'Nueva Cuenta por Cobrar'}</h3>
+                            <p className="text-xs text-slate-500">{isEdit ? 'Actualiza la información general' : 'Creación manual'}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
@@ -136,7 +154,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess }) => {
                                 ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 : <Plus size={16} />
                             }
-                            Crear
+                            {isEdit ? 'Guardar cambios' : 'Crear'}
                         </button>
                     </div>
                 </form>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TrendingUp, Plus, Trash2 } from 'lucide-react';
+import { TrendingUp, Plus, Trash2, Edit } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -83,6 +83,7 @@ const Receivables = () => {
     const [creatingReceivable, setCreatingReceivable] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [toDelete, setToDelete] = useState(null);
+    const [editingReceivable, setEditingReceivable] = useState(null);
     const { user } = useAuth();
     const { showSuccess, showError } = useToast();
     const {
@@ -187,15 +188,24 @@ const Receivables = () => {
                     </div>
                 }
                 onView={(item) => setViewingReceivable(item)}
-                extraActions={(item) => item.status !== 'PAID' && (
+                extraActions={(item) => (
                     <div className="flex items-center gap-2">
                         <button
-                            className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="Registrar pago"
-                            onClick={(e) => { e.stopPropagation(); handleRegisterPayment(item); }}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar cuenta"
+                            onClick={(e) => { e.stopPropagation(); setEditingReceivable(item); }}
                         >
-                            <Plus size={18} />
+                            <Edit size={18} />
                         </button>
+                        {item.status !== 'PAID' && (
+                            <button
+                                className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Registrar pago"
+                                onClick={(e) => { e.stopPropagation(); handleRegisterPayment(item); }}
+                            >
+                                <Plus size={18} />
+                            </button>
+                        )}
                         <button
                             className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Eliminar cuenta"
@@ -228,6 +238,15 @@ const Receivables = () => {
                     isOpen={creatingReceivable}
                     onClose={() => setCreatingReceivable(false)}
                     onSuccess={refresh}
+                />
+            )}
+
+            {editingReceivable && (
+                <CreateReceivableModal
+                    isOpen={!!editingReceivable}
+                    onClose={() => setEditingReceivable(null)}
+                    onSuccess={() => { refresh(); setEditingReceivable(null); }}
+                    receivable={editingReceivable}
                 />
             )}
 
