@@ -255,11 +255,13 @@ export const deletePayable = async (req, res) => {
         if (!payable) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
         }
-        if (payable.payments.length > 0) {
-            return res.status(400).json({ message: 'No se puede eliminar una cuenta que tiene pagos registrados' });
-        }
-
-        await prisma.payable.delete({ where: { id } });
+        // Eliminar pagos asociados y luego la cuenta (cascade manual)
+        await prisma.$transaction(async (tx) => {
+            if (payable.payments.length > 0) {
+                await tx.payableTransaction.deleteMany({ where: { payableId: id } });
+            }
+            await tx.payable.delete({ where: { id } });
+        });
         res.json({
             message: 'Cuenta por pagar eliminada',
             data: { id: payable.id, invoiceNr: payable.invoiceNr }

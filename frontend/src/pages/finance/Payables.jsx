@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TrendingDown, Plus } from 'lucide-react';
+import { TrendingDown, Plus, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
+import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
+import payableService from '../../services/payable.service';
 import { payableConfig } from '../../config/payableConfig';
 import PayableDetailModal from '../../components/finance/PayableDetailModal';
 import PayableFormModal from '../../components/finance/PayableFormModal';
@@ -84,7 +86,10 @@ const Payables = () => {
     const [viewingPayable, setViewingPayable] = useState(null);
     const [registeringPayment, setRegisteringPayment] = useState(null);
     const [creatingPayable, setCreatingPayable] = useState(false);
+    const [toDelete, setToDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
     const { user } = useAuth();
+    const { showSuccess, showError } = useToast();
     const {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter,
@@ -187,14 +192,25 @@ const Payables = () => {
                     </div>
                 }
                 onView={(item) => setViewingPayable(item)}
-                extraActions={(item) => item.status !== 'PAID' && (
-                    <button
-                        className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Registrar pago"
-                        onClick={(e) => { e.stopPropagation(); handleRegisterPayment(item); }}
-                    >
-                        <Plus size={18} />
-                    </button>
+                extraActions={(item) => (
+                    <div className="flex items-center gap-2">
+                        {item.status !== 'PAID' && (
+                            <button
+                                className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Registrar pago"
+                                onClick={(e) => { e.stopPropagation(); handleRegisterPayment(item); }}
+                            >
+                                <Plus size={18} />
+                            </button>
+                        )}
+                        <button
+                            className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar cuenta"
+                            onClick={(e) => { e.stopPropagation(); setToDelete(item); }}
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
                 )}
             />
 
@@ -221,6 +237,29 @@ const Payables = () => {
                     onSuccess={refresh}
                 />
             )}
+
+            <ConfirmDeleteModal
+                isOpen={!!toDelete}
+                onClose={() => setToDelete(null)}
+                onConfirm={async () => {
+                    if (!toDelete) return;
+                    setDeleting(true);
+                    try {
+                        await payableService.deletePayable(toDelete.id);
+                        setToDelete(null);
+                        refresh();
+                        showSuccess('Cuenta eliminada', 'La cuenta por pagar y sus abonos fueron eliminados correctamente');
+                    } catch (error) {
+                        showError('Error', error.response?.data?.message || 'No se pudo eliminar la cuenta por pagar');
+                    } finally {
+                        setDeleting(false);
+                    }
+                }}
+                loading={deleting}
+                title="Eliminar cuenta por pagar"
+                message="Se eliminarán todos los abonos asociados. Esta acción no se puede deshacer."
+                itemName={toDelete ? `CXP-${String(toDelete.number || 0).padStart(5, '0')}` : ''}
+            />
         </div>
     );
 };

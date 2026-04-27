@@ -1,9 +1,10 @@
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 
 const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, title, message, itemName, loading = false }) => {
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={onClose}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                 
@@ -71,7 +72,8 @@ const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, title, message, itemNa
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
