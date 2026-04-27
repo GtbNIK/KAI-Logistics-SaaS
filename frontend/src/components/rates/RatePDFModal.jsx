@@ -191,6 +191,14 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
             //doc.text(`Región: ${region === 'CHINA' ? 'China' : 'Otros Países'}`, 15, 38);
             doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-VE')}`, pageW - 15, 38, { align: 'right' });
 
+            const formatPriceCell = (value) => {
+                const amount = Number(value);
+                if (Number.isFinite(amount) && amount > 0) {
+                    return `$${amount.toFixed(2)}`;
+                }
+                return '-';
+            };
+
             // Tabla (dinámica según región)
             const tableConfig = (() => {
                 if (region === 'CHINA') {
@@ -200,8 +208,8 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                             rate.shippingLine?.code || '-',
                             formatPortList(rate.originPorts, portLookup, { fallback: '-', separator: ' / ' }),
                             formatPortList(rate.destinationPorts, portLookup, { fallback: '-', separator: ' / ' }),
-                            `$${(rate.sale20HC ?? 0).toFixed(2)}`,
-                            `$${(rate.sale40HC ?? 0).toFixed(2)}`,
+                            formatPriceCell(rate.sale20HC),
+                            formatPriceCell(rate.sale40HC),
                             `${rate.freeDays} días`,
                             (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
                         ]),
@@ -219,24 +227,28 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 }
 
                 return {
-                    head: [['Carrier', 'País', 'Puertos Origen', 'Puertos Destino', 'Días Libres', 'Validez']],
+                    head: [['Carrier', 'País', 'Puertos Origen', 'Puertos Destino', '20HC', '40HC', 'Días Libres', 'Validez']],
                     body: rates.map((rate) => [
                         rate.shippingLine?.code || '-',
                         rate.country?.name || '-',
                         formatPortList(rate.originPorts, portLookup, { fallback: '-', separator: ' / ' }),
                         formatPortList(rate.destinationPorts, portLookup, { fallback: '-', separator: ' / ' }),
+                        formatPriceCell(rate.sale20HC),
+                        formatPriceCell(rate.sale40HC),
                         `${rate.freeDays} días`,
                         (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
                     ]),
                     columnStyles: {
-                        0: { cellWidth: 40, halign: 'center' },
-                        1: { cellWidth: 40 },
-                        2: { cellWidth: 55 },
-                        3: { cellWidth: 55 },
-                        4: { cellWidth: 35, halign: 'center' },
-                        5: { cellWidth: 40, halign: 'center' }
+                        0: { cellWidth: 45, halign: 'center' },
+                        1: { cellWidth: 45 },
+                        2: { cellWidth: 45 },
+                        3: { cellWidth: 35 },
+                        4: { cellWidth: 25, halign: 'center' },
+                        5: { cellWidth: 25, halign: 'center' },
+                        6: { cellWidth: 25, halign: 'center' },
+                        7: { cellWidth: 30, halign: 'center' }
                     },
-                    totalWidth: 40 + 40 + 55 + 55 + 35 + 40
+                    totalWidth: 45 + 45 + 45 + 35 + 25 + 25 + 25 + 30
                 };
             })();
 
