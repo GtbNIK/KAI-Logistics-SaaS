@@ -1,6 +1,10 @@
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TrendingDown, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus } from 'lucide-react';
+import { TrendingDown, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Trash2 } from 'lucide-react';
 import { toVenezuelanFormat } from '../../utils/dateHelpers';
+import payableService from '../../services/payable.service';
+import { useToast } from '../../context/ToastContext';
+import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 
 const paymentMethods = [
     { value: 'TRANSFER', label: 'Transferencia Bancaria' },
@@ -12,12 +16,38 @@ const paymentMethods = [
     { value: 'OTHER', label: 'Otro' },
 ];
 
-const PayableDetailModal = ({ payable, onClose, onRegisterPayment }) => {
-    if (!payable) return null;
-    const p = payable;
+const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDeleted }) => {
+    const [data, setData] = useState(payable);
+    const [paymentToDelete, setPaymentToDelete] = useState(null);
+    const [deletingPayment, setDeletingPayment] = useState(false);
+    const { showSuccess, showError } = useToast();
+
+    useEffect(() => {
+        setData(payable);
+    }, [payable]);
+
+    if (!data) return null;
+    const p = data;
     const pendingBalance = parseFloat(p.amount) - parseFloat(p.paidAmount || 0);
     const beneficiary = p.ally?.name || p.svcProvider?.name || 'N/A';
     const beneficiaryType = p.ally ? 'Aliado' : p.svcProvider ? 'Servicio' : '';
+
+    const handleDeletePayment = async () => {
+        if (!paymentToDelete) return;
+        setDeletingPayment(true);
+        try {
+            const response = await payableService.deletePayment(p.id, paymentToDelete.id);
+            const updated = response.data?.data || response.data;
+            setData(updated);
+            onPaymentDeleted?.();
+            showSuccess('Pago eliminado', 'El abono fue eliminado correctamente');
+            setPaymentToDelete(null);
+        } catch (error) {
+            showError('Error', error.response?.data?.message || 'No se pudo eliminar el pago');
+        } finally {
+            setDeletingPayment(false);
+        }
+    };
 
     return createPortal(
         <div
@@ -55,15 +85,21 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment }) => {
                         <p className="text-sm text-slate-700 whitespace-pre-wrap">{p.description}</p>
                     </div>
 
-                    {/* Fecha límite */}
-                    {p.dueDate && (
-                        <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 flex items-center gap-2">
-                            <Clock size={14} className="text-orange-500 shrink-0" />
-                            <span className="text-sm text-orange-700">
-                                Vence: {toVenezuelanFormat(p.dueDate)}
+                    {/* Factura y fecha límite */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                            <p className="text-xs font-semibold text-slate-500 mb-1">Nro. Factura</p>
+                            <p className="text-sm text-slate-700 font-medium">
+                                {p.invoiceNr?.trim() ? p.invoiceNr : '(Sin numero de factura)'}
+                            </p>
+                        </div>
+                        <div className={`rounded-xl p-3 flex items-center gap-2 border ${p.dueDate ? 'bg-orange-50 border-orange-100' : 'bg-slate-50 border-slate-100'}`}>
+                            <Clock size={14} className={p.dueDate ? 'text-orange-500' : 'text-slate-400'} />
+                            <span className={`text-sm ${p.dueDate ? 'text-orange-700' : 'text-slate-500'}`}>
+                                {p.dueDate ? `Vence: ${toVenezuelanFormat(p.dueDate)}` : 'Sin fecha de vencimiento'}
                             </span>
                         </div>
-                    )}
+                    </div>
 
                     {/* Cards de montos */}
                     <div className="grid grid-cols-3 gap-3">
@@ -118,6 +154,7 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment }) => {
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Referencia</th>
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Notas</th>
                                             <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500">Monto</th>
+                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -136,6 +173,15 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment }) => {
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">
                                                     +${parseFloat(pay.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <button
+                                                        onClick={() => setPaymentToDelete(pay)}
+                                                        className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Eliminar abono"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -145,6 +191,15 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment }) => {
                     </div>
                 </div>
             </div>
+            <ConfirmDeleteModal
+                isOpen={!!paymentToDelete}
+                onClose={() => setPaymentToDelete(null)}
+                onConfirm={handleDeletePayment}
+                loading={deletingPayment}
+                title="Eliminar abono"
+                message="¿Seguro que deseas eliminar este pago? Se actualizarán los montos de la cuenta."
+                itemName={paymentToDelete ? `Pago de $${parseFloat(paymentToDelete.amount).toFixed(2)} registrado el ${toVenezuelanFormat(paymentToDelete.date || paymentToDelete.createdAt)}` : ''}
+            />
         </div>,
         document.body
     );

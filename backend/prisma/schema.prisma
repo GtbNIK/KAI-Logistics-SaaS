@@ -579,6 +579,7 @@ model Receivable {
 model Payable {
   id              String        @id @default(uuid())
   number          Int           @unique @default(autoincrement())
+  invoiceNr       String?
   
   allyId          String?
   ally            Ally?         @relation(fields: [allyId], references: [id])

@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TrendingUp, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Printer } from 'lucide-react';
+import { TrendingUp, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Printer, Trash2 } from 'lucide-react';
 import { toVenezuelanFormat } from '../../utils/dateHelpers';
 import PaymentReceiptPDFModal from './PaymentReceiptPDFModal';
+import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
+import receivableService from '../../services/receivable.service';
+import { useToast } from '../../context/ToastContext';
 
 const paymentMethods = [
     { value: 'TRANSFER', label: 'Transferencia Bancaria' },
@@ -14,12 +17,38 @@ const paymentMethods = [
     { value: 'OTHER',    label: 'Otro' },
 ];
 
-const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
+const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPaymentDeleted }) => {
+    const [data, setData] = useState(receivable);
     const [receiptPayment, setReceiptPayment] = useState(null);
-    if (!receivable) return null;
-    const r = receivable;
+    const [paymentToDelete, setPaymentToDelete] = useState(null);
+    const [deletingPayment, setDeletingPayment] = useState(false);
+    const { showSuccess, showError } = useToast();
+
+    useEffect(() => {
+        setData(receivable);
+    }, [receivable]);
+
+    if (!data) return null;
+    const r = data;
     const pendingBalance = parseFloat(r.totalAmount) - parseFloat(r.paidAmount || 0);
     const client = r.paymentNotice?.client || r.client;
+
+    const handleDeletePayment = async () => {
+        if (!paymentToDelete) return;
+        setDeletingPayment(true);
+        try {
+            const response = await receivableService.deletePayment(r.id, paymentToDelete.id);
+            const updated = response.data?.data || response.data;
+            setData(updated);
+            onPaymentDeleted?.();
+            showSuccess('Pago eliminado', 'El abono fue eliminado correctamente');
+            setPaymentToDelete(null);
+        } catch (error) {
+            showError('Error', error.response?.data?.message || 'No se pudo eliminar el pago');
+        } finally {
+            setDeletingPayment(false);
+        }
+    };
 
     return createPortal(
         <div
@@ -109,7 +138,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Referencia</th>
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">Notas</th>
                                             <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500">Monto</th>
-                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500"></th>
+                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -128,16 +157,25 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">
                                                     +${parseFloat(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    {p.method === 'CASH_USD' && (
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        {p.method === 'CASH_USD' && (
+                                                            <button
+                                                                onClick={() => setReceiptPayment(p)}
+                                                                className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                                                                title="Generar Recibo de Pago"
+                                                            >
+                                                                <Printer size={16} />
+                                                            </button>
+                                                        )}
                                                         <button
-                                                            onClick={() => setReceiptPayment(p)}
-                                                            className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                                                            title="Generar Recibo de Pago"
+                                                            onClick={() => setPaymentToDelete(p)}
+                                                            className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Eliminar abono"
                                                         >
-                                                            <Printer size={16} />
+                                                            <Trash2 size={16} />
                                                         </button>
-                                                    )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -156,6 +194,16 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment }) => {
                 payment={receiptPayment}
                 clientName={client?.name}
                 receivableNumber={r.number}
+            />
+
+            <ConfirmDeleteModal
+                isOpen={!!paymentToDelete}
+                onClose={() => setPaymentToDelete(null)}
+                onConfirm={handleDeletePayment}
+                loading={deletingPayment}
+                title="Eliminar abono"
+                message="¿Seguro que deseas eliminar este abono? Se ajustarán los montos de la cuenta."
+                itemName={paymentToDelete ? `Pago de $${parseFloat(paymentToDelete.amount).toFixed(2)} registrado el ${toVenezuelanFormat(paymentToDelete.date || paymentToDelete.createdAt)}` : ''}
             />
         </div>,
         document.body

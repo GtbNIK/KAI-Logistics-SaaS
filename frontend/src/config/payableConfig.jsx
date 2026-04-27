@@ -14,6 +14,15 @@ export const payableConfig = {
             )
         },
         {
+            header: 'Nro.Factura',
+            accessor: 'invoiceNr',
+            render: (item) => (
+                <span className="text-sm text-slate-700">
+                    {item.invoiceNr?.trim() ? item.invoiceNr : '-'}
+                </span>
+            )
+        },
+        {
             header: 'Beneficiario',
             accessor: 'ally',
             render: (item) => (

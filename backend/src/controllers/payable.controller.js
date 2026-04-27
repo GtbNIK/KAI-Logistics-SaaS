@@ -7,19 +7,38 @@ import { createNotification } from './notification.controller.js';
  */
 export const getPayables = async (req, res) => {
     try {
-        const { status, search = '', page = 1, limit = 10 } = req.query;
+        const { status, search = '', page = 1, limit = 10, beneficiaryId } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const where = {};
         if (status) where.status = status;
+        if (beneficiaryId) {
+            where.OR = [
+                { allyId: beneficiaryId },
+                { svcProviderId: beneficiaryId }
+            ];
+        }
         if (search) {
             const num = parseInt(search);
-            where.OR = [
-                { description: { contains: search, mode: 'insensitive' } },
-                { ally: { name: { contains: search, mode: 'insensitive' } } },
-                { svcProvider: { name: { contains: search, mode: 'insensitive' } } },
-                ...(Number.isNaN(num) ? [] : [{ number: { equals: num } }])
-            ];
+            const searchConditions = {
+                OR: [
+                    { description: { contains: search, mode: 'insensitive' } },
+                    { ally: { name: { contains: search, mode: 'insensitive' } } },
+                    { svcProvider: { name: { contains: search, mode: 'insensitive' } } },
+                    { invoiceNr: { contains: search, mode: 'insensitive' } },
+                    ...(Number.isNaN(num) ? [] : [{ number: { equals: num } }])
+                ]
+            };
+            
+            if (beneficiaryId) {
+                // Si hay beneficiario y búsqueda, combinar ambas condiciones
+                where.OR = [
+                    ...where.OR,
+                    ...searchConditions.OR
+                ];
+            } else {
+                Object.assign(where, searchConditions);
+            }
         }
 
         const [payables, total] = await Promise.all([
@@ -85,7 +104,7 @@ export const getPayableById = async (req, res) => {
  */
 export const createPayable = async (req, res) => {
     try {
-        const { allyId, svcProviderId, description, amount, dueDate, relatedOperationId } = req.body;
+        const { allyId, svcProviderId, description, amount, dueDate, relatedOperationId, invoiceNr } = req.body;
 
         if (!allyId && !svcProviderId) {
             return res.status(400).json({ message: 'Debe seleccionar un aliado o un proveedor de servicios' });
@@ -112,7 +131,8 @@ export const createPayable = async (req, res) => {
                 balance: parsedAmount,
                 status: 'PENDING',
                 dueDate: dueDate ? new Date(dueDate) : null,
-                relatedOperationId: relatedOperationId || null
+                relatedOperationId: relatedOperationId || null,
+                invoiceNr: invoiceNr?.toString().trim() || null
             },
             include: {
                 ally: { select: { id: true, name: true } },
@@ -240,9 +260,74 @@ export const deletePayable = async (req, res) => {
         }
 
         await prisma.payable.delete({ where: { id } });
-        res.json({ message: 'Cuenta por pagar eliminada' });
+        res.json({
+            message: 'Cuenta por pagar eliminada',
+            data: { id: payable.id, invoiceNr: payable.invoiceNr }
+        });
     } catch (error) {
         console.error('Error in deletePayable:', error);
         res.status(500).json({ message: 'Error al eliminar cuenta por pagar' });
+    }
+};
+
+/**
+ * @route   DELETE /api/payables/:id/payments/:paymentId
+ * @desc    Eliminar un abono especifico de una cuenta por pagar
+ */
+export const deletePayablePayment = async (req, res) => {
+    try {
+        const { id, paymentId } = req.params;
+
+        const payable = await prisma.payable.findUnique({ where: { id } });
+        if (!payable) {
+            return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
+        }
+
+        const payment = await prisma.payableTransaction.findUnique({
+            where: { id: paymentId }
+        });
+
+        if (!payment || payment.payableId !== id) {
+            return res.status(404).json({ message: 'Abono no encontrado para esta cuenta' });
+        }
+
+        const paymentAmount = Number(payment.amount);
+        const result = await prisma.$transaction(async (tx) => {
+            await tx.payableTransaction.delete({ where: { id: payment.id } });
+
+            const newPaidAmount = Math.max(0, Number(payable.paidAmount) - paymentAmount);
+            const totalAmount = Number(payable.amount);
+            const newBalance = Math.max(0, totalAmount - newPaidAmount);
+            let newStatus = 'PENDING';
+            if (newBalance <= 0) {
+                newStatus = 'PAID';
+            } else if (newPaidAmount > 0) {
+                newStatus = 'PARTIALLY_PAID';
+            }
+
+            const updatedPayable = await tx.payable.update({
+                where: { id: payable.id },
+                data: {
+                    paidAmount: newPaidAmount,
+                    balance: newBalance,
+                    status: newStatus
+                },
+                include: {
+                    ally: { select: { id: true, name: true } },
+                    svcProvider: { select: { id: true, name: true } },
+                    payments: { orderBy: { date: 'desc' } }
+                }
+            });
+
+            return updatedPayable;
+        });
+
+        res.json({
+            message: 'Abono eliminado correctamente',
+            data: result
+        });
+    } catch (error) {
+        console.error('Error in deletePayablePayment:', error);
+        res.status(500).json({ message: 'Error al eliminar el abono', error: error.message });
     }
 };

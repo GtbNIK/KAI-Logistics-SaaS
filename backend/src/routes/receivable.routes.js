@@ -3,7 +3,8 @@ import {
     createReceivable,
     getReceivables,
     getReceivableById,
-    registerPayment
+    registerPayment,
+    deleteReceivablePayment
 } from '../controllers/receivable.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 
@@ -38,5 +39,6 @@ router.get('/:id', authorize('ADMIN'), getReceivableById);
  * @access  Private (idealmente admin o ventas con permisos)
  */
 router.post('/:id/payments', authorize('ADMIN'), registerPayment);
+router.delete('/:id/payments/:paymentId', authorize('ADMIN'), deleteReceivablePayment);
 
 export default router;
