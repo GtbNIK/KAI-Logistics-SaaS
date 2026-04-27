@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TrendingUp, Plus } from 'lucide-react';
+import { TrendingUp, Plus, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
+import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
+import receivableService from '../../services/receivable.service';
 import { receivableConfig } from '../../config/receivableConfig';
 import ReceivableDetailModal from '../../components/billing/ReceivableDetailModal';
 import RegisterPaymentModal from '../../components/billing/RegisterPaymentModal';
@@ -79,7 +81,10 @@ const Receivables = () => {
     const [viewingReceivable, setViewingReceivable] = useState(null);
     const [registeringPayment, setRegisteringPayment] = useState(null);
     const [creatingReceivable, setCreatingReceivable] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [toDelete, setToDelete] = useState(null);
     const { user } = useAuth();
+    const { showSuccess, showError } = useToast();
     const {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter,
@@ -183,13 +188,22 @@ const Receivables = () => {
                 }
                 onView={(item) => setViewingReceivable(item)}
                 extraActions={(item) => item.status !== 'PAID' && (
-                    <button
-                        className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Registrar pago"
-                        onClick={(e) => { e.stopPropagation(); handleRegisterPayment(item); }}
-                    >
-                        <Plus size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Registrar pago"
+                            onClick={(e) => { e.stopPropagation(); handleRegisterPayment(item); }}
+                        >
+                            <Plus size={18} />
+                        </button>
+                        <button
+                            className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar cuenta"
+                            onClick={(e) => { e.stopPropagation(); setToDelete(item); }}
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
                 )}
             />
 
@@ -216,6 +230,29 @@ const Receivables = () => {
                     onSuccess={refresh}
                 />
             )}
+
+            <ConfirmDeleteModal
+                isOpen={!!toDelete}
+                onClose={() => setToDelete(null)}
+                onConfirm={async () => {
+                    if (!toDelete) return;
+                    setDeleting(true);
+                    try {
+                        await receivableService.deleteReceivable(toDelete.id);
+                        setToDelete(null);
+                        refresh();
+                        showSuccess('Cuenta eliminada', 'La cuenta por cobrar y sus abonos fueron eliminados correctamente');
+                    } catch (error) {
+                        showError('Error', error.response?.data?.message || 'No se pudo eliminar la cuenta por cobrar');
+                    } finally {
+                        setDeleting(false);
+                    }
+                }}
+                loading={deleting}
+                title="Eliminar cuenta por cobrar"
+                message="Se eliminarán todos los abonos asociados. Esta acción no se puede deshacer."
+                itemName={toDelete ? `CXC-${String(toDelete.number || 0).padStart(5, '0')}` : ''}
+            />
         </div>
     );
 };

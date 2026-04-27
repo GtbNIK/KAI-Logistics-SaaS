@@ -47,6 +47,38 @@ export const createReceivable = async (req, res) => {
     }
 };
 
+/**
+ * @route   DELETE /api/receivables/:id
+ * @desc    Eliminar cuenta por cobrar junto a sus pagos y recibos asociados
+ */
+export const deleteReceivable = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const receivable = await prisma.receivable.findUnique({ where: { id }, include: { payments: { include: { receipt: true } } } });
+        if (!receivable) {
+            return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Eliminar recibos asociados a pagos en efectivo si existen
+            const paymentIds = receivable.payments.map(p => p.id);
+            const receiptIds = receivable.payments.filter(p => p.receipt).map(p => p.receipt.id);
+            if (receiptIds.length > 0) {
+                await tx.paymentReceipt.deleteMany({ where: { id: { in: receiptIds } } });
+            }
+            if (paymentIds.length > 0) {
+                await tx.paymentTransaction.deleteMany({ where: { id: { in: paymentIds } } });
+            }
+            await tx.receivable.delete({ where: { id } });
+        });
+
+        res.json({ message: 'Cuenta por cobrar eliminada', data: { id: receivable.id } });
+    } catch (error) {
+        console.error('Error in deleteReceivable:', error);
+        res.status(500).json({ message: 'Error al eliminar cuenta por cobrar' });
+    }
+};
+
 export const deleteReceivablePayment = async (req, res) => {
     try {
         const { id, paymentId } = req.params;

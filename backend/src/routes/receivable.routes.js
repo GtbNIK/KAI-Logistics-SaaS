@@ -4,7 +4,8 @@ import {
     getReceivables,
     getReceivableById,
     registerPayment,
-    deleteReceivablePayment
+    deleteReceivablePayment,
+    deleteReceivable
 } from '../controllers/receivable.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 
@@ -39,6 +40,19 @@ router.get('/:id', authorize('ADMIN'), getReceivableById);
  * @access  Private (idealmente admin o ventas con permisos)
  */
 router.post('/:id/payments', authorize('ADMIN'), registerPayment);
+
+/**
+ * @route   DELETE /api/receivables/:id/payments/:paymentId
+ * @desc    Eliminar un pago específico de una cuenta por cobrar
+ * @access  Private (ADMIN)
+ */
 router.delete('/:id/payments/:paymentId', authorize('ADMIN'), deleteReceivablePayment);
+
+/**
+ * @route   DELETE /api/receivables/:id
+ * @desc    Eliminar una cuenta por cobrar y sus pagos asociados
+ * @access  Private (ADMIN)
+ */
+router.delete('/:id', authorize('ADMIN'), deleteReceivable);
 
 export default router;
