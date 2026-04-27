@@ -33,7 +33,18 @@ const receivableService = {
         return response.data;
     },
 
-            /**
+    /**
+     * Actualizar una cuenta por cobrar
+     * @param {string} id - ID del Receivable
+     * @param {Object} data - Datos a actualizar
+     * @returns {Promise<Object>} Respuesta del servidor con la cuenta actualizada
+     */
+    updateReceivable: async (id, data) => {
+        const response = await axios.put(`${API_URL}/receivables/${id}`, data);
+        return response.data;
+    },
+
+    /**
      * Eliminar un abono o pago específico de una cuenta por cobrar
      * @param {string} id - ID del Receivable
      * @param {string} paymentId - ID del pago a eliminar

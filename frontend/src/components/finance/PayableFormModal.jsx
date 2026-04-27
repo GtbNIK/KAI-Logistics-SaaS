@@ -16,7 +16,7 @@ const selectStyles = {
     menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden' }),
 };
 
-const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
+const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
     const { user } = useAuth();
     const [allies, setAllies] = useState([]);
     const [svcProviders, setSvcProviders] = useState([]);
@@ -31,6 +31,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [saving, setSaving] = useState(false);
     const { showSuccess, showError } = useToast();
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+    const isEdit = Boolean(payable);
 
     const allyOptions = useMemo(() =>
         (allies || []).filter(a => a.isActive !== false).map(a => ({ value: a.id, label: a.name })),
@@ -77,6 +78,31 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
         setInvoiceNr('');
     };
 
+    useEffect(() => {
+        if (!isOpen) return;
+        if (payable) {
+            if (payable.allyId || payable.ally) {
+                setBeneficiaryType('ally');
+                setAllyId(payable.allyId || payable.ally?.id || '');
+                setSvcProviderId('');
+            } else if (payable.svcProviderId || payable.svcProvider) {
+                setBeneficiaryType('provider');
+                setSvcProviderId(payable.svcProviderId || payable.svcProvider?.id || '');
+                setAllyId('');
+            } else {
+                setBeneficiaryType('ally');
+                setAllyId('');
+                setSvcProviderId('');
+            }
+            setDescription(payable.description || '');
+            setAmount(payable.amount ? Number(payable.amount).toString() : '');
+            setDueDate(payable.dueDate ? new Date(payable.dueDate).toISOString().slice(0, 10) : '');
+            setInvoiceNr(payable.invoiceNr || '');
+        } else {
+            resetForm();
+        }
+    }, [isOpen, payable]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -95,20 +121,27 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
 
         setSaving(true);
         try {
-            await axios.post(`${API_URL}/payables`, {
+            const payload = {
                 allyId: selectedAlly || null,
                 svcProviderId: selectedProvider || null,
                 description: description.trim(),
                 amount: parseFloat(amount),
                 dueDate: dueDate || null,
                 invoiceNr: invoiceNr.trim() || null
-            });
-            showSuccess('¡Cuenta creada!', 'La cuenta por pagar se registró correctamente');
-            resetForm();
-            onSuccess();
-            onClose();
+            };
+
+            if (isEdit) {
+                await axios.put(`${API_URL}/payables/${payable.id}`, payload, { withCredentials: true });
+                showSuccess('Cuenta actualizada', 'La cuenta por pagar se actualizó correctamente');
+            } else {
+                await axios.post(`${API_URL}/payables`, payload);
+                showSuccess('¡Cuenta creada!', 'La cuenta por pagar se registró correctamente');
+                resetForm();
+            }
+            onSuccess?.();
+            onClose?.();
         } catch (err) {
-            showError('Error', err.response?.data?.message || 'No se pudo crear la cuenta');
+            showError('Error', err.response?.data?.message || 'No se pudo guardar la cuenta');
         } finally {
             setSaving(false);
         }
@@ -128,8 +161,8 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
                             <Receipt className="text-red-500" size={22} />
                         </div>
                         <div>
-                            <h2 className="font-bold text-slate-800 text-lg">Nueva Cuenta por Pagar</h2>
-                            <p className="text-xs text-slate-500">Registra una deuda con un aliado o proveedor</p>
+                            <h2 className="font-bold text-slate-800 text-lg">{isEdit ? 'Editar Cuenta por Pagar' : 'Nueva Cuenta por Pagar'}</h2>
+                            <p className="text-xs text-slate-500">{isEdit ? 'Actualiza la información general' : 'Registra una deuda con un aliado o proveedor'}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
@@ -276,7 +309,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
                         <button type="submit" disabled={saving}
                             className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-red-500/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 text-sm">
                             {saving ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
-                            Crear Cuenta
+                            {isEdit ? 'Guardar cambios' : 'Crear Cuenta'}
                         </button>
                     </div>
                 </form>

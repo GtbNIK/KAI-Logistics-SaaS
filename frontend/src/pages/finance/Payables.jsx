@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TrendingDown, Plus, Trash2 } from 'lucide-react';
+import { TrendingDown, Plus, Trash2, Edit } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -88,6 +88,7 @@ const Payables = () => {
     const [creatingPayable, setCreatingPayable] = useState(false);
     const [toDelete, setToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [editingPayable, setEditingPayable] = useState(null);
     const { user } = useAuth();
     const { showSuccess, showError } = useToast();
     const {
@@ -194,6 +195,13 @@ const Payables = () => {
                 onView={(item) => setViewingPayable(item)}
                 extraActions={(item) => (
                     <div className="flex items-center gap-2">
+                        <button
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar cuenta"
+                            onClick={(e) => { e.stopPropagation(); setEditingPayable(item); }}
+                        >
+                            <Edit size={18} />
+                        </button>
                         {item.status !== 'PAID' && (
                             <button
                                 className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -235,6 +243,15 @@ const Payables = () => {
                     isOpen={creatingPayable}
                     onClose={() => setCreatingPayable(false)}
                     onSuccess={refresh}
+                />
+            )}
+
+            {editingPayable && (
+                <PayableFormModal
+                    isOpen={!!editingPayable}
+                    onClose={() => setEditingPayable(null)}
+                    onSuccess={() => { refresh(); setEditingPayable(null); }}
+                    payable={editingPayable}
                 />
             )}
 
