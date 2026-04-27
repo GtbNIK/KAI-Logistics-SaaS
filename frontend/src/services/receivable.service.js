@@ -31,6 +31,16 @@ const receivableService = {
     registerPayment: async (id, paymentData) => {
         const response = await axios.post(`${API_URL}/receivables/${id}/payments`, paymentData);
         return response.data;
+    },
+
+        /**
+     * Eliminar un abono o pago a una cuenta por cobrar
+     * @param {string} id - ID del Receivable
+     * @param {Object} paymentId - { amount, method, reference, date }
+     */
+    deletePayment: async (id, paymentId) => {
+        const response = await axios.delete(`${API_URL}/receivables/${id}/payments/${paymentId}`);
+        return response.data;
     }
 };
 

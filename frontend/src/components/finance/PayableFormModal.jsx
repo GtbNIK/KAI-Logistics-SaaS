@@ -25,6 +25,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
     const [allyId, setAllyId] = useState('');
     const [svcProviderId, setSvcProviderId] = useState('');
     const [description, setDescription] = useState('');
+    const [invoiceNr, setInvoiceNr] = useState('');
     const [amount, setAmount] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [saving, setSaving] = useState(false);
@@ -73,6 +74,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
         setDescription('');
         setAmount('');
         setDueDate('');
+        setInvoiceNr('');
     };
 
     const handleSubmit = async (e) => {
@@ -98,7 +100,8 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
                 svcProviderId: selectedProvider || null,
                 description: description.trim(),
                 amount: parseFloat(amount),
-                dueDate: dueDate || null
+                dueDate: dueDate || null,
+                invoiceNr: invoiceNr.trim() || null
             });
             showSuccess('¡Cuenta creada!', 'La cuenta por pagar se registró correctamente');
             resetForm();
@@ -208,6 +211,19 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess }) => {
                             />
                         </div>
                     )}
+
+                    {/* Número de factura */}
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-700">Número de Factura (Invoice)</label>
+                        <span className="text-xs text-slate-400"> Opcional</span>
+                        <input
+                            type="text"
+                            value={invoiceNr}
+                            onChange={e => setInvoiceNr(e.target.value)}
+                            className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50"
+                            placeholder="Ej: FAC-00123"
+                        />
+                    </div>
 
                     {/* Descripción */}
                     <div className="space-y-1">

@@ -23,6 +23,8 @@ const usePayables = () => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [beneficiaryIdFilter, setBeneficiaryIdFilter] = useState('');
+    const [beneficiaries, setBeneficiaries] = useState([]);
     const { showError } = useToast();
 
     useEffect(() => {
@@ -30,13 +32,32 @@ const usePayables = () => {
         return () => clearTimeout(t);
     }, [search]);
 
-    useEffect(() => { setPage(1); }, [statusFilter]);
+    useEffect(() => { setPage(1); }, [statusFilter, beneficiaryIdFilter]);
+
+    // Cargar lista de beneficiarios (allies y svcProviders) para el filtro
+    useEffect(() => {
+        const fetchBeneficiaries = async () => {
+            try {
+                const [alliesRes, providersRes] = await Promise.all([
+                    axios.get(`${API_URL}/allies`),
+                    axios.get(`${API_URL}/svc-providers`)
+                ]);
+                const allies = (alliesRes.data?.data || alliesRes.data || []).map(a => ({ id: a.id, name: a.name, type: 'Aliado' }));
+                const providers = (providersRes.data?.data || providersRes.data || []).map(p => ({ id: p.id, name: p.name, type: 'Servicio' }));
+                setBeneficiaries([...allies, ...providers]);
+            } catch {
+                // Silencioso, no bloquear si falla
+            }
+        };
+        fetchBeneficiaries();
+    }, []);
 
     const fetchPayables = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
             if (statusFilter) params.append('status', statusFilter);
+            if (beneficiaryIdFilter) params.append('beneficiaryId', beneficiaryIdFilter);
             const res = await axios.get(`${API_URL}/payables?${params}`);
             setItems(res.data.data || []);
             setTotalItems(res.data.meta?.total || 0);
@@ -46,13 +67,14 @@ const usePayables = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, debouncedSearch, statusFilter, beneficiaryIdFilter]);
 
     useEffect(() => { fetchPayables(); }, [fetchPayables]);
 
     return {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter,
+        beneficiaryIdFilter, setBeneficiaryIdFilter, beneficiaries,
         refresh: fetchPayables
     };
 };
@@ -65,7 +87,8 @@ const Payables = () => {
     const { user } = useAuth();
     const {
         items, loading, page, setPage, totalPages, totalItems,
-        search, setSearch, statusFilter, setStatusFilter, refresh
+        search, setSearch, statusFilter, setStatusFilter,
+        beneficiaryIdFilter, setBeneficiaryIdFilter, beneficiaries, refresh
     } = usePayables();
 
     const totalPending = items.reduce((acc, p) => {
@@ -91,6 +114,19 @@ const Payables = () => {
             <option value="PENDING">Pendiente</option>
             <option value="PARTIALLY_PAID">Abonada</option>
             <option value="PAID">Pagada</option>
+        </select>
+    );
+
+    const beneficiarySelect = (
+        <select
+            value={beneficiaryIdFilter}
+            onChange={e => setBeneficiaryIdFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-700"
+        >
+            <option value="">Todos los beneficiarios</option>
+            {beneficiaries.map(b => (
+                <option key={b.id} value={b.id}>{b.name} ({b.type})</option>
+            ))}
         </select>
     );
 
@@ -144,7 +180,12 @@ const Payables = () => {
                 canEdit={false}
                 canDelete={false}
                 canPrint={false}
-                extraFilters={statusSelect}
+                extraFilters={
+                    <div className="flex gap-2">
+                        {statusSelect}
+                        {beneficiarySelect}
+                    </div>
+                }
                 onView={(item) => setViewingPayable(item)}
                 extraActions={(item) => item.status !== 'PAID' && (
                     <button
@@ -162,6 +203,7 @@ const Payables = () => {
                     payable={viewingPayable}
                     onClose={() => setViewingPayable(null)}
                     onRegisterPayment={handleRegisterPayment}
+                    onPaymentDeleted={refresh}
                 />
             )}
             {registeringPayment && (

@@ -47,6 +47,68 @@ export const createReceivable = async (req, res) => {
     }
 };
 
+export const deleteReceivablePayment = async (req, res) => {
+    try {
+        const { id, paymentId } = req.params;
+
+        const receivable = await prisma.receivable.findUnique({ where: { id } });
+        if (!receivable) {
+            return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
+        }
+
+        const payment = await prisma.paymentTransaction.findUnique({
+            where: { id: paymentId },
+            include: { receipt: true }
+        });
+
+        if (!payment || payment.receivableId !== id) {
+            return res.status(404).json({ message: 'Pago no encontrado para esta cuenta' });
+        }
+
+        const paymentAmount = Number(payment.amount);
+        const result = await prisma.$transaction(async (tx) => {
+            if (payment.receipt) {
+                await tx.paymentReceipt.delete({ where: { id: payment.receipt.id } });
+            }
+
+            await tx.paymentTransaction.delete({ where: { id: payment.id } });
+
+            const newPaidAmount = Math.max(0, Number(receivable.paidAmount) - paymentAmount);
+            const totalAmount = Number(receivable.totalAmount);
+            const newBalance = Math.max(0, totalAmount - newPaidAmount);
+            let newStatus = 'PENDING';
+            if (newBalance <= 0) {
+                newStatus = 'PAID';
+            } else if (newPaidAmount > 0) {
+                newStatus = 'PARTIALLY_PAID';
+            }
+
+            const updatedReceivable = await tx.receivable.update({
+                where: { id: receivable.id },
+                data: {
+                    paidAmount: newPaidAmount,
+                    balance: newBalance,
+                    status: newStatus
+                },
+                include: {
+                    client: { select: { name: true, rifOrId: true } },
+                    payments: { orderBy: { date: 'desc' } }
+                }
+            });
+
+            return updatedReceivable;
+        });
+
+        res.json({
+            message: 'Pago eliminado correctamente',
+            data: result
+        });
+    } catch (error) {
+        console.error('Error in deleteReceivablePayment:', error);
+        res.status(500).json({ message: 'Error al eliminar el pago', error: error.message });
+    }
+};
+
 /**
  * @route   GET /api/receivables
  * @desc    Obtener lista de cuentas por cobrar (Receivables)
@@ -54,11 +116,12 @@ export const createReceivable = async (req, res) => {
  */
 export const getReceivables = async (req, res) => {
     try {
-        const { status, search = '', page = 1, limit = 10 } = req.query;
+        const { status, search = '', page = 1, limit = 10, clientId } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const where = {};
         if (status) where.status = status;
+        if (clientId) where.clientId = clientId;
         if (search) {
             const num = parseInt(search);
             const searchConditions = {

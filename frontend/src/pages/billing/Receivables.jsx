@@ -23,6 +23,8 @@ const useReceivables = () => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [clientIdFilter, setClientIdFilter] = useState('');
+    const [clients, setClients] = useState([]);
     const { showError } = useToast();
 
     useEffect(() => {
@@ -30,13 +32,27 @@ const useReceivables = () => {
         return () => clearTimeout(t);
     }, [search]);
 
-    useEffect(() => { setPage(1); }, [statusFilter]);
+    useEffect(() => { setPage(1); }, [statusFilter, clientIdFilter]);
+
+    // Cargar lista de clientes para el filtro
+    useEffect(() => {
+        const fetchClients = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/clients`);
+                setClients(res.data?.data || res.data || []);
+            } catch {
+                // Silencioso, no bloquear si falla
+            }
+        };
+        fetchClients();
+    }, []);
 
     const fetchReceivables = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
             if (statusFilter) params.append('status', statusFilter);
+            if (clientIdFilter) params.append('clientId', clientIdFilter);
             const res = await axios.get(`${API_URL}/receivables?${params}`);
             setItems(res.data.data || []);
             setTotalItems(res.data.meta?.total || 0);
@@ -46,13 +62,14 @@ const useReceivables = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, debouncedSearch, statusFilter, clientIdFilter]);
 
     useEffect(() => { fetchReceivables(); }, [fetchReceivables]);
 
     return {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter,
+        clientIdFilter, setClientIdFilter, clients,
         refresh: fetchReceivables
     };
 };
@@ -65,7 +82,8 @@ const Receivables = () => {
     const { user } = useAuth();
     const {
         items, loading, page, setPage, totalPages, totalItems,
-        search, setSearch, statusFilter, setStatusFilter, refresh
+        search, setSearch, statusFilter, setStatusFilter,
+        clientIdFilter, setClientIdFilter, clients, refresh
     } = useReceivables();
 
     const totalPending = items.reduce((acc, r) => {
@@ -91,6 +109,19 @@ const Receivables = () => {
             <option value="PENDING">Pendiente</option>
             <option value="PARTIALLY_PAID">Abonada</option>
             <option value="PAID">Pagada</option>
+        </select>
+    );
+
+    const clientSelect = (
+        <select
+            value={clientIdFilter}
+            onChange={e => setClientIdFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-700"
+        >
+            <option value="">Todos los clientes</option>
+            {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
         </select>
     );
 
@@ -144,7 +175,12 @@ const Receivables = () => {
                 canEdit={false}
                 canDelete={false}
                 canPrint={false}
-                extraFilters={statusSelect}
+                extraFilters={
+                    <div className="flex gap-2">
+                        {statusSelect}
+                        {clientSelect}
+                    </div>
+                }
                 onView={(item) => setViewingReceivable(item)}
                 extraActions={(item) => item.status !== 'PAID' && (
                     <button
@@ -162,6 +198,7 @@ const Receivables = () => {
                     receivable={viewingReceivable}
                     onClose={() => setViewingReceivable(null)}
                     onRegisterPayment={handleRegisterPayment}
+                    onPaymentDeleted={refresh}
                 />
             )}
             {registeringPayment && (

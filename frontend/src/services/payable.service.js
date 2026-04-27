@@ -28,6 +28,11 @@ const payableService = {
         return response.data;
     },
 
+    deletePayment: async (id, paymentId) => {
+        const response = await axios.delete(`${API_URL}/payables/${id}/payments/${paymentId}`);
+        return response.data;
+    },
+
     deletePayable: async (id) => {
         const response = await axios.delete(`${API_URL}/payables/${id}`);
         return response.data;
