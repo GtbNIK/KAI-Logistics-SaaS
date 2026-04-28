@@ -182,7 +182,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
             doc.setFontSize(20);
             doc.setTextColor(rgb.r, rgb.g, rgb.b);
             doc.setFont('helvetica', 'bold');
-            doc.text(`TARIFAS ${regionLabel.toUpperCase()}`, pageW / 2, 25, { align: 'center' });
+            doc.text(`${regionLabel.toUpperCase()}`, pageW / 2, 25, { align: 'center' });
 
             // Fecha  (se elimina texto de región)
             doc.setFontSize(12);
