@@ -5,7 +5,7 @@ import CreatableSelect from 'react-select/creatable';
 import { 
     X, Save, Plus, Trash2, Package, Calculator, 
     ArrowRight, Loader2, MapPin, Anchor, FileDown,
-    CalendarDays, ArrowLeft, Truck, Ship, Plane
+    CalendarDays, ArrowLeft, Truck, Ship, Plane, DollarSign
 } from 'lucide-react';
 import clientService from '../../services/client.service';
 import serviceService from '../../services/service.service';
@@ -26,6 +26,7 @@ import QuickCreateShippingLineModal from '../../components/shared/QuickCreateShi
 import QuickCreateAirLineModal from '../../components/shared/QuickCreateAirLineModal';
 import { calculateItemSubtotal, formatQuantityLabel } from '../../utils/pricing';
 import { toDateString } from '../../utils/dateHelpers';
+import RateSelectModal from '../../components/rates/RateSelectModal';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -47,6 +48,8 @@ const QuoteItemRow = ({
 }) => {
     const [searchingRate, setSearchingRate] = useState(false);
     const [foundRate, setFoundRate] = useState(null);
+    const [showRateModal, setShowRateModal] = useState(false);
+    const [appliedRate, setAppliedRate] = useState(null);
 
     // Determinar tipo de servicio
     const selectedService = services.find(s => s.value === item.serviceId);
@@ -55,6 +58,7 @@ const QuoteItemRow = ({
     const isPortService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL', 'AIR'].includes(serviceType);
     const isAirService = serviceType === 'AIR';
     const isMaritimeService = ['FCL_20', 'FCL_40', 'FCL_40HC', 'LCL'].includes(serviceType);
+    const canPickRate = ['FCL_20', 'FCL_40HC'].includes(serviceType);
 
     const actionStyleFn = (base, state) => ({
         ...base,
@@ -166,7 +170,7 @@ const QuoteItemRow = ({
 
     return (
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-4 relative group">
-            {/* Header con número y botón eliminar */}
+            {/* Header con número, servicio y acciones */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Package size={16} className="text-slate-400" />
@@ -177,14 +181,16 @@ const QuoteItemRow = ({
                         </span>
                     )}
                 </div>
-                {canRemove && (
-                    <button
-                        onClick={() => onRemove(index)}
-                        className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                )}
+                <div className="flex items-center gap-2 ml-2">
+                    {canRemove && (
+                        <button
+                            onClick={() => onRemove(index)}
+                            className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Fila 1: Servicio y Aliado */}
@@ -397,6 +403,30 @@ const QuoteItemRow = ({
                 </div>
             )}
 
+            {/* Botón Elegir/Cambiar tarifa (debajo de puertos) */}
+            {canPickRate && item.allyId && (
+                <button
+                    type="button"
+                    onClick={() => setShowRateModal(true)}
+                    className="w-full py-2 px-3 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
+                >
+                    <DollarSign size={16} />
+                    {appliedRate ? 'Cambiar tarifa' : 'Elegir tarifa automaticamente'}
+                </button>
+            )}
+
+            {/* Indicador de tarifa aplicada desde modal */}
+            {appliedRate && (
+                <div className="flex items-center gap-2 text-xs px-2 py-1 rounded bg-blue-50 text-blue-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    <span>
+                        Tarifa aplicada: {appliedRate.originPort.name} → {appliedRate.destinationPort.name}
+                        {appliedRate.shippingLineName !== '—' ? ` (${appliedRate.shippingLineName})` : ''}
+                        {' — '}${appliedRate.unitPrice?.toFixed(2)}
+                    </span>
+                </div>
+            )}
+
             {/* Fila 3: Cantidad/CBM, Precio y Subtotal */}
             <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -459,6 +489,30 @@ const QuoteItemRow = ({
                         </>
                     ) : null}
                 </div>
+            )}
+
+            {/* Modal de selección de tarifas Rate */}
+            {canPickRate && (
+                <RateSelectModal
+                    isOpen={showRateModal}
+                    onClose={() => setShowRateModal(false)}
+                    allyId={item.allyId}
+                    serviceType={serviceType}
+                    shippingLineId={item.shippingLineId || null}
+                    originPortId={ports.find(p => p.label === item.originPort)?.value}
+                    destinationPortId={ports.find(p => p.label === item.destinationPort)?.value}
+                    onPick={(rateCombo) => {
+                        onUpdate(index, {
+                            originPort: rateCombo.originPort.name,
+                            destinationPort: rateCombo.destinationPort.name,
+                            shippingLineId: rateCombo.shippingLineId || null,
+                            unitPrice: rateCombo.unitPrice,
+                            rateApplied: true
+                        });
+                        setAppliedRate(rateCombo);
+                        onRateFound(index, rateCombo);
+                    }}
+                />
             )}
         </div>
     );
@@ -523,7 +577,8 @@ const CreateQuote = () => {
             airLineId: null,
             quantity: 1,
             unitPrice: 0,
-            description: ''
+            description: '',
+            rateApplied: false
         };
     }
 
@@ -568,7 +623,8 @@ const CreateQuote = () => {
                         airLineId: item.airLineId || null,
                         quantity: parseFloat(item.quantity),
                         unitPrice: parseFloat(item.unitPrice),
-                        description: item.description
+                        description: item.description,
+                        rateApplied: false
                     }));
                     setItems(mappedItems);
                 } else {
@@ -867,7 +923,12 @@ const CreateQuote = () => {
                                 return (
                                     <div key={item.id} className="bg-white/5 rounded-lg px-4 py-3">
                                         <div className="flex justify-between items-start mb-1">
-                                            <p className="font-medium text-sm">{service?.label || 'Servicio'}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-medium text-sm">{service?.label || 'Servicio'}</p>
+                                                {item.rateApplied && (
+                                                    <span className="text-[11.3px] px-2 py-0.5 rounded-md bg-green-700 text-white-600 border border-white-300">Tarifa aplicada</span>
+                                                )}
+                                            </div>
                                             <span className="font-bold">
                                                 ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                             </span>
