@@ -9,7 +9,7 @@ const router = Router();
 router.get('/', verifyToken, getSettings);
 
 // Actualizar configuración (solo admin)
-// Acepta dos archivos opcionales: quoteBg y noticeBg
+// Acepta cinco archivos opcionales: quoteBg, noticeBg, deliveryNoteBg, receiptBg, rateBg.
 router.put(
     '/',
     verifyToken,
@@ -18,7 +18,8 @@ router.put(
         { name: 'quoteBg', maxCount: 1 },
         { name: 'noticeBg', maxCount: 1 },
         { name: 'deliveryNoteBg', maxCount: 1 },
-        { name: 'receiptBg', maxCount: 1 }
+        { name: 'receiptBg', maxCount: 1 },
+        { name: 'rateBg', maxCount: 1 }
     ]),
     updateSettings
 );
