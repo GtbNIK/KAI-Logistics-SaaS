@@ -302,20 +302,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 const maxWidth = pageW - 30;
                 const lines = doc.splitTextToSize(obsText, maxWidth);
                 doc.text(lines, 15, 40);
-
-                // Footer página 2
-                doc.setFontSize(9);
-                doc.setTextColor(120, 120, 120);
-                doc.setFont('helvetica', 'italic');
-                doc.text(`${companyName} - ${companyRif}`, pageW / 2, pageH - 10, { align: 'center' });
             }
-
-            // Footer página 1 (siempre)
-            doc.setPage(1);
-            doc.setFontSize(9);
-            doc.setTextColor(120, 120, 120);
-            doc.setFont('helvetica', 'italic');
-            doc.text(`${companyName} - ${companyRif}`, pageW / 2, pageH - 10, { align: 'center' });
 
             // Descargar
             const fileName = `Tarifas_${regionLabel.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
