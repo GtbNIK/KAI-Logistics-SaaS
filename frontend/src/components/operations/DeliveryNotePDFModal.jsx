@@ -11,6 +11,7 @@ const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_COMPANY_SLOGAN = 'Soluciones logísticas integrales';
 const DEFAULT_PRIMARY_COLOR = '#003366';
+const DELIVERY_NOTE_DISCLAIMER = ' UNA VEZ ENTREGADA LA MERCANCIA, YA SEA EN GALPON O POR PARTE DEL TRANSPORTE, QUEDA A RESPONSABILIDAD DEL CLIENTE. USO, MANIPULACION, Y TRASLADO DE LA MISMA';
 
 const hexToRgb = (hex) => {
     const num = parseInt(hex.replace('#', ''), 16);
@@ -93,12 +94,9 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
 
     // Valores de configuración
     const logoUrl = companySettings?.logoUrl || DEFAULT_LOGO;
-    const companyName = companySettings?.companyName || DEFAULT_COMPANY_NAME;
-    const companySlogan = companySettings?.footerText || DEFAULT_COMPANY_SLOGAN;
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
     const deliveryNoteBgUrl = companySettings?.deliveryNoteBgUrl || null;
-    const companyRif = companySettings?.rif || '';
 
     // Datos de la nota
     const noteNumber = `NDE-${String(note.number).padStart(5, '0')}`;
@@ -171,80 +169,67 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
             yPos += 15;
 
             const sectionStartY = yPos;
+            const columnGap = 12;
+            const columnWidth = (pageWidth - 2 * margin - columnGap) / 2;
+            const leftColumnX = margin;
+            const rightColumnX = margin + columnWidth + columnGap;
 
-            // ── Columna izquierda: Cliente ──
+            // ── Columna izquierda: Documento ──
+            let leftY = sectionStartY;
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(51, 51, 51);
-            doc.text('CLIENTE', margin, yPos);
-            yPos += 6;
+            doc.text('DETALLE DE ENTREGA', leftColumnX, leftY);
+            leftY += 6;
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Fecha: ${noteDate}`, leftColumnX, leftY);
+            leftY += 4;
+
+			doc.text(`Warehouse: ${note.warehouseNumber || 'N/A'}`, leftColumnX, leftY);
+			leftY += 4;
+
+            if (note.quote) {
+                doc.text(`Cotizacion origen: COT-${String(note.quote.number).padStart(5, '0')}`, leftColumnX, leftY);
+                leftY += 4;
+            }
+
+            if (note.deliveredTo) {
+                doc.text(`Recibido por: ${note.deliveredTo}`, leftColumnX, leftY);
+                leftY += 4;
+            }
+
+            if (note.contactPhone) {
+                doc.text(`Teléfono contacto: ${note.contactPhone}`, leftColumnX, leftY);
+                leftY += 4;
+            }
+
+            if (note.deliveryAddress) {
+                const addressLines = doc.splitTextToSize(`Dir. entrega: ${note.deliveryAddress}`, columnWidth);
+                doc.text(addressLines, leftColumnX, leftY);
+                leftY += addressLines.length * 4;
+            }
+
+            const documentEndY = leftY;
+
+            // ── Columna derecha: Cliente (solo nombre) ──
+            let rightY = sectionStartY;
+
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(51, 51, 51);
+            doc.text('CLIENTE', rightColumnX, rightY);
+            rightY += 6;
 
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(80, 80, 80);
             doc.setFontSize(10);
-            doc.text(note.client?.name || 'N/A', margin, yPos);
-            yPos += 5;
+            doc.text(note.client?.name || 'N/A', rightColumnX, rightY);
+            rightY += 5;
 
-            doc.setFontSize(9);
-            doc.setTextColor(100, 100, 100);
-            if (note.client?.rifOrId) {
-                doc.text(`RIF/Cedula: ${note.client.rifOrId}`, margin, yPos);
-                yPos += 4;
-            }
-            if (note.client?.address) {
-                const addressLines = doc.splitTextToSize(`Dirección: ${note.client.address}`, pageWidth / 2 - margin - 5);
-                doc.text(addressLines, margin, yPos);
-                yPos += addressLines.length * 4;
-            }
-            if (note.client?.contactPerson) {
-                doc.text(`Contacto: ${note.client.contactPerson}`, margin, yPos);
-                yPos += 4;
-            }
-            if (note.client?.phone) {
-                doc.text(`Telefono: ${note.client.phone}`, margin, yPos);
-                yPos += 4;
-            }
-            if (note.client?.email) {
-                doc.text(`Email: ${note.client.email}`, margin, yPos);
-                yPos += 4;
-            }
-            const clientEndY = yPos;
-
-            // ── Columna derecha: Documento ──
-            let rightY = sectionStartY;
-            const rightX = pageWidth / 2 + 10;
-
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(51, 51, 51);
-            doc.text('DOCUMENTO', rightX, rightY);
-            rightY += 6;
-
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(100, 100, 100);
-            doc.text(`Fecha: ${noteDate}`, rightX, rightY);
-            rightY += 4;
-
-			doc.text(`Warehouse: ${note.warehouseNumber || 'N/A'}`, rightX, rightY);
-			rightY += 4;
-
-            if (note.quote) {
-                doc.text(`Cotizacion origen: COT-${String(note.quote.number).padStart(5, '0')}`, rightX, rightY);
-                rightY += 4;
-            }
-
-            if (note.deliveredTo) {
-                doc.text(`Recibido por: ${note.deliveredTo}`, rightX, rightY);
-                rightY += 4;
-            }
-
-            if (note.deliveryAddress) {
-                doc.text(`Dir. entrega: ${note.deliveryAddress}`, rightX, rightY);
-                rightY += 4;
-            }
-
-            yPos = Math.max(clientEndY, rightY) + 10;
+            yPos = Math.max(documentEndY, rightY) + 10;
 
             // ── Tabla de items ──
             const tableData = items.map((item, i) => [
@@ -312,21 +297,9 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
 
             // ── Footer ──
             doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text(
-                `${companyName} - ${companySlogan}`,
-                pageWidth / 2,
-                pageHeight - 10,
-                { align: 'center' }
-            );
-            if (companyRif) {
-                doc.text(
-                    `RIF: ${companyRif}`,
-                    pageWidth / 2,
-                    pageHeight - 6,
-                    { align: 'center' }
-                );
-            }
+            doc.setTextColor(120, 120, 120);
+            const disclaimerLines = doc.splitTextToSize(DELIVERY_NOTE_DISCLAIMER, pageWidth - 2 * margin);
+            doc.text(disclaimerLines, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
             const blob = doc.output('blob');
             const blobUrl = URL.createObjectURL(blob);
@@ -401,41 +374,30 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                                 {/* Info cliente y documento */}
                                 <div className="grid grid-cols-2 gap-6 mb-6">
                                     <div>
-                                        <p className="text-xs text-slate-500 uppercase font-medium mb-1">Cliente</p>
-                                        <p className="font-semibold text-slate-800 mb-2">{note.client?.name || 'N/A'}</p>
-                                        <div className="space-y-1">
-                                            {note.client?.rifOrId && (
-                                                <p className="text-xs text-slate-600">RIF: {note.client.rifOrId}</p>
+                                        <p className="text-xs text-slate-500 uppercase font-medium mb-1">Detalle de entrega</p>
+                                        <div className="space-y-1 text-xs text-slate-600">
+                                            <p>Fecha: {noteDate}</p>
+									<p>Nro. Warehouse: {note.warehouseNumber || 'N/A'}</p>
+                                            {note.quote && (
+                                                <p>Origen: COT-{String(note.quote.number).padStart(5, '0')}</p>
                                             )}
-                                            {note.client?.contactPerson && (
-                                                <p className="text-xs text-slate-600">Contacto: {note.client.contactPerson}</p>
+                                            {note.deliveredTo && (
+                                                <p>Recibido por: {note.deliveredTo}</p>
                                             )}
-                                            {note.client?.phone && (
-                                                <p className="text-xs text-slate-600">Tel: {note.client.phone}</p>
+                                            {note.contactPhone && (
+                                                <p>Teléfono contacto: {note.contactPhone}</p>
                                             )}
-                                            {note.client?.email && (
-                                                <p className="text-xs text-slate-600">Email: {note.client.email}</p>
-                                            )}
-                                            {note.client?.address && (
-                                                <p className="text-xs text-slate-600 break-words whitespace-pre-line">Dirección: {note.client.address}</p>
+                                            {note.deliveryAddress && (
+                                                <p className="break-words whitespace-pre-wrap max-w-xs">
+                                                    Dirección de Entrega: {note.deliveryAddress}
+                                                </p>
                                             )}
                                         </div>
                                     </div>
 
                                     <div className="text-right">
-                                        <p className="text-xs text-slate-500">Fecha: {noteDate}</p>
-										<p className="text-xs text-slate-500">Nro. Warehouse: {note.warehouseNumber || 'N/A'}</p>
-                                        {note.quote && (
-                                            <p className="text-xs text-slate-500">
-                                                Origen: COT-{String(note.quote.number).padStart(5, '0')}
-                                            </p>
-                                        )}
-                                        {note.deliveredTo && (
-                                            <p className="text-xs text-slate-500">Recibido por: {note.deliveredTo}</p>
-                                        )}
-                                        {note.deliveryAddress && (
-                                            <p className="text-xs text-slate-500">Dirección de Entrega: {note.deliveryAddress}</p>
-                                        )}
+                                        <p className="text-xs text-slate-500 uppercase font-medium mb-1">Cliente</p>
+                                        <p className="font-semibold text-slate-800 text-lg">{note.client?.name || 'N/A'}</p>
                                     </div>
                                 </div>
 
@@ -491,11 +453,8 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
                                 </div>
 
                                 {/* Footer */}
-                                <div className="mt-8 pt-4 border-t border-slate-100 text-center space-y-1">
-                                    <p className="text-xs text-slate-400">{companyName} - {companySlogan}</p>
-                                    {companyRif && (
-                                        <p className="text-xs text-slate-400">RIF: {companyRif}</p>
-                                    )}
+                                <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+                                    <p className="text-xs text-slate-500 uppercase tracking-wide">{DELIVERY_NOTE_DISCLAIMER}</p>
                                 </div>
                             </div>
                         </div>

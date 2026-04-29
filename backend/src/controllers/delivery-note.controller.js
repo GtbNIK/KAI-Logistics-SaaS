@@ -107,7 +107,7 @@ export const getDeliveryNoteById = async (req, res) => {
 // ─── POST /api/delivery-notes ────────────────────────────────────────────────
 export const createDeliveryNote = async (req, res) => {
     try {
-        const { clientId, quoteId, deliveredTo, deliveryAddress, warehouseNumber, notes, items } = req.body;
+        const { clientId, quoteId, deliveredTo, contactPhone, deliveryAddress, warehouseNumber, notes, items } = req.body;
 
         if (!clientId) {
             return res.status(400).json({ message: 'El cliente es obligatorio' });
@@ -132,6 +132,7 @@ export const createDeliveryNote = async (req, res) => {
                 clientId,
                 quoteId: quoteId || null,
                 deliveredTo: deliveredTo || null,
+                contactPhone: contactPhone || null,
                 deliveryAddress: deliveryAddress || null,
 				warehouseNumber,
                 notes: notes || null,
@@ -159,7 +160,7 @@ export const createDeliveryNote = async (req, res) => {
 export const updateDeliveryNote = async (req, res) => {
     try {
         const { id } = req.params;
-		const { clientId, deliveredTo, deliveryAddress, warehouseNumber, notes, items } = req.body;
+		const { clientId, deliveredTo, contactPhone, deliveryAddress, warehouseNumber, notes, items } = req.body;
 
         const existing = await prisma.deliveryNote.findUnique({ where: { id } });
         if (!existing || existing.deletedAt) {
@@ -179,6 +180,7 @@ export const updateDeliveryNote = async (req, res) => {
                 data: {
                     clientId: clientId ?? existing.clientId,
                     deliveredTo: deliveredTo ?? existing.deliveredTo,
+                    contactPhone: contactPhone ?? existing.contactPhone,
                     deliveryAddress: deliveryAddress ?? existing.deliveryAddress,
 					warehouseNumber: warehouseNumber ?? existing.warehouseNumber,
                     notes: notes ?? existing.notes,

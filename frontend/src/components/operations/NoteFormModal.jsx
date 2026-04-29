@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ScrollText, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
 import axios from 'axios';
@@ -27,11 +27,12 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
     const [clients, setClients] = useState([]);
     const [clientId, setClientId] = useState('');
     const [deliveredTo, setDeliveredTo] = useState('');
+    const [contactPhone, setContactPhone] = useState('');
     const [deliveryAddress, setDeliveryAddress] = useState('');
-	const [warehouseNumber, setWarehouseNumber] = useState('');
+    const [warehouseNumber, setWarehouseNumber] = useState('');
     const [notes, setNotes] = useState('');
-	const [items, setItems] = useState([{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
-	const [d2dItems, setD2dItems] = useState([]);
+    const [items, setItems] = useState([{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
+    const [d2dItems, setD2dItems] = useState([]);
     const [saving, setSaving] = useState(false);
     const { showSuccess, showError } = useToast();
     const [quickCreateModalOpen, setQuickCreateModalOpen] = useState(false);
@@ -40,7 +41,7 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
     const [clientInputValue, setClientInputValue] = useState('');
     const [filteredClients, setFilteredClients] = useState([]);
 
-    const clientOptions = clients.map(c => ({ value: c.id, label: `${c.name} — ${c.rifOrId}` }));
+    const clientOptions = useMemo(() => clients.map(c => ({ value: c.id, label: `${c.name} — ${c.rifOrId}` })), [clients]);
 
     useEffect(() => {
         if (!clientInputValue.trim()) {
@@ -52,7 +53,7 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
             setFilteredClients(clientOptions.filter(c => c.label.toLowerCase().includes(search)));
         }, 800);
         return () => clearTimeout(t);
-    }, [clientInputValue, clients]);
+    }, [clientInputValue, clientOptions]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -60,33 +61,35 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
             .then(res => setClients(res.data.data || []))
             .catch(() => {});
 
-		axios.get(`${API_URL}/d2d-items?all=true`, { withCredentials: true })
-			.then(res => setD2dItems(res.data.data || []))
-			.catch(() => {});
+        axios.get(`${API_URL}/d2d-items?all=true`, { withCredentials: true })
+            .then(res => setD2dItems(res.data.data || []))
+            .catch(() => {});
 
         if (editNote) {
             setClientId(editNote.clientId || '');
             setDeliveredTo(editNote.deliveredTo || '');
+            setContactPhone(editNote.contactPhone || '');
             setDeliveryAddress(editNote.deliveryAddress || '');
-			setWarehouseNumber(editNote.warehouseNumber || '');
+            setWarehouseNumber(editNote.warehouseNumber || '');
             setNotes(editNote.notes || '');
             setItems(editNote.items?.length > 0
                 ? editNote.items.map(i => ({
-					d2dItemId: i.d2dItemId ?? null,
+                    d2dItemId: i.d2dItemId ?? null,
                     description: i.description,
                     quantity: Number(i.quantity),
-					weight: i.weight ?? '',
-					cbm: i.cbm ?? ''
+                    weight: i.weight ?? '',
+                    cbm: i.cbm ?? ''
                 }))
-				: [{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]
+                : [{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]
             );
         } else {
             setClientId('');
             setDeliveredTo('');
+            setContactPhone('');
             setDeliveryAddress('');
-			setWarehouseNumber('');
+            setWarehouseNumber('');
             setNotes('');
-			setItems([{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
+            setItems([{ d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
         }
         setClientInputValue('');
     }, [isOpen, editNote]);
@@ -97,24 +100,24 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
         setItems(updated);
     };
 
-	const addItem = () => setItems([...items, { d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
+    const addItem = () => setItems([...items, { d2dItemId: null, description: '', quantity: 1, weight: '', cbm: '' }]);
     const removeItem = (index) => { if (items.length > 1) setItems(items.filter((_, i) => i !== index)); };
 
-	// Opciones de D2D items con "Agregar nuevo" solo para ADMIN
-	const baseD2dItemOptions = d2dItems.map(i => ({ value: i.id, label: i.description }));
-	const d2dItemOptions = user?.role === 'ADMIN'
-		? [...baseD2dItemOptions, { value: 'NEW', label: '+ Agregar nuevo item', isAction: true }]
-		: baseD2dItemOptions;
+    // Opciones de D2D items con "Agregar nuevo" solo para ADMIN
+    const baseD2dItemOptions = d2dItems.map(i => ({ value: i.id, label: i.description }));
+    const d2dItemOptions = user?.role === 'ADMIN'
+        ? [...baseD2dItemOptions, { value: 'NEW', label: '+ Agregar nuevo item', isAction: true }]
+        : baseD2dItemOptions;
 
     const handleSubmit = async (e) => {
         e?.preventDefault();
         if (!clientId) return showError('Error', 'Selecciona un cliente');
-		if (!warehouseNumber.trim()) return showError('Error', 'El número de Warehouse es obligatorio');
+        if (!warehouseNumber.trim()) return showError('Error', 'El número de Warehouse es obligatorio');
         if (items.some(i => !i.description.trim())) return showError('Error', 'Todos los items deben tener descripción');
 
         setSaving(true);
         try {
-			const data = { clientId, deliveredTo, deliveryAddress, warehouseNumber, notes, items };
+            const data = { clientId, deliveredTo, contactPhone, deliveryAddress, warehouseNumber, notes, items };
             if (editNote) {
                 await axios.put(`${API_URL}/delivery-notes/${editNote.id}`, data, { withCredentials: true });
                 showSuccess('Actualizada', 'Nota de entrega actualizada correctamente');
@@ -181,19 +184,26 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                                 placeholder="Nombre del receptor" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Dirección de entrega</label>
-                            <input type="text" value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono de contacto</label>
+                            <input type="text" value={contactPhone} onChange={e => setContactPhone(e.target.value)}
                                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                placeholder="Dirección puntual" />
+                                placeholder="Número de teléfono" />
                         </div>
                     </div>
 
-					<div>
-						<label className="block text-sm font-medium text-slate-700 mb-1">Número de Warehouse *</label>
-						<input type="text" value={warehouseNumber} onChange={e => setWarehouseNumber(e.target.value)}
-							className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-							placeholder="Ej: WH-12345" required />
-					</div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Dirección de entrega</label>
+                        <input type="text" value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            placeholder="Dirección puntual" />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Número de Warehouse *</label>
+                        <input type="text" value={warehouseNumber} onChange={e => setWarehouseNumber(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            placeholder="Ej: WH-12345" required />
+                    </div>
 
                     {/* Notas */}
                     <div>
