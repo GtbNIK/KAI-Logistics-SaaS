@@ -1,5 +1,20 @@
 import prisma from '../config/database.js';
 
+// Cache en memoria para catálogo de zonas (TTL 5 minutos)
+const ZONES_CACHE_TTL = 5 * 60 * 1000;
+const zonesCache = new Map(); // key -> { data, expiresAt }
+const makeZonesKey = (params) => JSON.stringify(params);
+const getZonesCached = (key) => {
+    const e = zonesCache.get(key);
+    if (!e) return null;
+    if (Date.now() > e.expiresAt) { zonesCache.delete(key); return null; }
+    return e.data;
+};
+const setZonesCached = (key, data) => {
+    zonesCache.set(key, { data, expiresAt: Date.now() + ZONES_CACHE_TTL });
+};
+const clearZonesCache = () => zonesCache.clear();
+
 // Generar código interno automático
 const generateInternalCode = async () => {
     const lastZone = await prisma.zone.findFirst({
@@ -46,6 +61,7 @@ export const createZone = async (req, res) => {
             }
         });
 
+        clearZonesCache();
         res.status(201).json(zone);
     } catch (error) {
         console.error('Error creating zone:', error);
@@ -79,14 +95,23 @@ export const getZones = async (req, res) => {
 
         // Si all=true, devolver sin paginación
         if (all === 'true') {
+            const cacheKey = makeZonesKey({ all: true, search, includeInactive: includeInactive === 'true' });
+            const cachedAll = getZonesCached(cacheKey);
+            if (cachedAll) return res.json({ data: cachedAll });
+
             const zones = await prisma.zone.findMany({
                 where,
                 orderBy: { name: 'asc' }
             });
+            setZonesCached(cacheKey, zones);
             return res.json({ data: zones });
         }
 
         // Conteo total para paginación
+        const listCacheKey = makeZonesKey({ all: false, search, includeInactive: includeInactive === 'true', page: parseInt(page), limit: take });
+        const cachedList = getZonesCached(listCacheKey);
+        if (cachedList) return res.json(cachedList);
+
         const total = await prisma.zone.count({ where });
 
         const zones = await prisma.zone.findMany({
@@ -101,14 +126,16 @@ export const getZones = async (req, res) => {
             }
         });
 
-        res.json({
+        const payload = {
             data: zones,
             meta: {
                 total,
                 page: parseInt(page),
                 last_page: Math.ceil(total / take)
             }
-        });
+        };
+        setZonesCached(listCacheKey, payload);
+        res.json(payload);
     } catch (error) {
         console.error('Error getting zones:', error);
         res.status(500).json({ message: 'Error al obtener zonas' });
@@ -158,6 +185,7 @@ export const updateZone = async (req, res) => {
             data: { name, description }
         });
 
+        clearZonesCache();
         res.json(updatedZone);
     } catch (error) {
         console.error('Error updating zone:', error);
@@ -181,6 +209,7 @@ export const deleteZone = async (req, res) => {
             data: { isActive: false }
         });
 
+        clearZonesCache();
         res.json({ message: 'Zona desactivada correctamente' });
     } catch (error) {
         console.error('Error deleting zone:', error);
@@ -203,6 +232,7 @@ export const toggleZoneStatus = async (req, res) => {
             data: { isActive: !zone.isActive }
         });
 
+        clearZonesCache();
         res.json(updatedZone);
     } catch (error) {
         console.error('Error toggling zone status:', error);

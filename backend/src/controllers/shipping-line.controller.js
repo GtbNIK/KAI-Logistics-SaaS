@@ -1,5 +1,24 @@
 import prisma from '../config/database.js';
 
+// Cache simple en memoria para catálogos (TTL en ms)
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const shippingLinesCache = new Map(); // key -> { data, expiresAt }
+
+const makeKey = (params) => JSON.stringify(params);
+const getCached = (key) => {
+    const entry = shippingLinesCache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        shippingLinesCache.delete(key);
+        return null;
+    }
+    return entry.data;
+};
+const setCached = (key, data) => {
+    shippingLinesCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL });
+};
+const clearCatalogCache = () => shippingLinesCache.clear();
+
 export const getShippingLines = async (req, res) => {
     try {
         const { search = '', includeInactive } = req.query;
@@ -10,10 +29,15 @@ export const getShippingLines = async (req, res) => {
                 { code: { contains: search, mode: 'insensitive' } },
             ];
         }
+        const cacheKey = makeKey({ search, includeInactive: includeInactive === 'true' });
+        const cached = getCached(cacheKey);
+        if (cached) return res.json({ data: cached });
+
         const lines = await prisma.shippingLine.findMany({
             where,
             orderBy: { name: 'asc' }
         });
+        setCached(cacheKey, lines);
         res.json({ data: lines });
     } catch (error) {
         console.error('Error getShippingLines:', error);
@@ -35,6 +59,7 @@ export const createShippingLine = async (req, res) => {
         const line = await prisma.shippingLine.create({
             data: { name: finalName, code: code?.trim() || null }
         });
+        clearCatalogCache();
         res.status(201).json(line);
     } catch (error) {
         console.error('Error createShippingLine:', error);
@@ -54,6 +79,7 @@ export const updateShippingLine = async (req, res) => {
                 ...(isActive !== undefined && { isActive }),
             }
         });
+        clearCatalogCache();
         res.json(line);
     } catch (error) {
         console.error('Error updateShippingLine:', error);
@@ -70,6 +96,7 @@ export const toggleShippingLineStatus = async (req, res) => {
             where: { id },
             data: { isActive: !line.isActive }
         });
+        clearCatalogCache();
         res.json(updated);
     } catch (error) {
         console.error('Error toggleShippingLineStatus:', error);
@@ -83,6 +110,7 @@ export const deleteShippingLine = async (req, res) => {
             where: { id: req.params.id },
             data: { isActive: false }
         });
+        clearCatalogCache();
         res.json({ message: 'Línea naviera desactivada' });
     } catch (error) {
         console.error('Error deleteShippingLine:', error);

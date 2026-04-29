@@ -1,5 +1,20 @@
 import prisma from '../config/database.js';
 
+// Cache en memoria para catálogo de puertos (TTL 5 minutos)
+const PORTS_CACHE_TTL = 5 * 60 * 1000;
+const portsCache = new Map(); // key -> { data, expiresAt }
+const makePortsKey = (params) => JSON.stringify(params);
+const getPortsCached = (key) => {
+    const e = portsCache.get(key);
+    if (!e) return null;
+    if (Date.now() > e.expiresAt) { portsCache.delete(key); return null; }
+    return e.data;
+};
+const setPortsCached = (key, data) => {
+    portsCache.set(key, { data, expiresAt: Date.now() + PORTS_CACHE_TTL });
+};
+const clearPortsCache = () => portsCache.clear();
+
 const normalizeCode = (code) => String(code || '').trim().toUpperCase();
 
 const buildPortRateWhere = (port) => {
@@ -40,6 +55,7 @@ export const createPort = async (req, res) => {
 			}
 		});
 
+		clearPortsCache();
 		res.status(201).json(port);
 	} catch (error) {
 		console.error('Error creating port:', error);
@@ -68,6 +84,10 @@ export const getPorts = async (req, res) => {
 		}
 
 		if (all === 'true') {
+			const cacheKey = makePortsKey({ all: true, search, includeInactive: includeInactive === 'true' });
+			const cachedAll = getPortsCached(cacheKey);
+			if (cachedAll) return res.json({ data: cachedAll });
+
 			const ports = await prisma.port.findMany({
 				where,
 				orderBy: { name: 'asc' }
@@ -82,8 +102,13 @@ export const getPorts = async (req, res) => {
 				})
 			);
 
+			setPortsCached(cacheKey, portsWithRatesCount);
 			return res.json({ data: portsWithRatesCount });
 		}
+
+		const listCacheKey = makePortsKey({ all: false, search, includeInactive: includeInactive === 'true', page: parseInt(page), limit: take });
+		const cachedList = getPortsCached(listCacheKey);
+		if (cachedList) return res.json(cachedList);
 
 		const total = await prisma.port.count({ where });
 		const ports = await prisma.port.findMany({
@@ -102,14 +127,16 @@ export const getPorts = async (req, res) => {
 			})
 		);
 
-		res.json({
+		const payload = {
 			data: portsWithRatesCount,
 			meta: {
 				total,
 				page: parseInt(page),
 				last_page: Math.ceil(total / take)
 			}
-		});
+		};
+		setPortsCached(listCacheKey, payload);
+		res.json(payload);
 	} catch (error) {
 		console.error('Error getting ports:', error);
 		res.status(500).json({ message: 'Error al obtener puertos' });
@@ -183,6 +210,7 @@ export const updatePort = async (req, res) => {
 			}
 		});
 
+		clearPortsCache();
 		res.json(updatedPort);
 	} catch (error) {
 		console.error('Error updating port:', error);
@@ -204,6 +232,7 @@ export const deletePort = async (req, res) => {
 			data: { isActive: false }
 		});
 
+		clearPortsCache();
 		res.json({ message: 'Puerto desactivado correctamente' });
 	} catch (error) {
 		console.error('Error deleting port:', error);
@@ -225,6 +254,7 @@ export const togglePortStatus = async (req, res) => {
 			data: { isActive: !port.isActive }
 		});
 
+		clearPortsCache();
 		res.json(updatedPort);
 	} catch (error) {
 		console.error('Error toggling port status:', error);
