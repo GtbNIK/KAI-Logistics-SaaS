@@ -405,6 +405,7 @@ model DeliveryNote {
   
   // Delivery info
   deliveredTo     String?            // Persona que recibe
+  contactPhone    String?            // Teléfono de contacto del receptor
   deliveryAddress String?            // Dirección puntual de entrega
   notes           String?            @db.Text
   
