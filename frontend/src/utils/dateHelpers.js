@@ -94,3 +94,40 @@ export const getTodayLocal = () => {
     const localDate = new Date(now.getTime() - (offset * 60000));
     return localDate.toISOString().split('T')[0];
 };
+
+
+/**
+ * Convierte una fecha de entrada a un string formateado según las opciones especificadas.
+ * @param {string|Date} dateInput - Fecha a formatear (string en formato YYYY-MM-DD o objeto Date)
+ * @param {Object} options - Opciones de formateo
+ * @param {string} options.style - Estilo del formato ('slash' para DD/MM/YYYY, 'text' para 'DD de mes de YYYY')
+ * @param {boolean} options.shortYear - Si es true, muestra el año con 2 dígitos en lugar de 4
+ * @param {string} options.separator - Caracter separador (solo para estilo 'slash', default: '/')
+ * @returns {string} Fecha formateada o '—' si la entrada es inválida
+ */
+export const dateToStringHelper = (dateInput, options = {}) => {
+    const { style = 'slash', shortYear = false, separator = '/' } = options;
+    if (!dateInput) return '—';
+
+    let isoDate = '';
+    if (typeof dateInput === 'string') {
+        isoDate = dateInput.includes('T') ? dateInput.split('T')[0] : dateInput;
+    } else {
+        isoDate = toDateString(dateInput);
+    }
+
+    const [year, month, day] = isoDate.split('-');
+    if (!year || !month || !day) return '—';
+
+    const paddedDay = day.padStart(2, '0');
+    const paddedMonth = month.padStart(2, '0');
+    const yearLabel = shortYear ? year.slice(-2) : year;
+
+    if (style === 'text') {
+        const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const monthLabel = monthNames[Number(month) - 1] || '';
+        return `${paddedDay} de ${monthLabel} de ${yearLabel}`;
+    }
+
+    return `${paddedDay}${separator}${paddedMonth}${separator}${yearLabel}`;
+};
