@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Search, Ship, Loader2, ArrowRight, DollarSign, Calendar, Globe } from 'lucide-react';
 import rateService from '../../services/rate.service';
+import { dateToStringHelper } from '../../utils/dateHelpers';
 
 /**
  * Modal para seleccionar una tarifa (Rate) al cotizar.
@@ -70,6 +71,7 @@ const RateSelectModal = ({ isOpen, onClose, allyId, serviceType, onPick, shippin
                         shippingLineName: rate.shippingLine?.name || '—',
                         sale20HC: rate.sale20HC,
                         sale40HC: rate.sale40HC,
+                        validFrom: rate.validFrom,
                         validUntil: rate.validUntil,
                         allyName: rate.ally?.name || '—',
                         freeDays: rate.freeDays
@@ -89,6 +91,10 @@ const RateSelectModal = ({ isOpen, onClose, allyId, serviceType, onPick, shippin
         } else if (serviceType === 'FCL_40HC') {
             list = list.filter(c => c.sale40HC && Number(c.sale40HC) > 0);
         }
+        // Excluir futuras (validFrom > hoy)
+        const now = new Date();
+        list = list.filter(c => !c.validFrom || new Date(c.validFrom) <= now);
+
         // Filtrar por línea naviera si viene seleccionada
         if (shippingLineId) {
             list = list.filter(c => c.shippingLineId === shippingLineId);
@@ -127,11 +133,7 @@ const RateSelectModal = ({ isOpen, onClose, allyId, serviceType, onPick, shippin
         onClose();
     };
 
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '—';
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
-    };
+    const formatValidity = (from, until) => `${dateToStringHelper(from)} - ${dateToStringHelper(until)}`;
 
     if (!isOpen) return null;
 
@@ -236,7 +238,7 @@ const RateSelectModal = ({ isOpen, onClose, allyId, serviceType, onPick, shippin
                                     {showCol40 && (
                                         <th className="px-4 py-3 font-medium text-right">$40'HC</th>
                                     )}
-                                    <th className="px-4 py-3 font-medium text-center">Válida hasta</th>
+                                    <th className="px-4 py-3 font-medium text-center">Validez</th>
                                     <th className="px-4 py-3 font-medium"></th>
                                 </tr>
                             </thead>
@@ -284,7 +286,7 @@ const RateSelectModal = ({ isOpen, onClose, allyId, serviceType, onPick, shippin
                                             <td className="px-4 py-3 text-center">
                                                 <span className="inline-flex items-center gap-1 text-xs text-slate-500">
                                                     <Calendar size={12} />
-                                                    {formatDate(combo.validUntil)}
+                                                    {formatValidity(combo.validFrom, combo.validUntil)}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-right">

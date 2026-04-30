@@ -1,5 +1,5 @@
 import { DollarSign, Ship, MapPin, Calendar, AlertCircle, Globe } from 'lucide-react';
-import { toDateString, toVenezuelanFormat } from '../utils/dateHelpers';
+import { dateToStringHelper } from '../utils/dateHelpers';
 
 const formatPortCodes = (ports = []) => ports.map((port) => port?.code).filter(Boolean).join(', ') || '-';
 const formatPortNames = (ports = []) => ports.map((port) => port?.name).filter(Boolean).join(', ') || '-';
@@ -73,16 +73,14 @@ const buildColumns = (region = 'CHINA') => {
             header: 'Validez',
             accessor: 'validUntil',
             render: (item) => {
-                const formatDate = (dateStr) => {
-                    if (!dateStr) return '-';
-                    const s = toDateString(dateStr);
-                    return s ? toVenezuelanFormat(s) : '-';
-                };
+                const formatDate = (dateStr, shortYear = false) => dateToStringHelper(dateStr, { shortYear });
 
                 return (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-sm text-slate-700">
                         <Calendar size={14} className="text-slate-400" />
-                        <span className="text-sm text-slate-700">{formatDate(item.validUntil)}</span>
+                        <span>
+                            {formatDate(item.validFrom)}-{formatDate(item.validUntil, true)}
+                        </span>
                     </div>
                 );
             }
@@ -92,13 +90,31 @@ const buildColumns = (region = 'CHINA') => {
             accessor: 'status',
             align: 'center',
             render: (item) => {
-                const isExpired = new Date(item.validUntil) < new Date();
-                return isExpired ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                        <AlertCircle size={12} />
-                        Expirada
-                    </span>
-                ) : (
+                const now = new Date();
+                const validFrom = item.validFrom ? new Date(item.validFrom) : null;
+                const validUntil = item.validUntil ? new Date(item.validUntil) : null;
+                const isExpired = validUntil && validUntil < now;
+                const isUpcoming = validFrom && validFrom > now;
+
+                if (isExpired) {
+                    return (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                            <AlertCircle size={12} />
+                            Expirada
+                        </span>
+                    );
+                }
+
+                if (isUpcoming) {
+                    return (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                            <Calendar size={12} />
+                            Próxima
+                        </span>
+                    );
+                }
+
+                return (
                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                         Vigente
                     </span>
