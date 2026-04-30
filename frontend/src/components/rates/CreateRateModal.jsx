@@ -32,6 +32,7 @@ const emptyForm = {
     profitYaho: '',
     profitIS: '',
     freeDays: 21,
+    validFrom: '',
     validUntil: ''
 };
 
@@ -69,6 +70,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                 profitYaho: entityData.profitYaho ?? '',
                 profitIS: entityData.profitIS ?? '',
                 freeDays: entityData.freeDays ?? 21,
+                validFrom: entityData.validFrom ? entityData.validFrom.split('T')[0] : '',
                 validUntil: entityData.validUntil ? entityData.validUntil.split('T')[0] : ''
             });
         } else {
@@ -192,6 +194,10 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
             showError('Campos requeridos', 'Selecciona una fecha de validez para la tarifa');
             return;
         }
+        if (formData.validFrom && new Date(formData.validUntil) <= new Date(formData.validFrom)) {
+            showError('Rango inválido', 'La fecha fin debe ser posterior a la fecha inicio');
+            return;
+        }
 
         setSaving(true);
         try {
@@ -203,6 +209,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                 cost20ft: parseFloat(formData.cost20ft) || 0,
                 cost40ft: parseFloat(formData.cost40ft) || 0,
                 freeDays: parseInt(formData.freeDays) || 21,
+                validFrom: formData.validFrom || undefined,
                 validUntil: formData.validUntil,
                 shippingLineId: formData.shippingLineId || undefined
             };
@@ -532,7 +539,18 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-slate-700 mb-1 block">
-                                        Validez <span className="text-red-500">*</span>
+                                        Válida desde
+                                    </label>
+                                    <input
+                                        type="date" name="validFrom"
+                                        value={formData.validFrom}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-slate-700 mb-1 block">
+                                        Válida hasta <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="date" name="validUntil"

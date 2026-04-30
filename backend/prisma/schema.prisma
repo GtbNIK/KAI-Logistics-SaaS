@@ -301,6 +301,7 @@ model Rate {
   
   // Días libres y validez
   freeDays   Int      @default(21)
+  validFrom  DateTime @default(now())
   validUntil DateTime
   
   // Activación (para seleccionar aliado ganador)
@@ -320,6 +321,7 @@ model Rate {
   @@index([originPortIds])
   @@index([destinationPortIds])
   @@index([isActive])
+  @@index([validFrom])
   @@index([validUntil])
 }
 

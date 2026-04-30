@@ -420,6 +420,7 @@ const Rates = () => {
                             className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
                         >
                             <option value="valid">Vigentes</option>
+                            <option value="upcoming">Próximas</option>
                             <option value="expired">Expiradas</option>
                             <option value="all">Todas</option>
                         </select>

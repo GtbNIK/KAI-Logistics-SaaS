@@ -3,7 +3,6 @@ import { X, Download, Loader2, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
-import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
 import axios from 'axios';
 
@@ -102,6 +101,20 @@ const loadImageAsPngDataUrl = async (url) => {
         img.onerror = reject;
         img.src = url;
     });
+};
+
+const formatValidityRange = (from, until) => {
+    const format = (dateStr) => {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString('es-VE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    };
+    return `${format(from)} - ${format(until)}`;
 };
 
 const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => {
@@ -211,7 +224,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                             formatPriceCell(rate.sale20HC),
                             formatPriceCell(rate.sale40HC),
                             `${rate.freeDays} días`,
-                            (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
+                            formatValidityRange(rate.validFrom, rate.validUntil)
                         ]),
                         columnStyles: {
                             0: { cellWidth: 45, halign: 'center' },
@@ -236,7 +249,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                         formatPriceCell(rate.sale20HC),
                         formatPriceCell(rate.sale40HC),
                         `${rate.freeDays} días`,
-                        (() => { const s = toDateString(rate.validUntil); return s ? toVenezuelanFormat(s) : '-'; })()
+                        formatValidityRange(rate.validFrom, rate.validUntil)
                     ]),
                     columnStyles: {
                         0: { cellWidth: 45, halign: 'center' },

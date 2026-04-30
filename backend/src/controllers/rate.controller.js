@@ -64,7 +64,7 @@ export const getRates = async (req, res) => {
             destinationPortId, 
             shippingLineId,
             isActive,        // 'true' | 'false' | undefined
-            status = 'valid', // valid | expired | all
+            status = 'valid', // valid | expired | all | upcoming
             page = 1, 
             limit = 20 
         } = req.query;
@@ -88,9 +88,12 @@ export const getRates = async (req, res) => {
 
         // Filtro por estado de validez
         if (status === 'valid') {
+            where.validFrom = { lte: now };
             where.validUntil = { gte: now };
         } else if (status === 'expired') {
             where.validUntil = { lt: now };
+        } else if (status === 'upcoming') {
+            where.validFrom = { gt: now };
         }
         // Si status === 'all', no agregamos filtro de validez
 
@@ -147,6 +150,7 @@ export const createRate = async (req, res) => {
             profitIS,
             shippingLineId,
             freeDays = 21,
+            validFrom,
             validUntil
         } = req.body;
 
@@ -186,11 +190,17 @@ export const createRate = async (req, res) => {
             }
         }
 
+        const nowCreate = new Date();
+        const validFromDate = validFrom ? new Date(validFrom) : nowCreate;
         const validUntilDate = new Date(validUntil);
-        if (validUntilDate <= new Date()) {
-            return res.status(400).json({ 
-                message: 'La fecha de validez debe ser futura' 
-            });
+        if (isNaN(validUntilDate)) {
+            return res.status(400).json({ message: 'validUntil es inválido' });
+        }
+        if (validFrom && isNaN(validFromDate)) {
+            return res.status(400).json({ message: 'validFrom es inválido' });
+        }
+        if (validUntilDate <= validFromDate) {
+            return res.status(400).json({ message: 'validUntil debe ser posterior a validFrom' });
         }
 
         // Verificar que existan las entidades relacionadas
@@ -238,6 +248,7 @@ export const createRate = async (req, res) => {
                 sale40HC,
                 shippingLineId: shippingLineId || null,
                 freeDays: parseInt(freeDays),
+                validFrom: validFromDate,
                 validUntil: validUntilDate
             },
             include: {
@@ -278,6 +289,7 @@ export const updateRate = async (req, res) => {
             profitIS,
             shippingLineId,
             freeDays,
+            validFrom,
             validUntil
         } = req.body;
 
@@ -305,12 +317,25 @@ export const updateRate = async (req, res) => {
             }
         }
 
-        if (validUntil) {
-            const validUntilDate = new Date(validUntil);
-            if (validUntilDate <= new Date()) {
-                return res.status(400).json({ 
-                    message: 'La fecha de validez debe ser futura' 
-                });
+        let validFromDateUpdate;
+        let validUntilDateUpdate;
+        if (validFrom !== undefined) {
+            validFromDateUpdate = validFrom ? new Date(validFrom) : null;
+            if (validFrom && isNaN(validFromDateUpdate)) {
+                return res.status(400).json({ message: 'validFrom es inválido' });
+            }
+        }
+        if (validUntil !== undefined) {
+            validUntilDateUpdate = validUntil ? new Date(validUntil) : null;
+            if (validUntil && isNaN(validUntilDateUpdate)) {
+                return res.status(400).json({ message: 'validUntil es inválido' });
+            }
+        }
+        if (validFromDateUpdate || validUntilDateUpdate) {
+            const vf = validFromDateUpdate ?? existingRate.validFrom;
+            const vu = validUntilDateUpdate ?? existingRate.validUntil;
+            if (vu <= vf) {
+                return res.status(400).json({ message: 'validUntil debe ser posterior a validFrom' });
             }
         }
 
@@ -328,6 +353,7 @@ export const updateRate = async (req, res) => {
         if (profitIS !== undefined) updateData.profitIS = profitIS !== null ? parseFloat(profitIS) : null;
         if (shippingLineId !== undefined) updateData.shippingLineId = shippingLineId || null;
         if (freeDays !== undefined) updateData.freeDays = parseInt(freeDays);
+        if (validFrom !== undefined) updateData.validFrom = validFrom ? new Date(validFrom) : existingRate.validFrom;
         if (validUntil !== undefined) updateData.validUntil = new Date(validUntil);
 
         // Recalcular precios de venta si cambiaron los costos/fees/profits
@@ -499,6 +525,7 @@ export const bulkActivate = async (req, res) => {
             where: {
                 allyId,
                 deletedAt: null,
+                validFrom: { lte: now },
                 validUntil: { gte: now } // Solo activar las vigentes
             },
             data: { isActive: true }
@@ -567,6 +594,7 @@ export const findRate = async (req, res) => {
             destinationPortIds: { has: destinationPortId },
             isActive: true,
             deletedAt: null,
+            validFrom: { lte: now },
             validUntil: { gte: now }
         };
 

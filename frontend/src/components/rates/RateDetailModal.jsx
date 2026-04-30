@@ -1,13 +1,10 @@
 import { X, DollarSign, Ship, MapPin, Calendar, Anchor, Clock, AlertCircle, Globe } from 'lucide-react';
+import { dateToStringHelper } from '../../utils/dateHelpers';
 
 const RateDetailModal = ({ isOpen, onClose, rate }) => {
     if (!isOpen || !rate) return null;
 
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '—';
-        const date = new Date(dateStr.split('T')[0] + 'T12:00:00');
-        return date.toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' });
-    };
+    const formatDate = (dateStr) => dateToStringHelper(dateStr, { style: 'text' });
 
     const formatPortCodes = (ports = []) => ports.map((port) => port?.code).filter(Boolean).join(', ') || '—';
     const formatPortNames = (ports = []) => ports.map((port) => port?.name).filter(Boolean).join(', ') || '—';
@@ -28,7 +25,11 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
         )
     );
 
-    const isExpired = rate.validUntil && new Date(rate.validUntil) < new Date();
+    const now = new Date();
+    const vFrom = rate.validFrom ? new Date(rate.validFrom) : null;
+    const vUntil = rate.validUntil ? new Date(rate.validUntil) : null;
+    const isExpired = vUntil && vUntil < now;
+    const isUpcoming = vFrom && vFrom > now;
     const originSummary = formatPortCodes(rate.originPorts);
     const destinationSummary = formatPortCodes(rate.destinationPorts);
     const mainRoute = `${originSummary} → ${destinationSummary}`;
@@ -188,14 +189,15 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                             <Calendar size={14} /> Validez
                         </h4>
                         <div className={`p-4 rounded-xl border flex items-start gap-3 ${
-                            isExpired
-                                ? 'bg-red-50 border-red-200'
-                                : 'bg-amber-50 border-amber-200'
+                            isExpired ? 'bg-red-50 border-red-200' : isUpcoming ? 'bg-slate-50 border-slate-200' : 'bg-emerald-50 border-emerald-200'
                         }`}>
                             {isExpired && <AlertCircle className="text-red-500 mt-0.5 shrink-0" size={18} />}
                             <div>
-                                <p className="text-xs text-slate-400 mb-1">Válida hasta</p>
-                                <p className="font-medium text-slate-800">{formatDate(rate.validUntil)}</p>
+                                <p className="text-xs text-slate-400 mb-1">Validez</p>
+                                <p className="font-medium text-slate-800">Del {formatDate(rate.validFrom)} al {formatDate(rate.validUntil)}</p>
+                                <p className={`text-xs mt-1 ${isExpired ? 'text-red-600' : isUpcoming ? 'text-slate-600' : 'text-emerald-600'}`}>
+                                    {isExpired ? 'Expirada' : isUpcoming ? 'Proxima' : 'Vigente'}
+                                </p>
                             </div>
                         </div>
                     </div>
