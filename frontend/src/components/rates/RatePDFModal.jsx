@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
+import { dateToStringHelper } from '../../utils/dateHelpers';
 import axios from 'axios';
 
 const DEFAULT_LOGO = '/1.png';
@@ -103,19 +104,7 @@ const loadImageAsPngDataUrl = async (url) => {
     });
 };
 
-const formatValidityRange = (from, until) => {
-    const format = (dateStr) => {
-        if (!dateStr) return '—';
-        const d = new Date(dateStr);
-        if (Number.isNaN(d.getTime())) return '—';
-        return d.toLocaleDateString('es-VE', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    };
-    return `${format(from)} - ${format(until)}`;
-};
+const formatValidityRange = (from, until) => `${dateToStringHelper(from)} - ${dateToStringHelper(until)}`;
 
 const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => {
     const { settings } = useSettings();
