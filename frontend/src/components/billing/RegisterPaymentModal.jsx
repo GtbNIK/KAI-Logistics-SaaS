@@ -27,19 +27,21 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
     const { showSuccess, showError } = useToast();
 
     if (!receivable) return null;
-    const pendingBalance = parseFloat(receivable.totalAmount) - parseFloat(receivable.paidAmount || 0);
+    const pendingRaw = parseFloat(receivable.totalAmount) - parseFloat(receivable.paidAmount || 0);
+    const pendingBalance = Math.max(0, Number(pendingRaw.toFixed(2)));
     const client = receivable.paymentNotice?.client || receivable.client;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!amount || parseFloat(amount) <= 0) return showError('Validación', 'El monto debe ser mayor a 0');
-        if (parseFloat(amount) > pendingBalance + 0.01) return showError('Validación', `No puede superar $${pendingBalance.toFixed(2)}`);
+        const normalizedAmount = parseFloat(String(amount).replace(',', '.'));
+        if (!normalizedAmount || normalizedAmount <= 0) return showError('Validación', 'El monto debe ser mayor a 0');
+        if (normalizedAmount > pendingBalance + 0.000001) return showError('Validación', `No puede superar $${pendingBalance.toFixed(2)}`);
         setLoading(true);
         try {
             await axios.post(`${API_URL}/receivables/${receivable.id}/payments`, {
-                amount: parseFloat(amount), method, reference: reference || undefined, date: toLocalISOString(date), notes: notes || undefined,
+                amount: normalizedAmount, method, reference: reference || undefined, date: toLocalISOString(date), notes: notes || undefined,
             });
-            showSuccess('¡Pago Registrado!', `Se abonaron $${parseFloat(amount).toFixed(2)}`);
+            showSuccess('¡Pago Registrado!', `Se abonaron $${normalizedAmount.toFixed(2)}`);
             onSuccess();
             onClose();
         } catch (error) {
@@ -93,8 +95,8 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
                         <label className="text-xs font-medium text-slate-700">Monto a Abonar (USD)</label>
                         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary bg-slate-50">
                             <span className="text-slate-400 font-medium text-sm">$</span>
-                            <input type="number" step="0.01" min="0.01" max={pendingBalance}
-                                value={amount} onChange={e => setAmount(e.target.value)}
+                            <input type="number" step="0.01" min="0.01" max={Number(pendingBalance.toFixed(2))}
+                                value={amount} onChange={e => setAmount(e.target.value.replace(',', '.'))}
                                 className="flex-1 bg-transparent text-sm focus:outline-none text-slate-800 font-semibold"
                                 placeholder={`Máx. ${pendingBalance.toFixed(2)}`} required />
                         </div>
