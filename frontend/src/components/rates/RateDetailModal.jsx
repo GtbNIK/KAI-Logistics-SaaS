@@ -33,7 +33,7 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
     const originSummary = formatPortCodes(rate.originPorts);
     const destinationSummary = formatPortCodes(rate.destinationPorts);
     const mainRoute = `${originSummary} → ${destinationSummary}`;
-    const showFees = rate.region === 'CHINA';
+    const showFees = rate.region === 'CHINA' || rate.region === 'OTHER';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
@@ -171,10 +171,12 @@ const RateDetailModal = ({ isOpen, onClose, rate }) => {
                                     <p className="text-xs text-slate-400 mb-1">Bank Fee</p>
                                     <p className="text-lg font-bold text-slate-800">${(rate.bankFee ?? 0).toFixed(2)}</p>
                                 </div>
-                                <div className="p-4 bg-slate-50 rounded-xl">
-                                    <p className="text-xs text-slate-400 mb-1">Profit Yaho</p>
-                                    <p className="text-lg font-bold text-slate-800">${(rate.profitYaho ?? 0).toFixed(2)}</p>
-                                </div>
+                                {rate.region === 'CHINA' && (
+                                    <div className="p-4 bg-slate-50 rounded-xl">
+                                        <p className="text-xs text-slate-400 mb-1">Profit Yaho</p>
+                                        <p className="text-lg font-bold text-slate-800">${(rate.profitYaho ?? 0).toFixed(2)}</p>
+                                    </div>
+                                )}
                                 <div className="p-4 bg-slate-50 rounded-xl">
                                     <p className="text-xs text-slate-400 mb-1">Profit IS</p>
                                     <p className="text-lg font-bold text-slate-800">${(rate.profitIS ?? 0).toFixed(2)}</p>

@@ -465,13 +465,14 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                             </div>
                         </div>
 
-                        {/* Sección: Fees y Márgenes (solo para CHINA) */}
-                        {formData.region === 'CHINA' && (
+                        {/* Sección: Fees y Márgenes */}
+                        {(formData.region === 'CHINA' || formData.region === 'OTHER') && (
                             <div className="space-y-4">
                                 <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                                     <DollarSign size={14} /> Fees y Márgenes de Ganancia
                                 </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Bank Fee visible para todas las regiones */}
                                 <div>
                                     <label className="text-sm font-medium text-slate-700 mb-1 block">Bank Fee (USD)</label>
                                     <input
@@ -482,16 +483,20 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                         className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
                                     />
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-slate-700 mb-1 block">Profit Yaho (USD)</label>
-                                    <input
-                                        type="number" step="0.01" min="0" name="profitYaho"
-                                        value={formData.profitYaho}
-                                        onChange={handleChange}
-                                        placeholder="0.00"
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
-                                    />
-                                </div>
+                                {/* Profit Yaho solo para CHINA */}
+                                {formData.region === 'CHINA' && (
+                                    <div>
+                                        <label className="text-sm font-medium text-slate-700 mb-1 block">Profit Yaho (USD)</label>
+                                        <input
+                                            type="number" step="0.01" min="0" name="profitYaho"
+                                            value={formData.profitYaho}
+                                            onChange={handleChange}
+                                            placeholder="0.00"
+                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
+                                        />
+                                    </div>
+                                )}
+                                {/* Profit IS visible para todas las regiones */}
                                 <div>
                                     <label className="text-sm font-medium text-slate-700 mb-1 block">Profit IS (USD)</label>
                                     <input
@@ -504,7 +509,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                 </div>
                             </div>
 
-                            {/* Precios de venta calculados */}
+                            {/* Precios de venta calculados (para ambas regiones) */}
                             <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
                                 <h5 className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-3">Precio de Venta Calculado</h5>
                                 <div className="grid grid-cols-2 gap-4">
