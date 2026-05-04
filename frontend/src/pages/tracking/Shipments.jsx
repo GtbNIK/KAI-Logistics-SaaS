@@ -3,7 +3,7 @@ import { Container, Plus, Ship, Package } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
-import { shipmentConfig } from '../../config/shipmentConfig';
+import { shipmentConfig, buildShipmentColumns } from '../../config/shipmentConfig';
 import ShipmentDetailModal from '../../components/tracking/ShipmentDetailModal';
 import ShipmentFormModal from '../../components/tracking/ShipmentFormModal';
 import shipmentService from '../../services/shipment.service';
@@ -24,6 +24,7 @@ const TYPE_OPTIONS = [
     { value: '', label: 'Todos los tipos' },
     { value: 'FCL', label: 'FCL (Contenedor)' },
     { value: 'D2D', label: 'Door to Door' },
+    { value: 'CONSOLIDADO', label: 'Consolidado' },
 ];
 
 // ── Hook de datos ─────
@@ -182,7 +183,7 @@ const Shipments = () => {
 
             {/* Tabla */}
             <EntityTable
-                columns={shipmentConfig.columns}
+                columns={buildShipmentColumns(typeFilter)}
                 entityName={shipmentConfig.entityName}
                 entityNamePlural={shipmentConfig.entityNamePlural}
                 items={items}

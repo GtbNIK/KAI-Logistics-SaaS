@@ -37,6 +37,14 @@ export const getShipments = async (req, res) => {
                 shippingLineRel: { select: { id: true, name: true, code: true } },
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
                 airLine: { select: { id: true, name: true, code: true } },
+                d2dShipmentItems: {
+                    include: {
+                        d2dItem: { select: { id: true, description: true } }
+                    }
+                },
+                containers: true,
+                aliado: { select: { id: true, name: true } },
+                d2dAliado: { select: { id: true, name: true } },
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -70,6 +78,14 @@ export const getShipment = async (req, res) => {
                 shippingLineRel: { select: { id: true, name: true, code: true } },
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
                 airLine: { select: { id: true, name: true, code: true } },
+                d2dShipmentItems: {
+                    include: {
+                        d2dItem: { select: { id: true, description: true } }
+                    }
+                },
+                containers: true,
+                aliado: { select: { id: true, name: true } },
+                d2dAliado: { select: { id: true, name: true } },
             }
         });
 
@@ -95,11 +111,17 @@ export const createShipment = async (req, res) => {
             shippingLineId, airLineId, clientId, clientName,
             vendedorId, currentLocation,
             containerType, containerQty, originPort, destPort, etd, eta,
-            weight, quantity, cbm
+            weight, quantity, cbm, d2dItemIds,
+            // Nuevos campos FCL
+            transitTime, aliadoId, containers,
+            // Nuevos campos D2D
+            cst, consolidadoManual, transportType, d2dEta, deliveryPlace, d2dTransitTime, d2dAliadoId,
+            // Campos CONSOLIDADO
+            consolidadoNumber, arrivalPort, consolidadoTransitTime
         } = req.body;
 
         if (!type) {
-            return res.status(400).json({ message: 'El tipo de embarque es requerido (FCL o D2D)' });
+            return res.status(400).json({ message: 'El tipo de embarque es requerido (FCL, D2D o CONSOLIDADO)' });
         }
 
         // Normalizar: string vacío → null para evitar error de FK en Prisma
@@ -145,12 +167,14 @@ export const createShipment = async (req, res) => {
 
         // FCL fields
         if (type === 'FCL') {
-            data.containerType = containerType || null;
-            data.containerQty = containerQty ? parseInt(containerQty) : null;
+            data.containerType = containerType || null; // DEPRECADO
+            data.containerQty = containerQty ? parseInt(containerQty) : null; // DEPRECADO
             data.originPort = originPort || null;
             data.destPort = destPort || null;
             data.etd = etd ? new Date(etd) : null;
             data.eta = eta ? new Date(eta) : null;
+            data.transitTime = transitTime ? parseInt(transitTime) : null;
+            data.aliadoId = aliadoId || null;
         }
 
         // D2D fields
@@ -159,6 +183,23 @@ export const createShipment = async (req, res) => {
             data.quantity = quantity ? parseInt(quantity) : null;
             data.cbm = cbm ? parseFloat(cbm) : null;
             data.originPort = originPort || null;
+            data.cst = cst || null;
+            data.consolidadoManual = consolidadoManual || null;
+            data.transportType = transportType || null;
+            data.d2dEta = d2dEta ? new Date(d2dEta) : null;
+            data.deliveryPlace = deliveryPlace || null;
+            data.d2dTransitTime = d2dTransitTime ? parseInt(d2dTransitTime) : null;
+            data.d2dAliadoId = d2dAliadoId || null;
+        }
+
+        // CONSOLIDADO fields
+        if (type === 'CONSOLIDADO') {
+            data.consolidadoNumber = consolidadoNumber || null;
+            data.blNumber = blNumber || null;
+            data.etd = etd ? new Date(etd) : null;
+            data.eta = eta ? new Date(eta) : null;
+            data.arrivalPort = arrivalPort || null;
+            data.consolidadoTransitTime = consolidadoTransitTime ? parseInt(consolidadoTransitTime) : null;
         }
 
         const shipment = await prisma.shipment.create({
@@ -168,8 +209,34 @@ export const createShipment = async (req, res) => {
                 vendedor: { select: { id: true, name: true } },
                 shippingLineRel: { select: { id: true, name: true } },
                 clientRel: { select: { id: true, name: true } },
+                d2dShipmentItems: {
+                    include: {
+                        d2dItem: { select: { id: true, description: true } }
+                    }
+                },
             }
         });
+
+        // Crear ShipmentContainers si type es FCL y se enviaron containers
+        if (type === 'FCL' && containers && Array.isArray(containers) && containers.length > 0) {
+            await prisma.shipmentContainer.createMany({
+                data: containers.map(c => ({
+                    shipmentId: shipment.id,
+                    containerType: c.containerType,
+                    quantity: c.quantity || 1
+                }))
+            });
+        }
+
+        // Crear D2DShipmentItems si type es D2D y se enviaron IDs
+        if (type === 'D2D' && d2dItemIds && Array.isArray(d2dItemIds) && d2dItemIds.length > 0) {
+            await prisma.d2DShipmentItem.createMany({
+                data: d2dItemIds.map(itemId => ({
+                    shipmentId: shipment.id,
+                    d2dItemId: itemId
+                }))
+            });
+        }
 
         res.status(201).json(shipment);
     } catch (error) {
@@ -189,7 +256,13 @@ export const updateShipment = async (req, res) => {
             blNumber, whNumber, bookingNumber, shippingLineId, airLineId, status,
             clientId, clientName, vendedorId, currentLocation,
             containerType, containerQty, originPort, destPort, etd, eta,
-            weight, quantity, cbm
+            weight, quantity, cbm, d2dItemIds,
+            // Nuevos campos FCL
+            transitTime, aliadoId, containers,
+            // Nuevos campos D2D
+            cst, consolidadoManual, transportType, d2dEta, deliveryPlace, d2dTransitTime, d2dAliadoId,
+            // Campos CONSOLIDADO
+            consolidadoNumber, arrivalPort, consolidadoTransitTime
         } = req.body;
 
         const existing = await prisma.shipment.findUnique({ where: { id } });
@@ -218,6 +291,59 @@ export const updateShipment = async (req, res) => {
         if (weight !== undefined) data.weight = weight ? parseFloat(weight) : null;
         if (quantity !== undefined) data.quantity = quantity ? parseInt(quantity) : null;
         if (cbm !== undefined) data.cbm = cbm ? parseFloat(cbm) : null;
+        
+        // Nuevos campos FCL
+        if (transitTime !== undefined) data.transitTime = transitTime ? parseInt(transitTime) : null;
+        if (aliadoId !== undefined) data.aliadoId = aliadoId || null;
+        
+        // Nuevos campos D2D
+        if (cst !== undefined) data.cst = cst || null;
+        if (consolidadoManual !== undefined) data.consolidadoManual = consolidadoManual || null;
+        if (transportType !== undefined) data.transportType = transportType || null;
+        if (d2dEta !== undefined) data.d2dEta = d2dEta ? new Date(d2dEta) : null;
+        if (deliveryPlace !== undefined) data.deliveryPlace = deliveryPlace || null;
+        if (d2dTransitTime !== undefined) data.d2dTransitTime = d2dTransitTime ? parseInt(d2dTransitTime) : null;
+        if (d2dAliadoId !== undefined) data.d2dAliadoId = d2dAliadoId || null;
+        
+        // Campos CONSOLIDADO
+        if (consolidadoNumber !== undefined) data.consolidadoNumber = consolidadoNumber || null;
+        if (arrivalPort !== undefined) data.arrivalPort = arrivalPort || null;
+        if (consolidadoTransitTime !== undefined) data.consolidadoTransitTime = consolidadoTransitTime ? parseInt(consolidadoTransitTime) : null;
+
+        // Si se envían containers, actualizar la relación 1:N (FCL)
+        if (containers !== undefined && existing.type === 'FCL') {
+            // Eliminar containers existentes
+            await prisma.shipmentContainer.deleteMany({
+                where: { shipmentId: id }
+            });
+            // Crear nuevos containers si hay
+            if (Array.isArray(containers) && containers.length > 0) {
+                await prisma.shipmentContainer.createMany({
+                    data: containers.map(c => ({
+                        shipmentId: id,
+                        containerType: c.containerType,
+                        quantity: c.quantity || 1
+                    }))
+                });
+            }
+        }
+
+        // Si se envían d2dItemIds, actualizar la relación N:M
+        if (d2dItemIds !== undefined && existing.type === 'D2D') {
+            // Eliminar items existentes
+            await prisma.d2DShipmentItem.deleteMany({
+                where: { shipmentId: id }
+            });
+            // Crear nuevos items si hay
+            if (Array.isArray(d2dItemIds) && d2dItemIds.length > 0) {
+                await prisma.d2DShipmentItem.createMany({
+                    data: d2dItemIds.map(itemId => ({
+                        shipmentId: id,
+                        d2dItemId: itemId
+                    }))
+                });
+            }
+        }
 
         const shipment = await prisma.shipment.update({
             where: { id },
@@ -227,6 +353,11 @@ export const updateShipment = async (req, res) => {
                 vendedor: { select: { id: true, name: true } },
                 shippingLineRel: { select: { id: true, name: true } },
                 clientRel: { select: { id: true, name: true } },
+                d2dShipmentItems: {
+                    include: {
+                        d2dItem: { select: { id: true, description: true } }
+                    }
+                },
             }
         });
 

@@ -49,6 +49,8 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     const [shippingLines, setShippingLines] = useState([]);
     const [airLines, setAirLines] = useState([]);
     const [ports, setPorts] = useState([]);
+    const [d2dItems, setD2dItems] = useState([]);
+    const [allies, setAllies] = useState([]);
 
     // Toggle: ¿tiene aviso de cobro vinculado?
     const [hasNotice, setHasNotice] = useState(true);
@@ -68,16 +70,31 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         vendedorId: '',
         currentLocation: '',
         // FCL
-        containerType: '',
-        containerQty: '',
+        containerType: '', // DEPRECADO
+        containerQty: '', // DEPRECADO
+        containers: [], // Nuevo: array de {containerType, quantity}
         originPort: '',
         destPort: '',
         etd: '',
         eta: '',
+        transitTime: '',
+        aliadoId: '',
         // D2D
         weight: '',
         quantity: '',
         cbm: '',
+        d2dItemIds: [],
+        cst: '',
+        consolidadoManual: '',
+        transportType: 'naviera', // Por defecto naviera
+        d2dEta: '',
+        deliveryPlace: '',
+        d2dTransitTime: '',
+        d2dAliadoId: '',
+        // CONSOLIDADO
+        consolidadoNumber: '',
+        arrivalPort: '',
+        consolidadoTransitTime: '',
     });
 
     // Cargar catálogos
@@ -85,19 +102,23 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         const load = async () => {
             setLoading(true);
             try {
-                const [notices, usersData, clientsData, shippingLinesData, portsData, airLinesData] = await Promise.all([
+                const [notices, usersData, clientsData, shippingLinesData, portsData, airLinesData, d2dItemsData, alliesData] = await Promise.all([
                     shipmentService.getAvailableNotices(),
                     shipmentService.getVendedores(),
                     shipmentService.getClients(),
                     shipmentService.getShippingLines(),
                     shipmentService.getPorts(),
-                    airlineService.getAirLines()
+                    airlineService.getAirLines(),
+                    shipmentService.getD2DItems(),
+                    shipmentService.getAllies()
                 ]);
                 setAvailableNotices(Array.isArray(notices) ? notices : []);
                 setUsers(Array.isArray(usersData) ? usersData : []);
                 setClients(Array.isArray(clientsData) ? clientsData : []);
                 setShippingLines(Array.isArray(shippingLinesData) ? shippingLinesData : []);
                 setPorts(Array.isArray(portsData) ? portsData : []);
+                setD2dItems(Array.isArray(d2dItemsData) ? d2dItemsData : []);
+                setAllies(Array.isArray(alliesData) ? alliesData : []);
                 setAirLines((airLinesData?.data || []))
             } catch (err) {
                 console.error('Error loading catalogs:', err);
@@ -128,13 +149,27 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 currentLocation: shipment.currentLocation || '',
                 containerType: shipment.containerType || '',
                 containerQty: shipment.containerQty || '',
+                containers: shipment.containers || [],
                 originPort: shipment.originPort || '',
                 destPort: shipment.destPort || '',
                 etd: shipment.etd ? shipment.etd.slice(0, 10) : '',
                 eta: shipment.eta ? shipment.eta.slice(0, 10) : '',
+                transitTime: shipment.transitTime || '',
+                aliadoId: shipment.aliadoId || '',
                 weight: shipment.weight || '',
                 quantity: shipment.quantity || '',
                 cbm: shipment.cbm || '',
+                d2dItemIds: shipment.d2dShipmentItems?.map(item => item.d2dItemId) || [],
+                cst: shipment.cst || '',
+                consolidadoManual: shipment.consolidadoManual || '',
+                transportType: shipment.transportType || 'naviera',
+                d2dEta: shipment.d2dEta ? shipment.d2dEta.slice(0, 10) : '',
+                deliveryPlace: shipment.deliveryPlace || '',
+                d2dTransitTime: shipment.d2dTransitTime || '',
+                d2dAliadoId: shipment.d2dAliadoId || '',
+                consolidadoNumber: shipment.consolidadoNumber || '',
+                arrivalPort: shipment.arrivalPort || '',
+                consolidadoTransitTime: shipment.consolidadoTransitTime || '',
             });
         }
     }, [shipment, isEdit]);
@@ -272,12 +307,12 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                             {/* Tipo de embarque */}
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-2">Tipo de Embarque</label>
-                                <div className="flex gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     <button type="button"
                                         onClick={() => !isEdit && handleChange('type', 'FCL')}
                                         disabled={isEdit}
-                                        className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                                            isFCL
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                                            form.type === 'FCL'
                                                 ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
                                                 : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                                         } ${isEdit ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -286,12 +321,22 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     <button type="button"
                                         onClick={() => !isEdit && handleChange('type', 'D2D')}
                                         disabled={isEdit}
-                                        className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                                            !isFCL
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                                            form.type === 'D2D'
                                                 ? 'border-teal-400 bg-teal-50 text-teal-700'
                                                 : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                                         } ${isEdit ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
                                         <Package size={18} /> Door to Door
+                                    </button>
+                                    <button type="button"
+                                        onClick={() => !isEdit && handleChange('type', 'CONSOLIDADO')}
+                                        disabled={isEdit}
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                                            form.type === 'CONSOLIDADO'
+                                                ? 'border-purple-400 bg-purple-50 text-purple-700'
+                                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                        } ${isEdit ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                        <Package size={18} /> Consolidado
                                     </button>
                                 </div>
                             </div>
@@ -486,28 +531,56 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                             </div>
 
                             {/* ── Campos FCL ── */}
-                            {isFCL && (
+                            {form.type === 'FCL' && (
                                 <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100 space-y-4">
                                     <h4 className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
                                         <Container size={16} /> Datos FCL
                                     </h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tipo Contenedor</label>
-                                            <select value={form.containerType}
-                                                onChange={e => handleChange('containerType', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200">
-                                                <option value="">Seleccionar...</option>
-                                                {CONTAINER_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                            </select>
+                                    
+                                    {/* Tabla de Contenedores */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="block text-xs font-medium text-slate-500">Contenedores</label>
+                                            <button type="button"
+                                                onClick={() => handleChange('containers', [...form.containers, { containerType: '20ft', quantity: 1 }])}
+                                                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+                                                + Agregar contenedor
+                                            </button>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Cantidad</label>
-                                            <input type="number" min="1" value={form.containerQty}
-                                                onChange={e => handleChange('containerQty', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                                                placeholder="1" />
-                                        </div>
+                                        {form.containers.length > 0 && (
+                                            <div className="space-y-2">
+                                                {form.containers.map((container, idx) => (
+                                                    <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-indigo-100">
+                                                        <select
+                                                            value={container.containerType}
+                                                            onChange={e => {
+                                                                const updated = [...form.containers];
+                                                                updated[idx].containerType = e.target.value;
+                                                                handleChange('containers', updated);
+                                                            }}
+                                                            className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm">
+                                                            {CONTAINER_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                                        </select>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            value={container.quantity}
+                                                            onChange={e => {
+                                                                const updated = [...form.containers];
+                                                                updated[idx].quantity = parseInt(e.target.value) || 1;
+                                                                handleChange('containers', updated);
+                                                            }}
+                                                            className="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-sm"
+                                                            placeholder="Cant." />
+                                                        <button type="button"
+                                                            onClick={() => handleChange('containers', form.containers.filter((_, i) => i !== idx))}
+                                                            className="text-red-500 hover:text-red-600 p-1">
+                                                            <X size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -579,42 +652,162 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" />
                                         </div>
                                     </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">TT (Tiempo de tránsito en días)</label>
+                                            <input type="number" min="0" value={form.transitTime}
+                                                onChange={e => handleChange('transitTime', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                                                placeholder="Ej: 30" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Aliado</label>
+                                            <Select
+                                                options={allies.map(a => ({ value: a.id, label: a.name }))}
+                                                value={allies.find(a => a.id === form.aliadoId) ? { value: form.aliadoId, label: allies.find(a => a.id === form.aliadoId).name } : null}
+                                                onChange={opt => handleChange('aliadoId', opt?.value || '')}
+                                                placeholder="Seleccionar aliado..."
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
                             {/* ── Campos D2D ── */}
-                            {!isFCL && (
+                            {form.type === 'D2D' && (
                                 <div className="bg-teal-50/50 rounded-xl p-4 border border-teal-100 space-y-4">
                                     <h4 className="text-sm font-semibold text-teal-700 flex items-center gap-2">
                                         <Package size={16} /> Datos Door to Door
                                     </h4>
+                                    
+                                    {/* Toggle Aéreo/Naviera */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen</label>
+                                        <label className="block text-xs font-medium text-slate-500 mb-2">Tipo de transporte</label>
+                                        <div className="flex gap-3">
+                                            <button type="button"
+                                                onClick={() => handleChange('transportType', 'naviera')}
+                                                className={`flex-1 py-2 px-4 rounded-xl border-2 text-sm font-medium transition-all ${
+                                                    form.transportType === 'naviera'
+                                                        ? 'border-teal-400 bg-teal-50 text-teal-700'
+                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                                }`}>
+                                                Naviera
+                                            </button>
+                                            <button type="button"
+                                                onClick={() => handleChange('transportType', 'aereo')}
+                                                className={`flex-1 py-2 px-4 rounded-xl border-2 text-sm font-medium transition-all ${
+                                                    form.transportType === 'aereo'
+                                                        ? 'border-sky-400 bg-sky-50 text-sky-700'
+                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                                }`}>
+                                                Aéreo
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Línea Naviera o Aérea según toggle */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                                            {form.transportType === 'aereo' ? 'Línea Aérea' : 'Línea Naviera'}
+                                        </label>
+                                        {form.transportType === 'aereo' ? (
+                                            <Select
+                                                options={airLines.map(a => ({ value: a.id, label: `${a.name}${a.code ? ` (${a.code})` : ''}` }))}
+                                                value={airLines.find(a => a.id === form.airLineId) ? { value: form.airLineId, label: airLines.find(a => a.id === form.airLineId).name } : null}
+                                                onChange={opt => handleChange('airLineId', opt?.value || '')}
+                                                placeholder="Seleccionar línea aérea..."
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        ) : (
+                                            <Select
+                                                options={shippingLineOptions}
+                                                value={baseShippingLineOptions.find(o => o.value === form.shippingLineId) || null}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') {
+                                                        setQuickCreateType('SHIPPING_LINE');
+                                                        return;
+                                                    }
+                                                    handleChange('shippingLineId', opt?.value || '');
+                                                }}
+                                                placeholder="Seleccionar línea naviera..."
+                                                isClearable
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen</label>
+                                            <Select
+                                                options={portOptions}
+                                                value={basePortOptions.find(o => o.value === form.originPort) || null}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') {
+                                                        setQuickCreateType('PORT_ORIGIN');
+                                                        return;
+                                                    }
+                                                    handleChange('originPort', opt?.value || '');
+                                                }}
+                                                placeholder="Seleccionar puerto..."
+                                                isClearable
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Lugar de entrega</label>
+                                            <input type="text" value={form.deliveryPlace}
+                                                onChange={e => handleChange('deliveryPlace', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: Almacén central" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Items / Servicios</label>
                                         <Select
-                                            options={portOptions}
-                                            value={basePortOptions.find(o => o.value === form.originPort) || null}
-                                            onChange={(opt) => {
-                                                if (opt?.value === 'NEW') {
-                                                    setQuickCreateType('PORT_ORIGIN');
-                                                    return;
-                                                }
-                                                handleChange('originPort', opt?.value || '');
+                                            isMulti
+                                            options={d2dItems.map(item => ({ value: item.id, label: item.description }))}
+                                            value={d2dItems.filter(item => form.d2dItemIds.includes(item.id)).map(item => ({ value: item.id, label: item.description }))}
+                                            onChange={(selected) => {
+                                                const ids = selected ? selected.map(s => s.value) : [];
+                                                handleChange('d2dItemIds', ids);
                                             }}
-                                            placeholder="Seleccionar puerto..."
+                                            placeholder="Seleccionar items..."
                                             isClearable
-                                            styles={{
-                                                ...selectStyles,
-                                                option: (base, state) => ({
-                                                    ...base,
-                                                    color: state.data.isAction ? '#12284bff' : base.color,
-                                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
-                                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
-                                                })
-                                            }}
+                                            styles={selectStyles}
                                             menuPortalTarget={document.body}
                                             menuPosition="fixed"
                                         />
                                     </div>
+
                                     <div className="grid grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-xs font-medium text-slate-500 mb-1">Peso (kg)</label>
@@ -636,6 +829,98 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                                 onChange={e => handleChange('cbm', e.target.value)}
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                                                 placeholder="0.000" />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">CST</label>
+                                            <input type="text" value={form.cst}
+                                                onChange={e => handleChange('cst', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: CST-12345" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Consolidado Manual</label>
+                                            <input type="text" value={form.consolidadoManual}
+                                                onChange={e => handleChange('consolidadoManual', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: CONS-001" />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA</label>
+                                            <input type="date" value={form.d2dEta}
+                                                onChange={e => handleChange('d2dEta', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">TT (días)</label>
+                                            <input type="number" min="0" value={form.d2dTransitTime}
+                                                onChange={e => handleChange('d2dTransitTime', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: 15" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Aliado</label>
+                                            <Select
+                                                options={allies.map(a => ({ value: a.id, label: a.name }))}
+                                                value={allies.find(a => a.id === form.d2dAliadoId) ? { value: form.d2dAliadoId, label: allies.find(a => a.id === form.d2dAliadoId).name } : null}
+                                                onChange={opt => handleChange('d2dAliadoId', opt?.value || '')}
+                                                placeholder="Seleccionar..."
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Campos CONSOLIDADO ── */}
+                            {form.type === 'CONSOLIDADO' && (
+                                <div className="bg-purple-50/50 rounded-xl p-4 border border-purple-100 space-y-4">
+                                    <h4 className="text-sm font-semibold text-purple-700 flex items-center gap-2">
+                                        <Package size={16} /> Datos Consolidado
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Número de Consolidado</label>
+                                            <input type="text" value={form.consolidadoNumber}
+                                                onChange={e => handleChange('consolidadoNumber', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                                placeholder="Ej: CONS-2024-001" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto de llegada</label>
+                                            <input type="text" value={form.arrivalPort}
+                                                onChange={e => handleChange('arrivalPort', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                                placeholder="Ej: Puerto La Guaira" />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETD</label>
+                                            <input type="date" value={form.etd}
+                                                onChange={e => handleChange('etd', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA</label>
+                                            <input type="date" value={form.eta}
+                                                onChange={e => handleChange('eta', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">TT (días)</label>
+                                            <input type="number" min="0" value={form.consolidadoTransitTime}
+                                                onChange={e => handleChange('consolidadoTransitTime', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                                placeholder="Ej: 45" />
                                         </div>
                                     </div>
                                 </div>

@@ -5,6 +5,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -149,6 +150,8 @@ model Ally {
   payables       Payable[]
   quoteItems     QuoteItem[]
   paymentNoticeItems PaymentNoticeItem[]
+  shipmentsFCL   Shipment[] @relation("ShipmentAlly")
+  shipmentsD2D   Shipment[] @relation("ShipmentD2DAliado")
 }
 
 // -----------------------------------------------------------------------------
@@ -191,6 +194,20 @@ model Port {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Relación N:M entre Shipment (D2D) y D2DItem
+model D2DShipmentItem {
+  id         String   @id @default(uuid())
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  d2dItemId  String
+  d2dItem    D2DItem  @relation(fields: [d2dItemId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([shipmentId])
+  @@index([d2dItemId])
+}
+
 
 model Country {
   id    String @id @default(uuid())
@@ -439,6 +456,7 @@ model D2DItem {
 	updatedAt   DateTime @updatedAt
 
 	deliveryNoteItems DeliveryNoteItem[]
+    shipmentItems    D2DShipmentItem[]
 }
 
 model SvcProvider {
@@ -507,7 +525,7 @@ model Shipment {
   paymentNoticeId String?  @unique
   paymentNotice   PaymentNotice? @relation(fields: [paymentNoticeId], references: [id])
 
-  type            String   // "FCL" o "D2D"
+  type            String   // "FCL", "D2D" o "CONSOLIDADO"
   
   // Common fields
   blNumber        String?
@@ -533,23 +551,57 @@ model Shipment {
   airLine         AirLine?      @relation(fields: [airLineId], references: [id])
 
   // FCL Specific
-  containerType   String?  // Tipo de contenedor
-  containerQty    Int?     // Cantidad de contenedores
+  containerType   String?  // DEPRECADO - usar ShipmentContainer
+  containerQty    Int?     // DEPRECADO - usar ShipmentContainer
   originPort      String?
   destPort        String?
   etd             DateTime? // Estimated Time Departure
   eta             DateTime? // Estimated Time Arrival
+  transitTime     Int?      // TT en días (FCL)
+  aliadoId        String?   // Aliado (FCL)
+  aliado          Ally?     @relation("ShipmentAlly", fields: [aliadoId], references: [id])
+  
+  // Contenedores FCL (relación 1:N)
+  containers      ShipmentContainer[]
   
   // Door to Door Specific
   weight          Decimal?  @db.Decimal(10, 2) // Peso
   quantity        Int?      // Cantidad
   cbm             Decimal?  @db.Decimal(10, 2) // Metros cúbicos
+  cst             String?   // CST (D2D)
+  consolidadoManual String? // Número de consolidado manual (D2D)
+  transportType   String?   // "aereo" o "naviera" (D2D)
+  d2dEta          DateTime? // ETA específico para D2D
+  deliveryPlace   String?   // Lugar de entrega (D2D)
+  d2dTransitTime  Int?      // TT en días (D2D)
+  d2dAliadoId     String?   // Aliado (D2D)
+  d2dAliado       Ally?     @relation("ShipmentD2DAliado", fields: [d2dAliadoId], references: [id])
+  
+  // D2D Items seleccionados (relación N:M a través de D2DShipmentItem)
+  d2dShipmentItems D2DShipmentItem[]
+  
+  // CONSOLIDADO Specific
+  consolidadoNumber String?   // Número de consolidado
+  arrivalPort       String?   // Puerto de llegada
+  consolidadoTransitTime Int? // TT en días (CONSOLIDADO)
   
   updatedById     String
   updatedBy       User     @relation("ShipmentHandler", fields: [updatedById], references: [id])
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model ShipmentContainer {
+  id          String   @id @default(uuid())
+  shipmentId  String
+  shipment    Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  
+  containerType String  // "20ft", "40ft", "40HC"
+  quantity      Int     @default(1)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // -----------------------------------------------------------------------------
