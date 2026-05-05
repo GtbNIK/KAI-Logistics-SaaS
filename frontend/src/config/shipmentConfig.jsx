@@ -109,7 +109,7 @@ export const buildShipmentColumns = (typeFilter) => {
                     D2D: 'bg-teal-50 text-teal-600 border-teal-200',
                     CONSOLIDADO: 'bg-purple-50 text-purple-600 border-purple-200',
                 };
-                const typeLabels = { FCL: 'FCL', D2D: 'Door to Door', CONSOLIDADO: 'Consolidado' };
+                const typeLabels = { FCL: 'FCL', D2D: 'D2D', CONSOLIDADO: 'Consolidado' };
                 return (
                     <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${typeStyles[item.type] || ''}`}>
                         {typeLabels[item.type] || item.type}
@@ -151,8 +151,8 @@ export const buildShipmentColumns = (typeFilter) => {
                     : <span className="text-slate-400 text-xs">—</span>
             },
             {
-                header: 'Aliado', accessor: 'ally',
-                render: (item) => <span className="text-slate-600 text-xs">{item.ally?.name || '—'}</span>
+                header: 'Aliado', accessor: 'aliado',
+                render: (item) => <span className="text-slate-600 text-xs">{item.aliado?.name || '—'}</span>
             },
             {
                 header: 'TT', accessor: 'transitTime',
@@ -185,15 +185,15 @@ export const buildShipmentColumns = (typeFilter) => {
             ...common,
             { header: 'WH', accessor: 'whNumber', render: (i) => <span className="text-slate-600 text-xs">{i.whNumber || '—'}</span> },
             { header: 'CST', accessor: 'cst', render: (i) => <span className="text-slate-600 text-xs">{i.cst || '—'}</span> },
-            { header: 'Consolidado', accessor: 'consolidadoNro', render: (i) => <span className="text-slate-600 text-xs">{i.consolidadoNro || '—'}</span> },
+            { header: 'Consolidado', accessor: 'consolidadoManual', render: (i) => <span className="text-slate-600 text-xs">{i.consolidadoManual || '—'}</span> },
             {
                 header: 'Transporte', accessor: 'transportType',
-                render: (i) => <span className="text-slate-600 text-xs">{i.transportType === 'AEREO' ? 'Aéreo' : (i.transportType === 'NAVIERA' ? 'Naviera' : '—')}</span>
+                render: (i) => <span className="text-slate-600 text-xs">{i.transportType === 'aereo' ? 'Aéreo' : (i.transportType === 'naviera' ? 'Naviera' : '—')}</span>
             },
             {
                 header: 'Línea/Naviera', accessor: 'carrier',
                 render: (i) => {
-                    if (i.transportType === 'AEREO') {
+                    if (i.transportType === 'aereo') {
                         return <span className="text-slate-600 text-xs">{i.airLine?.name || '—'}</span>;
                     }
                     return <span className="text-slate-600 text-xs">{i.shippingLineRel?.name || i.shippingLine || '—'}</span>;
@@ -203,7 +203,7 @@ export const buildShipmentColumns = (typeFilter) => {
                 header: 'Items', accessor: 'd2dShipmentItems',
                 render: (i) => <span className="text-slate-600 text-xs">{Array.isArray(i.d2dShipmentItems) ? `${i.d2dShipmentItems.length} items` : '0 items'}</span>
             },
-            { header: 'Aliado', accessor: 'ally', render: (i) => <span className="text-slate-600 text-xs">{i.ally?.name || '—'}</span> },
+            { header: 'Aliado', accessor: 'd2dAliado', render: (i) => <span className="text-slate-600 text-xs">{i.d2dAliado?.name || '—'}</span> },
             {
                 header: 'Estado', accessor: 'status',
                 render: (item) => {
@@ -234,7 +234,7 @@ export const buildShipmentColumns = (typeFilter) => {
             { header: 'ETA', accessor: 'eta', render: (i) => <span className="text-slate-600 text-xs">{i.eta ? i.eta.split('T')[0] : '—'}</span> },
             { header: 'ETD', accessor: 'etd', render: (i) => <span className="text-slate-600 text-xs">{i.etd ? i.etd.split('T')[0] : '—'}</span> },
             { header: 'Puerto Llegada', accessor: 'arrivalPort', render: (i) => <span className="text-slate-600 text-xs">{i.arrivalPort || '—'}</span> },
-            { header: 'TT', accessor: 'transitTime', render: (i) => <span className="text-slate-600 text-xs">{i.transitTime ? `${i.transitTime} d` : '—'}</span> },
+            { header: 'TT', accessor: 'consolidadoTransitTime', render: (i) => <span className="text-slate-600 text-xs">{i.consolidadoTransitTime ? `${i.consolidadoTransitTime} d` : '—'}</span> },
             {
                 header: 'Estado', accessor: 'status',
                 render: (item) => {

@@ -74,7 +74,7 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]"
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
                 onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
@@ -98,7 +98,7 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                                 EMB-{String(s.number || 0).padStart(5, '0')}
                             </h2>
                             <p className="text-xs text-slate-500">
-                                {s.type === 'FCL' ? 'Full Container Load' : 
+                                {s.type === 'FCL' ? 'FCL' : 
                                  s.type === 'D2D' ? 'Door to Door' : 
                                  'Consolidado'} · {s.clientName || s.clientRel?.name || 'N/A'}
                             </p>
@@ -120,7 +120,10 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                     {s.currentLocation && (
                         <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center gap-2">
                             <Navigation size={14} className="text-blue-500 shrink-0" />
-                            <span className="text-sm text-blue-700">{s.currentLocation}</span>
+                            <div className="flex-1">
+                                <p className="text-xs text-blue-600 font-bold">Ubicación Actual</p>
+                                <span className="text-sm text-blue-700">{s.currentLocation}</span>
+                            </div>
                         </div>
                     )}
 
@@ -132,7 +135,11 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                                 Información General
                             </h3>
-                            <InfoRow icon={FileText} label={isFCL ? "Nro. BL" : "Nro. Warehouse"} value={isFCL ? s.blNumber : s.whNumber} mono />
+                            <InfoRow icon={FileText}
+                                label={s.type === 'D2D' ? 'Nro. Warehouse' : 'Nro. BL'}
+                                value={s.type === 'D2D' ? s.whNumber : s.blNumber}
+                                mono
+                            />
                             {isFCL && <InfoRow icon={FileText} label="Nro. Booking" value={s.bookingNumber} mono />}
                             <InfoRow icon={lineIcon} label={lineLabel} value={shippingLineName} />
                             <InfoRow icon={User} label="Cliente" value={s.clientName || s.clientRel?.name} />

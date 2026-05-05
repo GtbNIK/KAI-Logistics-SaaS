@@ -15,12 +15,21 @@ export const getShipments = async (req, res) => {
         if (status) where.status = status;
 
         if (search) {
-            where.OR = [
+            const or = [
                 { blNumber: { contains: search, mode: 'insensitive' } },
                 { bookingNumber: { contains: search, mode: 'insensitive' } },
                 { clientName: { contains: search, mode: 'insensitive' } },
                 { shippingLineRel: { name: { contains: search, mode: 'insensitive' } } },
             ];
+            // Buscar por número de embarque: acepta '42' o 'EMB-00042'
+            const numberMatch = String(search).match(/\d+/);
+            if (numberMatch) {
+                const n = parseInt(numberMatch[0], 10);
+                if (!isNaN(n)) {
+                    or.push({ number: n });
+                }
+            }
+            where.OR = or;
         }
 
         const shipments = await prisma.shipment.findMany({
