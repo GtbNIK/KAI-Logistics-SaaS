@@ -495,6 +495,16 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                 />
                             </div>
 
+                            {/* Estado */}
+                            <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Estado <span className="text-red-500">*</span></label>
+                                <select value={form.status}
+                                    onChange={e => handleChange('status', e.target.value)}
+                                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 bg-white">
+                                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1">
@@ -574,14 +584,6 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         />
                                     )}
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Estado <span className="text-red-500">*</span></label>
-                                    <select value={form.status}
-                                        onChange={e => handleChange('status', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 bg-white">
-                                        {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
-                                </div>
                             </div>
                             )}
 
@@ -606,8 +608,8 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         <div className="flex items-center justify-between mb-2">
                                             <label className="block text-xs font-semibold text-slate-600">Contenedores <span className="text-red-500">*</span></label>
                                             <button type="button"
-                                                onClick={() => handleChange('containers', [...form.containers, { containerType: '20ft', quantity: 1 }])}
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm">
+                                                onClick={() => handleChange('containers', [...form.containers, { containerType: '', quantity: 1 }])}
+                                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm ${errors.containers ? 'ring-2 ring-red-200 animate-pulse' : ''}`}>
                                                 <span>+</span> Agregar Contenedor
                                             </button>
                                         </div>
@@ -623,11 +625,24 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                                             id={`containerType-${idx}`}
                                                             value={container.containerType}
                                                             onChange={e => {
+                                                                const newType = e.target.value;
                                                                 const updated = [...form.containers];
-                                                                updated[idx].containerType = e.target.value;
+                                                                // Asignar nuevo tipo al item actual
+                                                                updated[idx].containerType = newType;
+                                                                // Si el nuevo tipo ya existe en otro item, fusionar cantidades y eliminar duplicado
+                                                                if (newType) {
+                                                                    const existingIndex = updated.findIndex((c, i) => i !== idx && c.containerType === newType);
+                                                                    if (existingIndex !== -1) {
+                                                                        const a = parseInt(updated[existingIndex].quantity) || 0;
+                                                                        const b = parseInt(updated[idx].quantity) || 0;
+                                                                        updated[existingIndex].quantity = a + b;
+                                                                        updated.splice(idx, 1);
+                                                                    }
+                                                                }
                                                                 handleChange('containers', updated);
                                                             }}
                                                             className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm">
+                                                            <option value="">Seleccionar tipo...</option>
                                                             {CONTAINER_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                                         </select>
                                                         <input
@@ -654,6 +669,18 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Estado (visible también en D2D) */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Estado <span className="text-red-500">*</span></label>
+                                        <select value={form.status}
+                                            onChange={e => handleChange('status', e.target.value)}
+                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white">
+                                            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        </select>
+                                    </div>
+
+                                    
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen <span className="text-red-500">*</span></label>

@@ -33,7 +33,10 @@ export const getShipments = async (req, res) => {
         }
 
         const shipments = await prisma.shipment.findMany({
-            where,
+            where: {
+                ...where,
+                deletedAt: null,
+            },
             include: {
                 paymentNotice: {
                     select: {
@@ -404,8 +407,11 @@ export const updateShipment = async (req, res) => {
  */
 export const deleteShipment = async (req, res) => {
     try {
-        await prisma.shipment.delete({ where: { id: req.params.id } });
-        res.json({ message: 'Embarque eliminado' });
+        await prisma.shipment.update({
+            where: { id: req.params.id },
+            data: { deletedAt: new Date() }
+        });
+        res.json({ message: 'Embarque eliminado (soft delete)' });
     } catch (error) {
         console.error('Error deleting shipment:', error);
         res.status(500).json({ message: 'Error al eliminar embarque' });

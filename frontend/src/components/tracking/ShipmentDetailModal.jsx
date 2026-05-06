@@ -177,7 +177,7 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                                 <InfoRow icon={Package} label="Cantidad" value={s.quantity} />
                                 <InfoRow icon={Package} label="CBM" value={s.cbm ? parseFloat(s.cbm) : null} />
                                 <InfoRow icon={FileText} label="CST" value={s.cst} />
-                                <InfoRow icon={FileText} label="Consolidado Manual" value={s.consolidadoManual} />
+                                <InfoRow icon={FileText} label="Nro. Consolidado" value={s.consolidadoManual} />
                                 <InfoRow icon={Calendar} label="ETA" value={formatDate(s.d2dEta)} />
                                 <InfoRow icon={Calendar} label="TT (días)" value={s.d2dTransitTime} />
                                 <InfoRow icon={User} label="Aliado" value={s.d2dAliado?.name} />
@@ -240,10 +240,12 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                     <button onClick={onClose} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors">
                         Cerrar
                     </button>
-                    <button onClick={onEdit}
-                        className="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-sky-600/20 transition-all active:scale-95">
-                        Editar
-                    </button>
+                    {s.status !== 'DELIVERED' && (
+                        <button onClick={onEdit}
+                            className="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-sky-600/20 transition-all active:scale-95">
+                            Editar
+                        </button>
+                    )}
                 </div>
             </div>
         </div>,

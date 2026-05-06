@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Container, Plus, Ship, Package } from 'lucide-react';
+import { Container, Plus, Ship, Package, Activity } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
+import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import { shipmentConfig, buildShipmentColumns } from '../../config/shipmentConfig';
 import ShipmentDetailModal from '../../components/tracking/ShipmentDetailModal';
+import ChangeShipmentStatusModal from '../../components/tracking/ChangeShipmentStatusModal';
 import ShipmentFormModal from '../../components/tracking/ShipmentFormModal';
 import shipmentService from '../../services/shipment.service';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
@@ -91,10 +93,10 @@ const QuickStats = ({ items }) => {
     const cards = [
         { label: 'Pendiente', value: counts.PENDING, cls: 'bg-amber-50 text-amber-600', icon: <Package size={18} className="text-amber-600" /> },
         { label: 'En Almacén Origen', value: counts.AT_ORIGIN_WAREHOUSE, cls: 'bg-orange-50 text-orange-600', icon: <Package size={18} className="text-orange-600" /> },
-        { label: 'En Tránsito', value: counts.ON_VESSEL, cls: 'bg-blue-50/60 text-blue-600', icon: <Ship size={18} className="text-blue-600" /> },
+        { label: 'En Tránsito', value: counts.ON_VESSEL, cls: 'bg-blue-50/80 text-blue-600', icon: <Ship size={18} className="text-blue-600" /> },
         { label: 'En Puerto Destino', value: counts.AT_DESTINATION_PORT, cls: 'bg-purple-50 text-purple-600', icon: <Container size={18} className="text-purple-600" /> },
         { label: 'En Aduana', value: counts.CUSTOMS_CLEARANCE, cls: 'bg-pink-50 text-pink-600', icon: <Package size={18} className="text-pink-600" /> },
-        { label: 'Entregados', value: counts.DELIVERED, cls: 'bg-green-50/60 text-green-600', icon: <Container size={18} className="text-green-600" /> },
+        { label: 'Entregados', value: counts.DELIVERED, cls: 'bg-green-50/80 text-green-600', icon: <Container size={18} className="text-green-600" /> },
     ];
 
     return (
@@ -116,6 +118,9 @@ const QuickStats = ({ items }) => {
 const Shipments = () => {
     const [viewingShipment, setViewingShipment] = useState(null);
     const [formModal, setFormModal] = useState({ open: false, shipment: null });
+    const [statusShipment, setStatusShipment] = useState(null);
+    const [deletingShipment, setDeletingShipment] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const { user } = useAuth();
     const {
         items, allItems, loading, search, setSearch,
@@ -146,6 +151,18 @@ const Shipments = () => {
     const handleEdit = (shipment) => {
         setViewingShipment(null);
         setFormModal({ open: true, shipment });
+    };
+
+    const handleUpdateStatus = async (id, newStatus) => {
+        try {
+            await shipmentService.updateShipment(id, { status: newStatus });
+            setStatusShipment(null);
+            refresh();
+            return true;
+        } catch (error) {
+            console.error('Error updating shipment status:', error);
+            return false;
+        }
     };
 
     // Filtros en línea
@@ -238,9 +255,22 @@ const Shipments = () => {
                 onSearchChange={setSearch}
                 onView={setViewingShipment}
                 onEdit={(s) => setFormModal({ open: true, shipment: s })}
+                canEdit={(s) => s.status !== 'DELIVERED'}
+                canDelete={(s) => (user?.role === 'ADMIN') && s.status !== 'DELIVERED'}
+                onDelete={(s) => setDeletingShipment(s)}
                 showStatusFilter={false}
                 showToggle={false}
                 extraFilters={filters}
+                extraActions={(item) => (
+                    <button
+                        className={`p-2 rounded-lg transition-colors ${item.status === 'DELIVERED' ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-sky-600 hover:bg-sky-50'}`}
+                        title={item.status === 'DELIVERED' ? 'Entregado — no editable' : 'Cambiar Estado'}
+                        disabled={item.status === 'DELIVERED'}
+                        onClick={(e) => { e.stopPropagation(); if (item.status !== 'DELIVERED') setStatusShipment(item); }}
+                    >
+                        <Activity size={18} />
+                    </button>
+                )}
             />
 
             {/* Modal de Detalle */}
@@ -261,6 +291,35 @@ const Shipments = () => {
                     onSuccess={handleCreated}
                 />
             )}
+
+            <ChangeShipmentStatusModal
+                isOpen={!!statusShipment}
+                onClose={() => setStatusShipment(null)}
+                shipment={statusShipment}
+                onUpdateStatus={handleUpdateStatus}
+            />
+
+            <ConfirmDeleteModal
+                isOpen={!!deletingShipment}
+                onClose={() => setDeletingShipment(null)}
+                onConfirm={async () => {
+                    if (!deletingShipment) return;
+                    setDeleteLoading(true);
+                    try {
+                        await shipmentService.deleteShipment(deletingShipment.id);
+                        setDeletingShipment(null);
+                        refresh();
+                    } catch (e) {
+                        console.error('Error deleting shipment', e);
+                    } finally {
+                        setDeleteLoading(false);
+                    }
+                }}
+                title="Eliminar Embarque"
+                message="¿Estás seguro de que deseas eliminar este embarque?"
+                itemName={deletingShipment ? `EMB-${String(deletingShipment.number || 0).padStart(5, '0')}` : ''}
+                loading={deleteLoading}
+            />
         </div>
     );
 };

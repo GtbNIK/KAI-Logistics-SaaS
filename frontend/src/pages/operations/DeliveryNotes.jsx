@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ScrollText, Plus, Truck, Ban } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -21,6 +22,7 @@ const useDeliveryNotes = () => {
     const [totalItems, setTotalItems] = useState(0);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
     const { showError } = useToast();
 
     useEffect(() => {
@@ -32,6 +34,7 @@ const useDeliveryNotes = () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
+            if (statusFilter) params.set('status', statusFilter);
             const res = await axios.get(`${API_URL}/delivery-notes?${params}`, { withCredentials: true });
             setItems(res.data.data || []);
             setTotalItems(res.data.meta?.total || 0);
@@ -41,11 +44,11 @@ const useDeliveryNotes = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch]);
+    }, [page, debouncedSearch, statusFilter]);
 
     useEffect(() => { fetchNotes(); }, [fetchNotes]);
 
-    return { items, loading, page, setPage, totalPages, totalItems, search, setSearch, refresh: fetchNotes };
+    return { items, loading, page, setPage, totalPages, totalItems, search, setSearch, statusFilter, setStatusFilter, refresh: fetchNotes };
 };
 
 // ─── Página principal ─────────────────────────────────────────────────────────
@@ -59,9 +62,10 @@ const DeliveryNotes = () => {
     const [printingNote, setPrintingNote] = useState(null);
     const [showPDFModal, setShowPDFModal] = useState(false);
     const { showSuccess, showError } = useToast();
+    const { user } = useAuth ? useAuth() : { user: null };
     const {
         items, loading, page, setPage, totalPages, totalItems,
-        search, setSearch, refresh
+        search, setSearch, statusFilter, setStatusFilter, refresh
     } = useDeliveryNotes();
 
     const handlePrint = async (item) => {
@@ -166,6 +170,7 @@ const DeliveryNotes = () => {
                     </h1>
                     <p className="text-slate-500 mt-1">Gestión de entregas y cierre de operaciones logísticas</p>
                 </div>
+                <div className="flex items-center gap-3">
                     <button
                         onClick={() => { setEditingNote(null); setIsFormOpen(true); }}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
@@ -173,6 +178,7 @@ const DeliveryNotes = () => {
                         <Plus size={20} />
                         Nueva Nota
                     </button>
+                </div>
             </div>
 
             <EntityTable
@@ -190,7 +196,7 @@ const DeliveryNotes = () => {
                 showStatusFilter={false}
                 showToggle={false}
                 canEdit={true}
-                canDelete={true}
+                canDelete={(item) => (user?.role === 'ADMIN') && item.status !== 'DISPATCHED'}
                 canPrint={true}
                 onView={(item) => setViewingNote(item)}
                 onEdit={handleEdit}
