@@ -93,11 +93,11 @@ const NoteDetailModal = ({ note, onClose }) => {
                     </div>
 
                     {n.deliveryAddress && (
-                        <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3">
-                            <MapPin className="text-slate-400 mt-0.5" size={16} />
-                            <div>
+                        <div className="p-4 bg-slate-50 rounded-xl flex items-start gap-3 min-w-0">
+                            <MapPin className="text-slate-400 mt-0.5 shrink-0" size={16} />
+                            <div className="min-w-0">
                                 <p className="text-xs text-slate-400 mb-1">Dirección de entrega</p>
-                                <p className="font-medium text-slate-800">{n.deliveryAddress}</p>
+                                <p className="font-medium text-slate-800 break-words whitespace-pre-wrap">{n.deliveryAddress}</p>
                             </div>
                         </div>
                     )}

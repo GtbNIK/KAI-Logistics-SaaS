@@ -4,7 +4,7 @@ import { X, BarChart2, Download, Loader2, Container, Package } from 'lucide-reac
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, PieChart, Pie } from 'recharts';
 import { useSettings } from '../../context/SettingsContext';
 import shipmentService from '../../services/shipment.service';
 
@@ -46,14 +46,23 @@ const loadLogoAsPngDataUrl = async (url) => {
         img.crossOrigin = 'anonymous';
         img.onload = () => {
             try {
+                const w = img.naturalWidth || img.width;
+                const h = img.naturalHeight || img.height;
+                const aspect = h / w;
+                const MAX_W = 500;
+                const MAX_H = 250;
+                const scale = Math.min(MAX_W / w, MAX_H / h, 1);
+                const outW = Math.max(1, Math.floor(w * scale));
+                const outH = Math.max(1, Math.floor(h * scale));
                 const canvas = document.createElement('canvas');
-                const scale = Math.min(300 / img.width, 100 / img.height, 1);
-                canvas.width = img.width * scale;
-                canvas.height = img.height * scale;
+                canvas.width = outW;
+                canvas.height = outH;
                 const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/png'));
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.clearRect(0, 0, outW, outH);
+                ctx.drawImage(img, 0, 0, outW, outH);
+                resolve({ dataUrl: canvas.toDataURL('image/png'), aspect });
             } catch { resolve(null); }
         };
         img.onerror = () => resolve(null);
@@ -62,9 +71,11 @@ const loadLogoAsPngDataUrl = async (url) => {
 };
 
 // ─── PDF: header por página ───────────────────────────────────────────────────
-const addPageHeader = (doc, logoPng, companyName, title, rgb, pageW) => {
-    if (logoPng) {
-        doc.addImage(logoPng, 'PNG', 12, 7, 35, 16);
+const addPageHeader = (doc, logoData, companyName, title, rgb, pageW) => {
+    if (logoData?.dataUrl) {
+        const logoWidth = 35;
+        const logoHeight = Math.max(8, Math.min(16, logoWidth * (logoData.aspect || 0.4)));
+        doc.addImage(logoData.dataUrl, 'PNG', 12, 7, logoWidth, logoHeight);
     }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(17);
@@ -87,15 +98,15 @@ const generateMonthlyClosePDF = async ({ data, settings, chartsRef }) => {
     const rgb = hexToRgb(primaryColor);
     const monthLabel = getMonthLabel(data.month);
 
-    let logoPng = null;
-    try { logoPng = await loadLogoAsPngDataUrl(logoUrl); } catch {}
+    let logoData = null;
+    try { logoData = await loadLogoAsPngDataUrl(logoUrl); } catch {}
 
-    const doc = new jsPDF('l', 'mm', 'a4');
+    const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
 
     // ── Página 1: D2D ──
-    addPageHeader(doc, logoPng, companyName, `Cierre Mensual D2D — ${monthLabel}`, rgb, pageW);
+    addPageHeader(doc, logoData, companyName, `Cierre Mensual D2D — ${monthLabel}`, rgb, pageW);
 
     if (data.d2d.length === 0) {
         doc.setFont('helvetica', 'italic');
@@ -151,13 +162,25 @@ const generateMonthlyClosePDF = async ({ data, settings, chartsRef }) => {
             },
             columnStyles: {
                 0: { cellWidth: 48, fontStyle: 'bold', halign: 'left' },
+            },
+            didParseCell: (hookData) => {
+                if (hookData.section === 'body') {
+                    const lastIdx = hookData.table.columns.length - 1;
+                    const col = hookData.column.index;
+                    if (col > 0 && col < lastIdx) {
+                        const D2D_COL_COLORS = [[236, 246, 255], [255, 244, 252]];
+                        hookData.cell.styles.fillColor = D2D_COL_COLORS[(col - 1) % 2];
+                    } else if (col === lastIdx) {
+                        hookData.cell.styles.fillColor = [232, 250, 241];
+                    }
+                }
             }
         });
     }
 
     // ── Página 2: FCL ──
     doc.addPage();
-    addPageHeader(doc, logoPng, companyName, `Cierre Mensual FCL — ${monthLabel}`, rgb, pageW);
+    addPageHeader(doc, logoData, companyName, `Cierre Mensual FCL — ${monthLabel}`, rgb, pageW);
 
     if (data.fcl.length === 0) {
         doc.setFont('helvetica', 'italic');
@@ -165,15 +188,42 @@ const generateMonthlyClosePDF = async ({ data, settings, chartsRef }) => {
         doc.setTextColor(140, 140, 140);
         doc.text('No hay embarques FCL registrados en este período.', pageW / 2, 50, { align: 'center' });
     } else {
-        const fclHead = [[
-            'Cliente',
-            ...data.users.flatMap(u => [
-                `${getInitials(u.name)} 20'`,
-                `${getInitials(u.name)} 40'`,
-                `${getInitials(u.name)} 40HC`
-            ]),
-            "Tot. 20'", "Tot. 40'", 'Tot. 40HC'
-        ]];
+        const subHdrUser = [
+            Math.round(rgb.r * 0.80),
+            Math.round(rgb.g * 0.80),
+            Math.round(rgb.b * 0.80)
+        ];
+        const totHdrDark = [
+            Math.round(rgb.r * 0.70),
+            Math.round(rgb.g * 0.70),
+            Math.round(rgb.b * 0.70)
+        ];
+        const subHdrTot = [
+            Math.round(rgb.r * 0.60),
+            Math.round(rgb.g * 0.60),
+            Math.round(rgb.b * 0.60)
+        ];
+        const fclHead = [
+            [
+                { content: 'Cliente', rowSpan: 2, styles: { valign: 'middle', halign: 'left', fontStyle: 'bold' } },
+                ...data.users.map(u => ({
+                    content: getInitials(u.name),
+                    colSpan: 3,
+                    styles: { halign: 'center', fontStyle: 'bold' }
+                })),
+                { content: 'TOTALES', colSpan: 3, styles: { halign: 'center', fontStyle: 'bold', fillColor: totHdrDark } }
+            ],
+            [
+                ...data.users.flatMap(() => CONTAINER_TYPES.map(t => ({
+                    content: t,
+                    styles: { halign: 'center', fontSize: 6.5, fillColor: subHdrUser, textColor: [255, 255, 255] }
+                }))),
+                ...CONTAINER_TYPES.map(t => ({
+                    content: t,
+                    styles: { halign: 'center', fontSize: 6.5, fillColor: subHdrTot, textColor: [255, 255, 255] }
+                }))
+            ]
+        ];
 
         const fclBody = data.fcl.map(row => {
             const clientTotals = { '20ft': 0, '40ft': 0, '40HC': 0 };
@@ -235,26 +285,45 @@ const generateMonthlyClosePDF = async ({ data, settings, chartsRef }) => {
             },
             columnStyles: {
                 0: { cellWidth: 42, fontStyle: 'bold', halign: 'left' }
+            },
+            didParseCell: (hookData) => {
+                if (hookData.section === 'body') {
+                    const col = hookData.column.index;
+                    const FCL_BODY_COLORS = [
+                        [236, 246, 255],
+                        [255, 244, 252],
+                        [236, 255, 244],
+                        [255, 250, 235],
+                        [245, 236, 255]
+                    ];
+                    const totalStart = 1 + data.users.length * 3;
+                    if (col >= 1 && col < totalStart) {
+                        const groupIdx = Math.floor((col - 1) / 3);
+                        hookData.cell.styles.fillColor = FCL_BODY_COLORS[groupIdx % FCL_BODY_COLORS.length];
+                    } else if (col >= totalStart) {
+                        hookData.cell.styles.fillColor = [232, 250, 241];
+                    }
+                }
             }
         });
     }
 
     // ── Página 3: Gráficas ──
     doc.addPage();
-    addPageHeader(doc, logoPng, companyName, `Gráficas — ${monthLabel}`, rgb, pageW);
+    addPageHeader(doc, logoData, companyName, `Gráficas — ${monthLabel}`, rgb, pageW);
 
     if (chartsRef?.current) {
         try {
             const canvas = await html2canvas(chartsRef.current, {
-                scale: 2,
+                scale: 1.5,
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 logging: false
             });
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('image/jpeg', 1);
             const imgW = pageW - 24;
             const imgH = (canvas.height / canvas.width) * imgW;
-            doc.addImage(imgData, 'PNG', 12, 32, imgW, Math.min(imgH, pageH - 48));
+            doc.addImage(imgData, 'JPEG', 12, 32, imgW, Math.min(imgH, pageH - 48));
         } catch (err) {
             console.warn('No se pudieron capturar las gráficas:', err);
             doc.setFont('helvetica', 'italic');
@@ -524,7 +593,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
 
     const modalContent = (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl min-h-[60vh] max-h-[80vh] overflow-hidden flex flex-col">
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50 shrink-0">
@@ -575,11 +644,6 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                     >
                         <Package size={15} />
                         Door to Door
-                        {data && (
-                            <span className="text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full">
-                                {data.d2d.length}
-                            </span>
-                        )}
                     </button>
                     <button
                         onClick={() => setActiveTab('fcl')}
@@ -591,11 +655,17 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                     >
                         <Container size={15} />
                         FCL
-                        {data && (
-                            <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">
-                                {data.fcl.length}
-                            </span>
-                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('charts')}
+                        className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                            activeTab === 'charts'
+                                ? 'border-sky-500 text-sky-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        <BarChart2 size={15} />
+                        Gráficas
                     </button>
                 </div>
 
@@ -615,6 +685,81 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                         <FCLTable data={data} />
                     )}
 
+                    {!loading && data && activeTab === 'charts' && (
+                        <div className="p-4">
+                            <h2 className="text-center mb-6 text-slate-800 font-bold text-base">Gráficas de Cierre — {monthLabel}</h2>
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-stretch justify-center">
+                                {/* D2D CBM por vendedor */}
+                                <div className="flex-1 border border-slate-200 rounded-xl p-4">
+                                    <p className="text-center mb-3 text-slate-600 text-sm font-semibold">
+                                        CBM Total por Vendedor — D2D
+                                    </p>
+                                    <div className="flex items-center justify-center">
+                                        <PieChart width={320} height={260}>
+                                            <Pie
+                                                data={d2dChartData.filter(d => d.CBM > 0)}
+                                                dataKey="CBM"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={72}
+                                                outerRadius={108}
+                                                startAngle={90}
+                                                endAngle={-270}
+                                                paddingAngle={d2dChartData.filter(d => d.CBM > 0).length > 1 ? 3 : 0}
+                                                labelLine={true}
+                                            >
+                                                {d2dChartData.map((_, idx) => (
+                                                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} CBM`, 'CBM']} />
+                                            <Legend
+                                                content={(props) => {
+                                                    const { payload } = props;
+                                                    const total = d2dChartData.reduce((s, d) => s + d.CBM, 0);
+                                                    return (
+                                                        <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 14px' }}>
+                                                            {payload.map((entry, idx) => {
+                                                                const item = d2dChartData.find(d => d.name === entry.value);
+                                                                const pct = total > 0 ? ((item?.CBM || 0) / total * 100).toFixed(1) : '0.0';
+                                                                return (
+                                                                    <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: '#334155' }}>
+                                                                        <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: entry.color, flexShrink: 0 }} />
+                                                                        <span><strong>{entry.value}</strong>: {pct}% <span style={{ color: '#64748b' }}>({(item?.CBM || 0).toFixed(2)} CBM)</span></span>
+                                                                    </li>
+                                                                );
+                                                            })}
+                                                        </ul>
+                                                    );
+                                                }}
+                                            />
+                                        </PieChart>
+                                    </div>
+                                </div>
+
+                                {/* FCL contenedores por vendedor */}
+                                <div className="flex-1 border border-slate-200 rounded-xl p-4">
+                                    <p className="text-center mb-3 text-slate-600 text-sm font-semibold">
+                                        Contenedores por Vendedor — FCL
+                                    </p>
+                                    <div className="flex items-center justify-center">
+                                        <BarChart width={320} height={260} data={fclChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
+                                            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#475569' }} />
+                                            <Tooltip />
+                                            <Legend wrapperStyle={{ fontSize: '11px' }} />
+                                            <Bar dataKey="20ft" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="40ft" fill="#f97316" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="40HC" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {!loading && !data && (
                         <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
                             No se pudo cargar la información del período
@@ -625,7 +770,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                 {/* Footer */}
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
                     <p className="text-xs text-slate-400">
-                        El PDF generará: Pg. 1 — D2D · Pg. 2 — FCL · Pg. 3 — Gráficas
+                        El PDF generará: Pág. 1 — D2D · Pág. 2 — FCL · Pág. 3 — Gráficas
                     </p>
                     <div className="flex gap-3">
                         <button
@@ -664,7 +809,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                         position: 'fixed',
                         top: '-10000px',
                         left: '-10000px',
-                        width: '880px',
+                        width: '660px',
                         padding: '24px',
                         backgroundColor: '#ffffff',
                         fontFamily: 'Helvetica, Arial, sans-serif'
@@ -691,17 +836,47 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                             }}>
                                 CBM Total por Vendedor — D2D
                             </p>
-                            <BarChart width={390} height={280} data={d2dChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
-                                <YAxis tick={{ fontSize: 10, fill: '#475569' }} />
-                                <Tooltip />
-                                <Bar dataKey="CBM" name="CBM" radius={[4, 4, 0, 0]}>
+                            <PieChart width={300} height={260}>
+                                <Pie
+                                    data={d2dChartData.filter(d => d.CBM > 0)}
+                                    dataKey="CBM"
+                                    nameKey="name"
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={72}
+                                    outerRadius={108}
+                                    startAngle={90}
+                                    endAngle={-270}
+                                    paddingAngle={d2dChartData.filter(d => d.CBM > 0).length > 1 ? 3 : 0}
+                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                                    labelLine={true}
+                                >
                                     {d2dChartData.map((_, idx) => (
                                         <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                                     ))}
-                                </Bar>
-                            </BarChart>
+                                </Pie>
+                                <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} CBM`, 'CBM']} />
+                                <Legend
+                                    content={(props) => {
+                                        const { payload } = props;
+                                        const total = d2dChartData.reduce((s, d) => s + d.CBM, 0);
+                                        return (
+                                            <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 14px' }}>
+                                                {payload.map((entry, idx) => {
+                                                    const item = d2dChartData.find(d => d.name === entry.value);
+                                                    const pct = total > 0 ? ((item?.CBM || 0) / total * 100).toFixed(1) : '0.0';
+                                                    return (
+                                                        <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#334155' }}>
+                                                            <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: entry.color, flexShrink: 0 }} />
+                                                            <span><strong>{entry.value}</strong>: {pct}% <span style={{ color: '#64748b' }}>({(item?.CBM || 0).toFixed(2)} CBM)</span></span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        );
+                                    }}
+                                />
+                            </PieChart>
                         </div>
 
                         {/* FCL contenedores por vendedor */}
@@ -715,7 +890,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                             }}>
                                 Contenedores por Vendedor — FCL
                             </p>
-                            <BarChart width={390} height={280} data={fclChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                            <BarChart width={300} height={260} data={fclChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
                                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#475569' }} />

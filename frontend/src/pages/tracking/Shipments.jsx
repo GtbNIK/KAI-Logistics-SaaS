@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Container, Plus, Ship, Package, Activity, BarChart2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -32,7 +33,7 @@ const useShipments = () => {
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState('');
+    const [typeFilter, setTypeFilter] = useState('D2D');
     const [statusFilter, setStatusFilter] = useState('');
     const { showError } = useToast();
 
@@ -124,6 +125,7 @@ const Shipments = () => {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
     const { showSuccess } = useToast();
+    const { settings } = useSettings();
     const { user } = useAuth();
     const {
         items, allItems, loading, search, setSearch,
@@ -131,7 +133,7 @@ const Shipments = () => {
         refresh
     } = useShipments();
 
-    const [activeTab, setActiveTab] = useState('FCL');
+    const [activeTab, setActiveTab] = useState('D2D');
 
     useEffect(() => {
         setTypeFilter(activeTab);
@@ -200,7 +202,8 @@ const Shipments = () => {
                     {(user?.role === 'ADMIN' || user?.role === 'SALES') && (
                         <button
                             onClick={() => setMonthlyCloseOpen(true)}
-                            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-medium transition-all active:scale-95"
+                            style={{ backgroundColor: settings?.secondaryColor || '#F28729' }}
+                            className="flex items-center gap-2 text-white px-4 py-2.5 rounded-xl font-medium transition-all active:scale-95 shadow-sm"
                         >
                             <BarChart2 size={18} /> Cierre Mensual
                         </button>
@@ -220,18 +223,6 @@ const Shipments = () => {
             {/* Tabs por tipo */}
             <div className="flex gap-2 border-b border-slate-200 -mt-2">
                 <button
-                    onClick={() => setActiveTab('FCL')}
-                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
-                        activeTab === 'FCL' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-                    }`}
-                >
-                    <Container size={16} />
-                    FCL
-                    {totalsByType.FCL > 0 && (
-                        <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">{totalsByType.FCL}</span>
-                    )}
-                </button>
-                <button
                     onClick={() => setActiveTab('D2D')}
                     className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
                         activeTab === 'D2D' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -241,6 +232,18 @@ const Shipments = () => {
                     Door to Door
                     {totalsByType.D2D > 0 && (
                         <span className="text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full">{totalsByType.D2D}</span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('FCL')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        activeTab === 'FCL' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Container size={16} />
+                    FCL
+                    {totalsByType.FCL > 0 && (
+                        <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">{totalsByType.FCL}</span>
                     )}
                 </button>
                 <button

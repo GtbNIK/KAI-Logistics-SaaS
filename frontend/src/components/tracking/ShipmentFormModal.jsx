@@ -670,16 +670,6 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         )}
                                     </div>
 
-                                    {/* Estado (visible también en D2D) */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">Estado <span className="text-red-500">*</span></label>
-                                        <select value={form.status}
-                                            onChange={e => handleChange('status', e.target.value)}
-                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white">
-                                            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                        </select>
-                                    </div>
-
                                     
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
