@@ -144,16 +144,7 @@ const DeliveryNotes = () => {
         }
 
         if (item.status === 'DISPATCHED') {
-            actions.push(
-                <button
-                    key="cancel2"
-					onClick={(e) => { e.stopPropagation(); requestStatusChange(item, 'CANCELLED'); }}
-                    className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Cancelar nota"
-                >
-                    <Ban size={14} />
-                </button>
-            );
+            
         }
 
         return actions.length > 0 ? <div className="flex gap-1">{actions}</div> : null;
@@ -203,6 +194,17 @@ const DeliveryNotes = () => {
                 onDelete={(item) => setDeletingNote(item)}
                 onPrint={handlePrint}
                 extraActions={renderExtraActions}
+                extraFilters={(
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                    >
+                        {deliveryNoteConfig.statusFilterOptions.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                )}
             />
 
             {/* Modales */}

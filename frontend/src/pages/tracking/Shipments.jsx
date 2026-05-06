@@ -121,6 +121,7 @@ const Shipments = () => {
     const [statusShipment, setStatusShipment] = useState(null);
     const [deletingShipment, setDeletingShipment] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const { showSuccess } = useToast();
     const { user } = useAuth();
     const {
         items, allItems, loading, search, setSearch,
@@ -309,6 +310,7 @@ const Shipments = () => {
                         await shipmentService.deleteShipment(deletingShipment.id);
                         setDeletingShipment(null);
                         refresh();
+                        showSuccess('Eliminado', 'Embarque eliminado correctamente');
                     } catch (e) {
                         console.error('Error deleting shipment', e);
                     } finally {

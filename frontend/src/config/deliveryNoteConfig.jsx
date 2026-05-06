@@ -4,6 +4,12 @@ import { toVenezuelanFormat } from '../utils/dateHelpers';
 export const deliveryNoteConfig = {
     entityName: 'nota de entrega',
     entityNamePlural: 'notas de entrega',
+    statusFilterOptions: [
+        { value: '', label: 'Todos los estados' },
+        { value: 'DRAFT', label: 'Borrador' },
+        { value: 'DISPATCHED', label: 'Despachada' },
+        { value: 'CANCELLED', label: 'Cancelada' },
+    ],
 
     columns: [
         {
