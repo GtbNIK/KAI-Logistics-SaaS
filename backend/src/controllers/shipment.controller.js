@@ -402,6 +402,156 @@ export const updateShipment = async (req, res) => {
 };
 
 /**
+ * @route   GET /api/shipments/monthly-close
+ * @desc    Cierre mensual: agrega D2D (CBM) y FCL (contenedores) por cliente y vendedor
+ * @query   month=YYYY-MM (default: mes actual)
+ */
+export const getMonthlyClose = async (req, res) => {
+    try {
+        const { month } = req.query;
+
+        // Calcular rango de fechas del mes
+        const now = new Date();
+        const [year, mon] = month
+            ? month.split('-').map(Number)
+            : [now.getFullYear(), now.getMonth() + 1];
+
+        const start = new Date(year, mon - 1, 1);
+        const end = new Date(year, mon, 1);
+
+        // Obtener todos los usuarios ADMIN + SALES activos
+        const users = await prisma.user.findMany({
+            where: { isActive: true, role: { in: ['ADMIN', 'SALES'] } },
+            select: { id: true, name: true, role: true },
+            orderBy: { name: 'asc' }
+        });
+
+        // --- D2D: embarques D2D del mes con cbm ---
+        const d2dShipments = await prisma.shipment.findMany({
+            where: {
+                type: 'D2D',
+                deletedAt: null,
+                createdAt: { gte: start, lt: end }
+            },
+            select: {
+                clientId: true,
+                clientName: true,
+                vendedorId: true,
+                cbm: true
+            }
+        });
+
+        // Agrupar D2D por cliente
+        const d2dMap = {};
+        for (const s of d2dShipments) {
+            const key = s.clientId || s.clientName || 'SIN_CLIENTE';
+            const label = s.clientName || key;
+            if (!d2dMap[key]) {
+                d2dMap[key] = { clientId: s.clientId, clientName: label, cbmByUser: {} };
+                for (const u of users) d2dMap[key].cbmByUser[u.id] = 0;
+            }
+            if (s.vendedorId) {
+                d2dMap[key].cbmByUser[s.vendedorId] =
+                    parseFloat(d2dMap[key].cbmByUser[s.vendedorId] || 0) +
+                    parseFloat(s.cbm || 0);
+            }
+        }
+
+        const d2d = Object.values(d2dMap).sort((a, b) =>
+            a.clientName.localeCompare(b.clientName)
+        );
+
+        // Totales por vendedor (D2D)
+        const d2dTotals = {};
+        for (const u of users) d2dTotals[u.id] = 0;
+        let d2dGrand = 0;
+        for (const row of d2d) {
+            for (const uid of Object.keys(row.cbmByUser)) {
+                d2dTotals[uid] = parseFloat((d2dTotals[uid] || 0)) + parseFloat(row.cbmByUser[uid] || 0);
+                d2dGrand += parseFloat(row.cbmByUser[uid] || 0);
+            }
+        }
+        // Redondear
+        for (const uid of Object.keys(d2dTotals)) {
+            d2dTotals[uid] = parseFloat(d2dTotals[uid].toFixed(2));
+        }
+        d2dGrand = parseFloat(d2dGrand.toFixed(2));
+
+        // --- FCL: embarques FCL del mes con contenedores ---
+        const fclShipments = await prisma.shipment.findMany({
+            where: {
+                type: 'FCL',
+                deletedAt: null,
+                createdAt: { gte: start, lt: end }
+            },
+            select: {
+                clientId: true,
+                clientName: true,
+                vendedorId: true,
+                containers: { select: { containerType: true, quantity: true } }
+            }
+        });
+
+        const CONTAINER_TYPES = ['20ft', '40ft', '40HC'];
+
+        // Agrupar FCL por cliente
+        const fclMap = {};
+        for (const s of fclShipments) {
+            const key = s.clientId || s.clientName || 'SIN_CLIENTE';
+            const label = s.clientName || key;
+            if (!fclMap[key]) {
+                fclMap[key] = { clientId: s.clientId, clientName: label, containersByUser: {} };
+                for (const u of users) {
+                    fclMap[key].containersByUser[u.id] = { '20ft': 0, '40ft': 0, '40HC': 0 };
+                }
+            }
+            if (s.vendedorId) {
+                for (const c of s.containers) {
+                    const ct = c.containerType;
+                    if (CONTAINER_TYPES.includes(ct)) {
+                        fclMap[key].containersByUser[s.vendedorId][ct] =
+                            (fclMap[key].containersByUser[s.vendedorId][ct] || 0) + (c.quantity || 1);
+                    }
+                }
+            }
+        }
+
+        const fcl = Object.values(fclMap).sort((a, b) =>
+            a.clientName.localeCompare(b.clientName)
+        );
+
+        // Totales por vendedor (FCL)
+        const fclTotals = {};
+        for (const u of users) fclTotals[u.id] = { '20ft': 0, '40ft': 0, '40HC': 0 };
+        const fclGrand = { '20ft': 0, '40ft': 0, '40HC': 0 };
+
+        for (const row of fcl) {
+            for (const uid of Object.keys(row.containersByUser)) {
+                for (const ct of CONTAINER_TYPES) {
+                    fclTotals[uid][ct] += row.containersByUser[uid][ct] || 0;
+                    fclGrand[ct] += row.containersByUser[uid][ct] || 0;
+                }
+            }
+        }
+
+        res.json({
+            month: `${year}-${String(mon).padStart(2, '0')}`,
+            users,
+            d2d,
+            d2dTotals,
+            d2dGrand,
+            fcl,
+            fclTotals,
+            fclGrand
+        });
+
+    } catch (error) {
+        console.error('Error getting monthly close:', error);
+        res.status(500).json({ message: 'Error al generar cierre mensual' });
+    }
+};
+
+/**
  * @route   DELETE /api/shipments/:id
  * @desc    Eliminar un embarque
  */

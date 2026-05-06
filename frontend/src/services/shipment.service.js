@@ -118,6 +118,15 @@ const shipmentService = {
         });
         return response.data?.data || response.data || [];
     },
+
+    // ── Cierre Mensual ───────────────────────────────────────────
+    getMonthlyClose: async (month) => {
+        const response = await axios.get(`${API_URL}/shipments/monthly-close`, {
+            params: { month },
+            withCredentials: true
+        });
+        return response.data;
+    },
 };
 
 export default shipmentService;

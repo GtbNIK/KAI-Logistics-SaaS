@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Container, Plus, Ship, Package, Activity } from 'lucide-react';
+import { Container, Plus, Ship, Package, Activity, BarChart2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
@@ -8,6 +8,7 @@ import { shipmentConfig, buildShipmentColumns } from '../../config/shipmentConfi
 import ShipmentDetailModal from '../../components/tracking/ShipmentDetailModal';
 import ChangeShipmentStatusModal from '../../components/tracking/ChangeShipmentStatusModal';
 import ShipmentFormModal from '../../components/tracking/ShipmentFormModal';
+import TrackingMonthlyCloseModal from '../../components/tracking/TrackingMonthlyCloseModal';
 import shipmentService from '../../services/shipment.service';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 
@@ -121,6 +122,7 @@ const Shipments = () => {
     const [statusShipment, setStatusShipment] = useState(null);
     const [deletingShipment, setDeletingShipment] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
     const { showSuccess } = useToast();
     const { user } = useAuth();
     const {
@@ -194,12 +196,22 @@ const Shipments = () => {
                         </p>
                     </div>
                 </div>
-                <button
-                    onClick={() => setFormModal({ open: true, shipment: null })}
-                    className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-sky-600/20 transition-all active:scale-95"
-                >
-                    <Plus size={18} /> Nuevo Embarque
-                </button>
+                <div className="flex items-center gap-3">
+                    {(user?.role === 'ADMIN' || user?.role === 'SALES') && (
+                        <button
+                            onClick={() => setMonthlyCloseOpen(true)}
+                            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-medium transition-all active:scale-95"
+                        >
+                            <BarChart2 size={18} /> Cierre Mensual
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setFormModal({ open: true, shipment: null })}
+                        className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-sky-600/20 transition-all active:scale-95"
+                    >
+                        <Plus size={18} /> Nuevo Embarque
+                    </button>
+                </div>
             </div>
 
             {/* Stats — por estatus (siempre con todos los embarques) */}
@@ -254,6 +266,7 @@ const Shipments = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar embarques por número, cliente...."
                 onView={setViewingShipment}
                 onEdit={(s) => setFormModal({ open: true, shipment: s })}
                 canEdit={(s) => s.status !== 'DELIVERED'}
@@ -298,6 +311,11 @@ const Shipments = () => {
                 onClose={() => setStatusShipment(null)}
                 shipment={statusShipment}
                 onUpdateStatus={handleUpdateStatus}
+            />
+
+            <TrackingMonthlyCloseModal
+                isOpen={monthlyCloseOpen}
+                onClose={() => setMonthlyCloseOpen(false)}
             />
 
             <ConfirmDeleteModal

@@ -127,6 +127,7 @@ const PaymentNotices = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar avisos por número, cliente..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}

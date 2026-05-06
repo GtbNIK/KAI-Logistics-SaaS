@@ -5,7 +5,8 @@ import {
     getShipment,
     createShipment,
     updateShipment,
-    deleteShipment
+    deleteShipment,
+    getMonthlyClose
 } from '../controllers/shipment.controller.js';
 
 const router = Router();
@@ -15,6 +16,7 @@ router.use(verifyToken);
 
 // CRUD
 router.get('/', getShipments);
+router.get('/monthly-close', authorize('ADMIN', 'SALES'), getMonthlyClose);
 router.get('/:id', getShipment);
 router.post('/', authorize('ADMIN', 'SALES'), createShipment);
 router.put('/:id', authorize('ADMIN', 'SALES'), updateShipment);

@@ -177,6 +177,7 @@ const Payables = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar CxP por número, beneficiario..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}

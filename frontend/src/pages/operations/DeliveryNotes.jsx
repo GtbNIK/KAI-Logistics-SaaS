@@ -180,6 +180,7 @@ const DeliveryNotes = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar notas por número, cliente..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}
