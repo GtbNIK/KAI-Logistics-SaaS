@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Landmark, TrendingUp, TrendingDown, Wallet, RefreshCw, FileText } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
+import { dateToStringHelper } from '../../utils/dateHelpers';
 import cashFlowService from '../../services/cash-flow.service';
 import { useToast } from '../../context/ToastContext';
 import CashFlowReportPDF from '../../components/finance/CashFlowReportPDF';
@@ -10,7 +11,7 @@ const formatMoney = (val) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val ?? 0);
 
 const formatDate = (d) =>
-    d ? new Date(d).toLocaleDateString('es-VE', { day: '2-digit', month: 'numeric', year: '2-digit' }) : '—';
+    d ? dateToStringHelper(d, { style: 'slash', shortYear: true }) : '—';
 
 // Métodos de pago en español (mismo mapa que PayableDetailModal)
 const PAYMENT_METHODS = {
@@ -34,18 +35,10 @@ const formatRangeLabel = ({
     toMonth,
     toYear
 }) => {
-    const formatParts = (day, month, year) => {
-        try {
-            return new Date(year, month - 1, day).toLocaleDateString('es-VE', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-            });
-        } catch {
-            return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
-        }
-    };
-    return `${formatParts(fromDay, fromMonth, fromYear)} al ${formatParts(toDay, toMonth, toYear)}`;
+    const build = (day, month, year) => `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const fromStr = dateToStringHelper(build(fromDay, fromMonth, fromYear), { style: 'text' });
+    const toStr   = dateToStringHelper(build(toDay,   toMonth,   toYear),   { style: 'text' });
+    return `${fromStr} al ${toStr}`;
 };
 
 // Meses
@@ -182,10 +175,9 @@ const CashFlow = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await cashFlowService.getCashFlow({
-                startDate: buildDate(applied.fromDay, applied.fromMonth, applied.fromYear),
-                endDate:   buildDate(applied.toDay,   applied.toMonth,   applied.toYear)
-            });
+            const start = `${buildDate(applied.fromDay, applied.fromMonth, applied.fromYear)}T00:00:00`;
+            const end   = `${buildDate(applied.toDay,   applied.toMonth,   applied.toYear)}T23:59:59.999`;
+            const res = await cashFlowService.getCashFlow({ startDate: start, endDate: end });
             setSummary(res.summary);
             setIngresos(res.ingresos);
             setEgresos(res.egresos);
