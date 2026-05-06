@@ -121,6 +121,7 @@ const Allies = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar aliados por nombre, código..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}

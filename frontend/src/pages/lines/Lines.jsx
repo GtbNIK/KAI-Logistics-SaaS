@@ -171,6 +171,7 @@ const Lines = () => {
                         totalItems={shippingTotalItems}
                         search={shippingSearch}
                         onSearchChange={setShippingSearch}
+                        searchPlaceholder="Buscar navieras por nombre, código..."
                         filterStatus={shippingFilterStatus}
                         onFilterStatusChange={setShippingFilterStatus}
                         onPageChange={setShippingPage}
@@ -230,6 +231,7 @@ const Lines = () => {
                         totalItems={airTotalItems}
                         search={airSearch}
                         onSearchChange={setAirSearch}
+                        searchPlaceholder="Buscar aerolíneas por nombre, código..."
                         filterStatus={airFilterStatus}
                         onFilterStatusChange={setAirFilterStatus}
                         onPageChange={setAirPage}

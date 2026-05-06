@@ -51,7 +51,8 @@ const EntityTable = ({
     showStatusFilter = true, // Nuevo: controla si se muestra el filtro de estado
     extraFilters = null,
     extraActions = null,
-    codeColor = 'blue' // Color del badge de código (blue, purple, green, etc.)
+    codeColor = 'blue', // Color del badge de código (blue, purple, green, etc.)
+    searchPlaceholder
 }) => {
     
     const colorClasses = {
@@ -70,7 +71,7 @@ const EntityTable = ({
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         <input 
                             type="text" 
-                            placeholder={`Buscar ${entityNamePlural}...`}
+                            placeholder={searchPlaceholder || `Buscar ${entityNamePlural}...`}
                             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
                             value={search}
                             onChange={(e) => onSearchChange?.(e.target.value)}

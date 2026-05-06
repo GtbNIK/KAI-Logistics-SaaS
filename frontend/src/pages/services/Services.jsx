@@ -126,6 +126,7 @@ const Services = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar servicios por nombre, tipo, código..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}

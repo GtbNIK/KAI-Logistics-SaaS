@@ -235,6 +235,7 @@ const Zones = () => {
 					loading={loading}
 					search={search}
 					onSearchChange={setSearch}
+					searchPlaceholder="Buscar zonas por nombre, código..."
 					page={page}
 					totalPages={totalPages}
 					totalItems={totalItems}
@@ -259,6 +260,7 @@ const Zones = () => {
 					loading={portLoading}
 					search={portSearch}
 					onSearchChange={setPortSearch}
+					searchPlaceholder="Buscar puertos por nombre, código..."
 					page={portPage}
 					totalPages={portTotalPages}
 					totalItems={portTotalItems}

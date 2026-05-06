@@ -342,6 +342,9 @@ const Rates = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder={activeTab === 'CHINA' 
+                    ? 'Buscar tarifas por aliado, puertos...'
+                    : 'Buscar tarifas por aliado, país...'}
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}
