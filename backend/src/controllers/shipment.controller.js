@@ -38,51 +38,7 @@ export const getShipments = async (req, res) => {
                 ...where,
                 deletedAt: null,
             },
-            // Hotfix: usar select explícito para no intentar leer la columna legacy "shippingLine"
-            select: {
-                // Escalares (sin shippingLine)
-                id: true,
-                number: true,
-                type: true,
-                status: true,
-                blNumber: true,
-                whNumber: true,
-                bookingNumber: true,
-                shippingLineId: true,
-                airLineId: true,
-                clientId: true,
-                clientName: true,
-                vendedorId: true,
-                currentLocation: true,
-                containerType: true, // legacy aún puede existir en local
-                containerQty: true,  // legacy aún puede existir en local
-                originPort: true,
-                destPort: true,
-                etd: true,
-                eta: true,
-                weight: true,
-                quantity: true,
-                cbm: true,
-                paymentNoticeId: true,
-                createdAt: true,
-                updatedAt: true,
-                updatedById: true,
-                // Nuevos campos
-                transitTime: true,
-                aliadoId: true,
-                cst: true,
-                consolidadoManual: true,
-                transportType: true,
-                d2dEta: true,
-                deliveryPlace: true,
-                d2dTransitTime: true,
-                d2dAliadoId: true,
-                consolidadoNumber: true,
-                arrivalPort: true,
-                consolidadoTransitTime: true,
-                deletedAt: true,
-
-                // Relaciones
+            include: {
                 paymentNotice: {
                     select: {
                         number: true,
@@ -95,12 +51,11 @@ export const getShipments = async (req, res) => {
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
                 airLine: { select: { id: true, name: true, code: true } },
                 d2dShipmentItems: {
-                    select: {
-                        id: true,
+                    include: {
                         d2dItem: { select: { id: true, description: true } }
                     }
                 },
-                containers: { select: { id: true, containerType: true, quantity: true } },
+                containers: true,
                 aliado: { select: { id: true, name: true } },
                 d2dAliado: { select: { id: true, name: true } },
             },
@@ -122,51 +77,7 @@ export const getShipment = async (req, res) => {
     try {
         const shipment = await prisma.shipment.findUnique({
             where: { id: req.params.id },
-            // Hotfix: usar select explícito para no intentar leer la columna legacy "shippingLine"
-            select: {
-                // Escalares (sin shippingLine)
-                id: true,
-                number: true,
-                type: true,
-                status: true,
-                blNumber: true,
-                whNumber: true,
-                bookingNumber: true,
-                shippingLineId: true,
-                airLineId: true,
-                clientId: true,
-                clientName: true,
-                vendedorId: true,
-                currentLocation: true,
-                containerType: true,
-                containerQty: true,
-                originPort: true,
-                destPort: true,
-                etd: true,
-                eta: true,
-                weight: true,
-                quantity: true,
-                cbm: true,
-                paymentNoticeId: true,
-                createdAt: true,
-                updatedAt: true,
-                updatedById: true,
-                // Nuevos campos
-                transitTime: true,
-                aliadoId: true,
-                cst: true,
-                consolidadoManual: true,
-                transportType: true,
-                d2dEta: true,
-                deliveryPlace: true,
-                d2dTransitTime: true,
-                d2dAliadoId: true,
-                consolidadoNumber: true,
-                arrivalPort: true,
-                consolidadoTransitTime: true,
-                deletedAt: true,
-
-                // Relaciones
+            include: {
                 paymentNotice: {
                     select: {
                         id: true,
@@ -181,12 +92,11 @@ export const getShipment = async (req, res) => {
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
                 airLine: { select: { id: true, name: true, code: true } },
                 d2dShipmentItems: {
-                    select: {
-                        id: true,
+                    include: {
                         d2dItem: { select: { id: true, description: true } }
                     }
                 },
-                containers: { select: { id: true, containerType: true, quantity: true } },
+                containers: true,
                 aliado: { select: { id: true, name: true } },
                 d2dAliado: { select: { id: true, name: true } },
             }
@@ -213,7 +123,7 @@ export const createShipment = async (req, res) => {
             paymentNoticeId, type, blNumber, whNumber, bookingNumber,
             shippingLineId, airLineId, clientId, clientName,
             vendedorId, currentLocation,
-            containerType, containerQty, originPort, destPort, etd, eta,
+            originPort, destPort, etd, eta,
             weight, quantity, cbm, d2dItemIds,
             // Nuevos campos FCL
             transitTime, aliadoId, containers,
@@ -270,8 +180,6 @@ export const createShipment = async (req, res) => {
 
         // FCL fields
         if (type === 'FCL') {
-            data.containerType = containerType || null; // DEPRECADO
-            data.containerQty = containerQty ? parseInt(containerQty) : null; // DEPRECADO
             data.originPort = originPort || null;
             data.destPort = destPort || null;
             data.etd = etd ? new Date(etd) : null;
@@ -358,7 +266,7 @@ export const updateShipment = async (req, res) => {
         const {
             blNumber, whNumber, bookingNumber, shippingLineId, airLineId, status,
             clientId, clientName, vendedorId, currentLocation,
-            containerType, containerQty, originPort, destPort, etd, eta,
+            originPort, destPort, etd, eta,
             weight, quantity, cbm, d2dItemIds,
             // Nuevos campos FCL
             transitTime, aliadoId, containers,
@@ -385,8 +293,6 @@ export const updateShipment = async (req, res) => {
         if (clientName !== undefined) data.clientName = clientName || null;
         if (vendedorId !== undefined) data.vendedorId = vendedorId || null;
         if (currentLocation !== undefined) data.currentLocation = currentLocation || null;
-        if (containerType !== undefined) data.containerType = containerType || null;
-        if (containerQty !== undefined) data.containerQty = containerQty ? parseInt(containerQty) : null;
         if (originPort !== undefined) data.originPort = originPort || null;
         if (destPort !== undefined) data.destPort = destPort || null;
         if (etd !== undefined) data.etd = etd ? new Date(etd) : null;
