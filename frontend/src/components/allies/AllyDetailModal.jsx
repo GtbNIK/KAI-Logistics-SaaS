@@ -351,10 +351,13 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
                                                             ${parseFloat(rate.sale40HC || 0).toFixed(2)}
                                                         </td>
                                                         <td className="px-4 py-3 text-center">
-                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${!isExpired ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-                                                                {isExpired && <AlertTriangle size={12} />}
-                                                                {toVenezuelanFormat(toDateString(rate.validUntil))}
-                                                            </span>
+                                                            {isExpired ? (
+                                                                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-500 border border-red-200">VENCIDA</span>
+                                                            ) : (
+                                                                <span className="text-xs text-slate-600">
+                                                                    {toVenezuelanFormat(toDateString(rate.validFrom))} - {toVenezuelanFormat(toDateString(rate.validUntil))}
+                                                                </span>
+                                                            )}
                                                         </td>
                                                         <td className="px-4 py-3 text-center">
                                                             {rate.isActive ? (

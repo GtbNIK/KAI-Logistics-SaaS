@@ -11,6 +11,7 @@ import ChangeShipmentStatusModal from '../../components/tracking/ChangeShipmentS
 import ShipmentFormModal from '../../components/tracking/ShipmentFormModal';
 import TrackingMonthlyCloseModal from '../../components/tracking/TrackingMonthlyCloseModal';
 import shipmentService from '../../services/shipment.service';
+import authService from '../../services/auth.service';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 
 // ── Status labels para el filtro ─────
@@ -27,7 +28,7 @@ const STATUS_OPTIONS = [
 // Tabs de tipos (FCL, D2D, CONSOLIDADO)
 
 // ── Hook de datos ─────
-const useShipments = () => {
+const useShipments = ({ loadUsers = false } = {}) => {
     const [items, setItems] = useState([]);
     const [allItems, setAllItems] = useState([]); // Para stats (sin filtros)
     const [loading, setLoading] = useState(false);
@@ -35,6 +36,8 @@ const useShipments = () => {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('D2D');
     const [statusFilter, setStatusFilter] = useState('');
+    const [vendedorFilter, setVendedorFilter] = useState('');
+    const [users, setUsers] = useState([]);
     const { showError } = useToast();
 
     useEffect(() => {
@@ -50,6 +53,14 @@ const useShipments = () => {
         } catch { /* silencioso */ }
     }, []);
 
+    const fetchUsers = useCallback(async () => {
+        try {
+            const data = await authService.getUsers();
+            // El backend puede devolver { users: [...] } o directamente el array
+            setUsers(Array.isArray(data) ? data : data.users || []);
+        } catch { /* silencioso */ }
+    }, []);
+
     const fetchShipments = useCallback(async () => {
         setLoading(true);
         try {
@@ -57,6 +68,7 @@ const useShipments = () => {
             if (debouncedSearch) params.search = debouncedSearch;
             if (typeFilter) params.type = typeFilter;
             if (statusFilter) params.status = statusFilter;
+            if (vendedorFilter) params.vendedorId = vendedorFilter;
             const data = await shipmentService.getShipments(params);
             setItems(data);
         } catch {
@@ -64,8 +76,11 @@ const useShipments = () => {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, typeFilter, statusFilter]);
+    }, [debouncedSearch, typeFilter, statusFilter, vendedorFilter, showError]);
 
+    useEffect(() => {
+        if (loadUsers) fetchUsers();
+    }, [fetchUsers, loadUsers]);
     useEffect(() => { fetchAll(); }, [fetchAll]);
     useEffect(() => { fetchShipments(); }, [fetchShipments]);
 
@@ -77,6 +92,7 @@ const useShipments = () => {
     return {
         items, allItems, loading, search, setSearch,
         typeFilter, setTypeFilter, statusFilter, setStatusFilter,
+        vendedorFilter, setVendedorFilter, users,
         refresh
     };
 };
@@ -95,10 +111,10 @@ const QuickStats = ({ items }) => {
     const cards = [
         { label: 'Pendiente', value: counts.PENDING, cls: 'bg-amber-50 text-amber-600', icon: <Package size={18} className="text-amber-600" /> },
         { label: 'En Almacén Origen', value: counts.AT_ORIGIN_WAREHOUSE, cls: 'bg-orange-50 text-orange-600', icon: <Package size={18} className="text-orange-600" /> },
-        { label: 'En Tránsito', value: counts.ON_VESSEL, cls: 'bg-blue-50/80 text-blue-600', icon: <Ship size={18} className="text-blue-600" /> },
+        { label: 'En Tránsito', value: counts.ON_VESSEL, cls: 'bg-blue-50/40 text-blue-600', icon: <Ship size={18} className="text-blue-600" /> },
         { label: 'En Puerto Destino', value: counts.AT_DESTINATION_PORT, cls: 'bg-purple-50 text-purple-600', icon: <Container size={18} className="text-purple-600" /> },
         { label: 'En Aduana', value: counts.CUSTOMS_CLEARANCE, cls: 'bg-pink-50 text-pink-600', icon: <Package size={18} className="text-pink-600" /> },
-        { label: 'Entregados', value: counts.DELIVERED, cls: 'bg-green-50/80 text-green-600', icon: <Container size={18} className="text-green-600" /> },
+        { label: 'Entregados', value: counts.DELIVERED, cls: 'bg-green-50/40 text-green-600', icon: <Container size={18} className="text-green-600" /> },
     ];
 
     return (
@@ -127,11 +143,13 @@ const Shipments = () => {
     const { showSuccess } = useToast();
     const { settings } = useSettings();
     const { user } = useAuth();
+    const isAdmin = user?.role === 'ADMIN';
     const {
         items, allItems, loading, search, setSearch,
         typeFilter, setTypeFilter, statusFilter, setStatusFilter,
+        vendedorFilter, setVendedorFilter, users,
         refresh
-    } = useShipments();
+    } = useShipments({ loadUsers: isAdmin });
 
     const [activeTab, setActiveTab] = useState('D2D');
 
@@ -180,6 +198,16 @@ const Shipments = () => {
             >
                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            {isAdmin && (
+                <select
+                    value={vendedorFilter}
+                    onChange={e => setVendedorFilter(e.target.value)}
+                    className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                    <option value="">Todos los vendedores</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+            )}
         </div>
     );
 

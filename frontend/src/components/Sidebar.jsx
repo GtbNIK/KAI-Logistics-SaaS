@@ -248,7 +248,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             {/* Version Info (Optional) */}
             {isOpen && (
                 <div className="p-4 text-center">
-                    <p className="text-[10px] text-white/20">v1.0.0 Alpha</p>
+                    <p className="text-[10px] text-white/20">v1.1.0 Estable</p>
                 </div>
             )}
         </aside>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Activity, X, Loader2 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -18,7 +19,7 @@ const ChangeShipmentStatusModal = ({ isOpen, onClose, shipment, onUpdateStatus }
         if (shipment?.status) setStatus(shipment.status);
     }, [shipment?.status, isOpen]);
 
-    if (!isOpen || !shipment) return null;
+    if (!isOpen || !shipment || typeof document === 'undefined') return null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -27,7 +28,7 @@ const ChangeShipmentStatusModal = ({ isOpen, onClose, shipment, onUpdateStatus }
         setLoading(false);
     };
 
-    return (
+    const modal = (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b border-slate-100">
@@ -69,6 +70,8 @@ const ChangeShipmentStatusModal = ({ isOpen, onClose, shipment, onUpdateStatus }
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default ChangeShipmentStatusModal;

@@ -72,7 +72,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         // FCL
         containerType: '', // DEPRECADO
         containerQty: '', // DEPRECADO
-        containers: [], // Nuevo: array de {containerType, quantity}
+        containers: [{ containerType: '40HC', quantity: 1 }], // Nuevo: array de {containerType, quantity}
         originPort: '',
         destPort: '',
         etd: '',
@@ -150,7 +150,9 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 currentLocation: shipment.currentLocation || '',
                 containerType: shipment.containerType || '',
                 containerQty: shipment.containerQty || '',
-                containers: shipment.containers || [],
+                containers: shipment.containers && shipment.containers.length > 0 
+                    ? shipment.containers 
+                    : [{ containerType: '40HC', quantity: 1 }],
                 originPort: shipment.originPort || '',
                 destPort: shipment.destPort || '',
                 etd: shipment.etd ? shipment.etd.slice(0, 10) : '',

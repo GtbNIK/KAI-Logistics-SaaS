@@ -194,7 +194,7 @@ const CashFlowReportPDF = ({
                 doc.setTextColor(60, 60, 60);
 
                 if (hasIngresos) {
-                    const ingresosTotal = group.ingresos.reduce((s, tx) => s + (tx.amount || 0), 0);
+                    const ingresosTotal = group.ingresos.reduce((s, tx) => s + parseFloat(tx.amount || 0), 0);
                     doc.text('Ingresos', 20, currentY);
                     currentY += 4;
                     autoTable(doc, {
@@ -262,7 +262,7 @@ const CashFlowReportPDF = ({
                 doc.setTextColor(60, 60, 60);
 
                 if (hasEgresos) {
-                    const egresosTotal = group.egresos.reduce((s, tx) => s + (tx.amount || 0), 0);
+                    const egresosTotal = group.egresos.reduce((s, tx) => s + parseFloat(tx.amount || 0), 0);
                     doc.text('Egresos', 20, currentY);
                     currentY += 4;
                     autoTable(doc, {

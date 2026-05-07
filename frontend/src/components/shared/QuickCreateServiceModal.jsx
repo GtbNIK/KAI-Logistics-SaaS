@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, Loader2, Package } from 'lucide-react';
 import serviceService from '../../services/service.service';
 import { useToast } from '../../context/ToastContext';
@@ -41,9 +42,9 @@ const QuickCreateServiceModal = ({ isOpen, onClose, onSuccess }) => {
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || typeof document === 'undefined') return null;
 
-    return (
+    const modal = (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -115,6 +116,8 @@ const QuickCreateServiceModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default QuickCreateServiceModal;

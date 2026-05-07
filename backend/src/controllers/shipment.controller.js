@@ -7,12 +7,13 @@ import { createNotification } from './notification.controller.js';
  */
 export const getShipments = async (req, res) => {
     try {
-        const { search, type, status } = req.query;
+        const { search, type, status, vendedorId } = req.query;
 
         const where = {};
 
         if (type) where.type = type;
         if (status) where.status = status;
+        if (vendedorId) where.vendedorId = vendedorId;
 
         if (search) {
             const or = [

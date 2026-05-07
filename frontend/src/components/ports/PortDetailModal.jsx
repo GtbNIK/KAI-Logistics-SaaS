@@ -166,14 +166,9 @@ const PortDetailModal = ({ isOpen, onClose, port }) => {
                                                         <span className="text-xs text-slate-400 ml-1">{rate.currency}</span>
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        {(() => {
-                                                            if (!rate.validUntil) {
-                                                                return <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-50 text-green-600 border border-green-200">Vigente</span>;
-                                                            }
-                                                            return isExpired
-                                                                ? <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-red-50 text-red-500 border border-red-200">Vencida</span>
-                                                                : <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-50 text-green-600 border border-green-200">Vigente</span>;
-                                                        })()}
+                                                        <span className="text-xs text-slate-600">
+                                                            {rate.validFrom ? new Date(rate.validFrom).toLocaleDateString('es-VE', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '—'} - {rate.validUntil ? new Date(rate.validUntil).toLocaleDateString('es-VE', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'Sin límite'}
+                                                        </span>
                                                     </td>
                                                 </tr>
                                             );
@@ -219,7 +214,7 @@ const PortDetailModal = ({ isOpen, onClose, port }) => {
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Línea</th>
                                             <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 20HC</th>
                                             <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Venta 40HC</th>
-                                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Validez</th>
+                                            <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase"><Clock size={12} className="inline mr-1" /> Vigencia</th>
                                             <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Estado</th>
                                         </tr>
                                     </thead>
@@ -260,10 +255,13 @@ const PortDetailModal = ({ isOpen, onClose, port }) => {
                                                         ${parseFloat(rate.sale40HC || 0).toFixed(2)}
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${!isExpired ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-                                                            {isExpired && <AlertTriangle size={12} />}
-                                                            {toVenezuelanFormat(toDateString(rate.validUntil))}
-                                                        </span>
+                                                        {isExpired ? (
+                                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-500 border border-red-200">VENCIDA</span>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-600">
+                                                                {toVenezuelanFormat(toDateString(rate.validFrom))} - {toVenezuelanFormat(toDateString(rate.validUntil))}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
                                                         {rate.isActive ? (
