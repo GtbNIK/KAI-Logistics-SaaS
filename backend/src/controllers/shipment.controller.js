@@ -38,7 +38,51 @@ export const getShipments = async (req, res) => {
                 ...where,
                 deletedAt: null,
             },
-            include: {
+            // Hotfix: usar select explícito para no intentar leer la columna legacy "shippingLine"
+            select: {
+                // Escalares (sin shippingLine)
+                id: true,
+                number: true,
+                type: true,
+                status: true,
+                blNumber: true,
+                whNumber: true,
+                bookingNumber: true,
+                shippingLineId: true,
+                airLineId: true,
+                clientId: true,
+                clientName: true,
+                vendedorId: true,
+                currentLocation: true,
+                containerType: true, // legacy aún puede existir en local
+                containerQty: true,  // legacy aún puede existir en local
+                originPort: true,
+                destPort: true,
+                etd: true,
+                eta: true,
+                weight: true,
+                quantity: true,
+                cbm: true,
+                paymentNoticeId: true,
+                createdAt: true,
+                updatedAt: true,
+                updatedById: true,
+                // Nuevos campos
+                transitTime: true,
+                aliadoId: true,
+                cst: true,
+                consolidadoManual: true,
+                transportType: true,
+                d2dEta: true,
+                deliveryPlace: true,
+                d2dTransitTime: true,
+                d2dAliadoId: true,
+                consolidadoNumber: true,
+                arrivalPort: true,
+                consolidadoTransitTime: true,
+                deletedAt: true,
+
+                // Relaciones
                 paymentNotice: {
                     select: {
                         number: true,
@@ -51,11 +95,12 @@ export const getShipments = async (req, res) => {
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
                 airLine: { select: { id: true, name: true, code: true } },
                 d2dShipmentItems: {
-                    include: {
+                    select: {
+                        id: true,
                         d2dItem: { select: { id: true, description: true } }
                     }
                 },
-                containers: true,
+                containers: { select: { id: true, containerType: true, quantity: true } },
                 aliado: { select: { id: true, name: true } },
                 d2dAliado: { select: { id: true, name: true } },
             },
@@ -77,7 +122,51 @@ export const getShipment = async (req, res) => {
     try {
         const shipment = await prisma.shipment.findUnique({
             where: { id: req.params.id },
-            include: {
+            // Hotfix: usar select explícito para no intentar leer la columna legacy "shippingLine"
+            select: {
+                // Escalares (sin shippingLine)
+                id: true,
+                number: true,
+                type: true,
+                status: true,
+                blNumber: true,
+                whNumber: true,
+                bookingNumber: true,
+                shippingLineId: true,
+                airLineId: true,
+                clientId: true,
+                clientName: true,
+                vendedorId: true,
+                currentLocation: true,
+                containerType: true,
+                containerQty: true,
+                originPort: true,
+                destPort: true,
+                etd: true,
+                eta: true,
+                weight: true,
+                quantity: true,
+                cbm: true,
+                paymentNoticeId: true,
+                createdAt: true,
+                updatedAt: true,
+                updatedById: true,
+                // Nuevos campos
+                transitTime: true,
+                aliadoId: true,
+                cst: true,
+                consolidadoManual: true,
+                transportType: true,
+                d2dEta: true,
+                deliveryPlace: true,
+                d2dTransitTime: true,
+                d2dAliadoId: true,
+                consolidadoNumber: true,
+                arrivalPort: true,
+                consolidadoTransitTime: true,
+                deletedAt: true,
+
+                // Relaciones
                 paymentNotice: {
                     select: {
                         id: true,
@@ -92,11 +181,12 @@ export const getShipment = async (req, res) => {
                 clientRel: { select: { id: true, name: true, rifOrId: true } },
                 airLine: { select: { id: true, name: true, code: true } },
                 d2dShipmentItems: {
-                    include: {
+                    select: {
+                        id: true,
                         d2dItem: { select: { id: true, description: true } }
                     }
                 },
-                containers: true,
+                containers: { select: { id: true, containerType: true, quantity: true } },
                 aliado: { select: { id: true, name: true } },
                 d2dAliado: { select: { id: true, name: true } },
             }

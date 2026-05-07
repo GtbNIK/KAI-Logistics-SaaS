@@ -531,7 +531,6 @@ model Shipment {
   blNumber        String?
   whNumber        String?      // Warehouse Number para D2D
   bookingNumber   String?
-  shippingLine    String?  // Legado / texto libre
   shippingLineId  String?
   shippingLineRel ShippingLine? @relation(fields: [shippingLineId], references: [id])
   status          ShipmentStatus @default(PENDING)
@@ -551,8 +550,6 @@ model Shipment {
   airLine         AirLine?      @relation(fields: [airLineId], references: [id])
 
   // FCL Specific
-  containerType   String?  // DEPRECADO - usar ShipmentContainer
-  containerQty    Int?     // DEPRECADO - usar ShipmentContainer
   originPort      String?
   destPort        String?
   etd             DateTime? // Estimated Time Departure
