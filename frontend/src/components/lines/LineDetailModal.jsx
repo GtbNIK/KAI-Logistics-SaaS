@@ -49,7 +49,7 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
 
     return (
         <div className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className={`bg-white rounded-2xl shadow-2xl w-full ${type === 'shipping' ? 'max-w-4xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+            <div className={`bg-white rounded-2xl shadow-2xl w-full ${type === 'shipping' ? 'max-w-4xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200`} onClick={e => e.stopPropagation()}>
                 <div className={`flex items-center justify-between px-6 py-4 border-b border-slate-100 ${
                     type === 'shipping' ? 'bg-purple-50/50' : 'bg-blue-50/50'
                 }`}>

@@ -19,6 +19,17 @@ const STATUS_COLORS = {
     DELIVERED:           'bg-green-50 text-green-600 border-green-200',
 };
 
+// Componente InfoRow movido fuera del render para evitar recreación
+const InfoRow = ({ icon: Icon, label, value, mono }) => (
+    <div className="flex items-start gap-3 py-2.5 border-b border-slate-100 last:border-0">
+        <Icon size={15} className="text-slate-400 mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-400 mb-0.5">{label}</p>
+            <p className={`text-sm text-slate-700 font-medium truncate ${mono ? 'font-mono' : ''}`}>{value || '—'}</p>
+        </div>
+    </div>
+);
+
 const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
     if (!shipment) return null;
     const s = shipment;
@@ -36,16 +47,6 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
         }
         return new Date(d).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
     };
-
-    const InfoRow = ({ icon: Icon, label, value, mono }) => (
-        <div className="flex items-start gap-3 py-2.5 border-b border-slate-100 last:border-0">
-            <Icon size={15} className="text-slate-400 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-                <p className={`text-sm text-slate-700 font-medium truncate ${mono ? 'font-mono' : ''}`}>{value || '—'}</p>
-            </div>
-        </div>
-    );
 
     // Determinar línea según tipo y transportType
     let shippingLineName = null;
@@ -74,7 +75,7 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] transform transition-all animate-in fade-in zoom-in-95 duration-200"
                 onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
