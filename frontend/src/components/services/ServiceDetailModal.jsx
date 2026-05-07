@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Package, FileText, DollarSign, Building, MapPin, Ship, ArrowRight, Plane, Clock } from 'lucide-react';
 import serviceService from '../../services/service.service';
 import { useAuth } from '../../context/AuthContext';
@@ -40,11 +41,11 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
         }
     };
 
-    if (!isOpen || !service) return null;
+    if (!isOpen || !service || typeof document === 'undefined') return null;
 
     const rates = serviceDetails?.rates || [];
 
-    return (
+    const modal = (
         <div className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200">
                 
@@ -214,6 +215,8 @@ const ServiceDetailModal = ({ isOpen, onClose, service }) => {
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default ServiceDetailModal;

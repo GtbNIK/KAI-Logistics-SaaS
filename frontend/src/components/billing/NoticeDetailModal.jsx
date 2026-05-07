@@ -44,7 +44,7 @@ const NoticeDetailModal = ({ notice, onClose }) => {
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] transform transition-all animate-in fade-in zoom-in-95 duration-200"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}

@@ -1,12 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Container, Plus, Ship, Package } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Container, Plus, Ship, Package, Activity, BarChart2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
-import { shipmentConfig } from '../../config/shipmentConfig';
+import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
+import { shipmentConfig, buildShipmentColumns } from '../../config/shipmentConfig';
 import ShipmentDetailModal from '../../components/tracking/ShipmentDetailModal';
+import ChangeShipmentStatusModal from '../../components/tracking/ChangeShipmentStatusModal';
 import ShipmentFormModal from '../../components/tracking/ShipmentFormModal';
+import TrackingMonthlyCloseModal from '../../components/tracking/TrackingMonthlyCloseModal';
 import shipmentService from '../../services/shipment.service';
+import authService from '../../services/auth.service';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 
 // ── Status labels para el filtro ─────
@@ -20,21 +25,19 @@ const STATUS_OPTIONS = [
     { value: 'DELIVERED', label: 'Entregado' },
 ];
 
-const TYPE_OPTIONS = [
-    { value: '', label: 'Todos los tipos' },
-    { value: 'FCL', label: 'FCL (Contenedor)' },
-    { value: 'D2D', label: 'Door to Door' },
-];
+// Tabs de tipos (FCL, D2D, CONSOLIDADO)
 
 // ── Hook de datos ─────
-const useShipments = () => {
+const useShipments = ({ loadUsers = false } = {}) => {
     const [items, setItems] = useState([]);
     const [allItems, setAllItems] = useState([]); // Para stats (sin filtros)
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState('');
+    const [typeFilter, setTypeFilter] = useState('D2D');
     const [statusFilter, setStatusFilter] = useState('');
+    const [vendedorFilter, setVendedorFilter] = useState('');
+    const [users, setUsers] = useState([]);
     const { showError } = useToast();
 
     useEffect(() => {
@@ -50,6 +53,14 @@ const useShipments = () => {
         } catch { /* silencioso */ }
     }, []);
 
+    const fetchUsers = useCallback(async () => {
+        try {
+            const data = await authService.getUsers();
+            // El backend puede devolver { users: [...] } o directamente el array
+            setUsers(Array.isArray(data) ? data : data.users || []);
+        } catch { /* silencioso */ }
+    }, []);
+
     const fetchShipments = useCallback(async () => {
         setLoading(true);
         try {
@@ -57,6 +68,7 @@ const useShipments = () => {
             if (debouncedSearch) params.search = debouncedSearch;
             if (typeFilter) params.type = typeFilter;
             if (statusFilter) params.status = statusFilter;
+            if (vendedorFilter) params.vendedorId = vendedorFilter;
             const data = await shipmentService.getShipments(params);
             setItems(data);
         } catch {
@@ -64,8 +76,11 @@ const useShipments = () => {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, typeFilter, statusFilter]);
+    }, [debouncedSearch, typeFilter, statusFilter, vendedorFilter, showError]);
 
+    useEffect(() => {
+        if (loadUsers) fetchUsers();
+    }, [fetchUsers, loadUsers]);
     useEffect(() => { fetchAll(); }, [fetchAll]);
     useEffect(() => { fetchShipments(); }, [fetchShipments]);
 
@@ -77,35 +92,42 @@ const useShipments = () => {
     return {
         items, allItems, loading, search, setSearch,
         typeFilter, setTypeFilter, statusFilter, setStatusFilter,
+        vendedorFilter, setVendedorFilter, users,
         refresh
     };
 };
 
 // ── Estadísticas rápidas ─────
 const QuickStats = ({ items }) => {
-    const totalFCL = items.filter(i => i.type === 'FCL').length;
-    const totalD2D = items.filter(i => i.type === 'D2D').length;
-    const inTransit = items.filter(i => i.status === 'ON_VESSEL').length;
-    const delivered = items.filter(i => i.status === 'DELIVERED').length;
+    const counts = useMemo(() => ({
+        PENDING: items.filter(i => i.status === 'PENDING').length,
+        AT_ORIGIN_WAREHOUSE: items.filter(i => i.status === 'AT_ORIGIN_WAREHOUSE').length,
+        ON_VESSEL: items.filter(i => i.status === 'ON_VESSEL').length,
+        AT_DESTINATION_PORT: items.filter(i => i.status === 'AT_DESTINATION_PORT').length,
+        CUSTOMS_CLEARANCE: items.filter(i => i.status === 'CUSTOMS_CLEARANCE').length,
+        DELIVERED: items.filter(i => i.status === 'DELIVERED').length,
+    }), [items]);
+
+    const cards = [
+        { label: 'Pendiente', value: counts.PENDING, cls: 'bg-amber-50 text-amber-600', icon: <Package size={18} className="text-amber-600" /> },
+        { label: 'En Almacén Origen', value: counts.AT_ORIGIN_WAREHOUSE, cls: 'bg-orange-50 text-orange-600', icon: <Package size={18} className="text-orange-600" /> },
+        { label: 'En Tránsito', value: counts.ON_VESSEL, cls: 'bg-blue-50/40 text-blue-600', icon: <Ship size={18} className="text-blue-600" /> },
+        { label: 'En Puerto Destino', value: counts.AT_DESTINATION_PORT, cls: 'bg-purple-50 text-purple-600', icon: <Container size={18} className="text-purple-600" /> },
+        { label: 'En Aduana', value: counts.CUSTOMS_CLEARANCE, cls: 'bg-pink-50 text-pink-600', icon: <Package size={18} className="text-pink-600" /> },
+        { label: 'Entregados', value: counts.DELIVERED, cls: 'bg-green-50/40 text-green-600', icon: <Container size={18} className="text-green-600" /> },
+    ];
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="p-2 bg-indigo-50 rounded-lg"><Container size={18} className="text-indigo-500" /></div>
-                <div><p className="text-xs text-slate-400">FCL</p><p className="font-bold text-slate-800">{totalFCL}</p></div>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="p-2 bg-teal-50 rounded-lg"><Package size={18} className="text-teal-500" /></div>
-                <div><p className="text-xs text-slate-400">Door to Door</p><p className="font-bold text-slate-800">{totalD2D}</p></div>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg"><Ship size={18} className="text-blue-500" /></div>
-                <div><p className="text-xs text-slate-400">En tránsito</p><p className="font-bold text-slate-800">{inTransit}</p></div>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="p-2 bg-green-50 rounded-lg"><Container size={18} className="text-green-500" /></div>
-                <div><p className="text-xs text-slate-400">Entregados</p><p className="font-bold text-slate-800">{delivered}</p></div>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            {cards.map((c, idx) => (
+                <div key={idx} className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${c.cls.replace('text-', 'bg-')}`}>{c.icon}</div>
+                    <div>
+                        <p className="text-xs text-slate-400">{c.label}</p>
+                        <p className="font-bold text-slate-800">{c.value}</p>
+                    </div>
+                </div>
+            ))}
         </div>
     );
 };
@@ -114,12 +136,32 @@ const QuickStats = ({ items }) => {
 const Shipments = () => {
     const [viewingShipment, setViewingShipment] = useState(null);
     const [formModal, setFormModal] = useState({ open: false, shipment: null });
+    const [statusShipment, setStatusShipment] = useState(null);
+    const [deletingShipment, setDeletingShipment] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
+    const { showSuccess } = useToast();
+    const { settings } = useSettings();
     const { user } = useAuth();
+    const isAdmin = user?.role === 'ADMIN';
     const {
         items, allItems, loading, search, setSearch,
         typeFilter, setTypeFilter, statusFilter, setStatusFilter,
+        vendedorFilter, setVendedorFilter, users,
         refresh
-    } = useShipments();
+    } = useShipments({ loadUsers: isAdmin });
+
+    const [activeTab, setActiveTab] = useState('D2D');
+
+    useEffect(() => {
+        setTypeFilter(activeTab);
+    }, [activeTab, setTypeFilter]);
+
+    const totalsByType = useMemo(() => ({
+        FCL: allItems.filter(i => i.type === 'FCL').length,
+        D2D: allItems.filter(i => i.type === 'D2D').length,
+        CONSOLIDADO: allItems.filter(i => i.type === 'CONSOLIDADO').length,
+    }), [allItems]);
 
     // Auto-open modal if URL contains ?id=
     useAutoOpenModal(setViewingShipment, shipmentService.getShipment);
@@ -134,16 +176,21 @@ const Shipments = () => {
         setFormModal({ open: true, shipment });
     };
 
+    const handleUpdateStatus = async (id, newStatus) => {
+        try {
+            await shipmentService.updateShipment(id, { status: newStatus });
+            setStatusShipment(null);
+            refresh();
+            return true;
+        } catch (error) {
+            console.error('Error updating shipment status:', error);
+            return false;
+        }
+    };
+
     // Filtros en línea
     const filters = (
         <div className="flex items-center gap-3">
-            <select
-                value={typeFilter}
-                onChange={e => setTypeFilter(e.target.value)}
-                className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-                {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
             <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
@@ -151,6 +198,16 @@ const Shipments = () => {
             >
                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            {isAdmin && (
+                <select
+                    value={vendedorFilter}
+                    onChange={e => setVendedorFilter(e.target.value)}
+                    className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                    <option value="">Todos los vendedores</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+            )}
         </div>
     );
 
@@ -169,31 +226,96 @@ const Shipments = () => {
                         </p>
                     </div>
                 </div>
+                <div className="flex items-center gap-3">
+                    {(user?.role === 'ADMIN' || user?.role === 'SALES') && (
+                        <button
+                            onClick={() => setMonthlyCloseOpen(true)}
+                            style={{ backgroundColor: settings?.secondaryColor || '#F28729' }}
+                            className="flex items-center gap-2 text-white px-4 py-2.5 rounded-xl font-medium transition-all active:scale-95 shadow-sm"
+                        >
+                            <BarChart2 size={18} /> Cierre Mensual
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setFormModal({ open: true, shipment: null })}
+                        className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-sky-600/20 transition-all active:scale-95"
+                    >
+                        <Plus size={18} /> Nuevo Embarque
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats — por estatus (siempre con todos los embarques) */}
+            <QuickStats items={allItems} />
+
+            {/* Tabs por tipo */}
+            <div className="flex gap-2 border-b border-slate-200 -mt-2">
                 <button
-                    onClick={() => setFormModal({ open: true, shipment: null })}
-                    className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-sky-600/20 transition-all active:scale-95"
+                    onClick={() => setActiveTab('D2D')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        activeTab === 'D2D' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
                 >
-                    <Plus size={18} /> Nuevo Embarque
+                    <Package size={16} />
+                    Door to Door
+                    {totalsByType.D2D > 0 && (
+                        <span className="text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full">{totalsByType.D2D}</span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('FCL')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        activeTab === 'FCL' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Container size={16} />
+                    FCL
+                    {totalsByType.FCL > 0 && (
+                        <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">{totalsByType.FCL}</span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('CONSOLIDADO')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        activeTab === 'CONSOLIDADO' ? 'border-purple-500 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Package size={16} />
+                    Consolidado
+                    {totalsByType.CONSOLIDADO > 0 && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{totalsByType.CONSOLIDADO}</span>
+                    )}
                 </button>
             </div>
 
-            {/* Stats — siempre con todos los embarques, sin filtros */}
-            <QuickStats items={allItems} />
-
-            {/* Tabla */}
+            {/* Tabla según tab activa */}
             <EntityTable
-                columns={shipmentConfig.columns}
+                columns={buildShipmentColumns(activeTab)}
                 entityName={shipmentConfig.entityName}
                 entityNamePlural={shipmentConfig.entityNamePlural}
                 items={items}
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar embarques por número, cliente...."
                 onView={setViewingShipment}
                 onEdit={(s) => setFormModal({ open: true, shipment: s })}
+                canEdit={(s) => s.status !== 'DELIVERED'}
+                canDelete={(s) => (user?.role === 'ADMIN') && s.status !== 'DELIVERED'}
+                onDelete={(s) => setDeletingShipment(s)}
                 showStatusFilter={false}
                 showToggle={false}
                 extraFilters={filters}
+                extraActions={(item) => (
+                    <button
+                        className={`p-2 rounded-lg transition-colors ${item.status === 'DELIVERED' ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-sky-600 hover:bg-sky-50'}`}
+                        title={item.status === 'DELIVERED' ? 'Entregado — no editable' : 'Cambiar Estado'}
+                        disabled={item.status === 'DELIVERED'}
+                        onClick={(e) => { e.stopPropagation(); if (item.status !== 'DELIVERED') setStatusShipment(item); }}
+                    >
+                        <Activity size={18} />
+                    </button>
+                )}
             />
 
             {/* Modal de Detalle */}
@@ -214,6 +336,41 @@ const Shipments = () => {
                     onSuccess={handleCreated}
                 />
             )}
+
+            <ChangeShipmentStatusModal
+                isOpen={!!statusShipment}
+                onClose={() => setStatusShipment(null)}
+                shipment={statusShipment}
+                onUpdateStatus={handleUpdateStatus}
+            />
+
+            <TrackingMonthlyCloseModal
+                isOpen={monthlyCloseOpen}
+                onClose={() => setMonthlyCloseOpen(false)}
+            />
+
+            <ConfirmDeleteModal
+                isOpen={!!deletingShipment}
+                onClose={() => setDeletingShipment(null)}
+                onConfirm={async () => {
+                    if (!deletingShipment) return;
+                    setDeleteLoading(true);
+                    try {
+                        await shipmentService.deleteShipment(deletingShipment.id);
+                        setDeletingShipment(null);
+                        refresh();
+                        showSuccess('Eliminado', 'Embarque eliminado correctamente');
+                    } catch (e) {
+                        console.error('Error deleting shipment', e);
+                    } finally {
+                        setDeleteLoading(false);
+                    }
+                }}
+                title="Eliminar Embarque"
+                message="¿Estás seguro de que deseas eliminar este embarque?"
+                itemName={deletingShipment ? `EMB-${String(deletingShipment.number || 0).padStart(5, '0')}` : ''}
+                loading={deleteLoading}
+            />
         </div>
     );
 };

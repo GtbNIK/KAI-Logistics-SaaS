@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Activity, X, Loader2 } from 'lucide-react';
 
 const ChangeQuoteStatusModal = ({ isOpen, onClose, quote, onUpdateStatus }) => {
@@ -10,7 +11,7 @@ const ChangeQuoteStatusModal = ({ isOpen, onClose, quote, onUpdateStatus }) => {
         if (quote?.status) setStatus(quote.status);
     }, [quote?.status, isOpen]);
 
-    if (!isOpen || !quote) return null;
+    if (!isOpen || !quote || typeof document === 'undefined') return null;
 
     const statuses = [
         { value: 'DRAFT',    label: 'Borrador'  },
@@ -26,7 +27,7 @@ const ChangeQuoteStatusModal = ({ isOpen, onClose, quote, onUpdateStatus }) => {
         setLoading(false);
     };
 
-    return (
+    const modal = (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b border-slate-100">
@@ -80,6 +81,8 @@ const ChangeQuoteStatusModal = ({ isOpen, onClose, quote, onUpdateStatus }) => {
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default ChangeQuoteStatusModal;

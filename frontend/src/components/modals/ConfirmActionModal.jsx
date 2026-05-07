@@ -1,4 +1,5 @@
 import { Receipt, X, Loader2, AlertTriangle } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 const ConfirmActionModal = ({ 
     isOpen, 
@@ -13,9 +14,9 @@ const ConfirmActionModal = ({
 }) => {
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all animate-in fade-in zoom-in-95 duration-200">
+    return createPortal(
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
                 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -84,7 +85,8 @@ const ConfirmActionModal = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

@@ -616,6 +616,7 @@ const Quotes = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar cotizaciones por número, cliente..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}

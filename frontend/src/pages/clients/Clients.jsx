@@ -245,6 +245,7 @@ const Clients = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar clientes por nombre, RIF/Cédula..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}

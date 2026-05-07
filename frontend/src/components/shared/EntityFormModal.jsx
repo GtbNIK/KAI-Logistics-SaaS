@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { PhoneInput } from 'react-international-phone';
@@ -102,12 +103,12 @@ const EntityFormModal = ({
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || typeof document === 'undefined') return null;
 
     const modalTitle = title || (editMode ? `Editar ${entityName}` : `Nuevo ${entityName}`);
     const modalSubtitle = editMode ? `Actualizar información del ${entityName}` : `Registrar un nuevo ${entityName}`;
 
-    return (
+    const modal = (
         <div className="fixed inset-0 z-20 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-200">
                 
@@ -275,6 +276,8 @@ const EntityFormModal = ({
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default EntityFormModal;

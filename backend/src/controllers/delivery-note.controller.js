@@ -228,6 +228,10 @@ export const updateDeliveryNoteStatus = async (req, res) => {
         if (existing.status === 'CANCELLED') {
             return res.status(400).json({ message: 'No se puede cambiar el estado de una nota cancelada' });
         }
+        // No permitir cancelar si ya está despachada
+        if (existing.status === 'DISPATCHED' && status === 'CANCELLED') {
+            return res.status(400).json({ message: 'No se puede cancelar una nota ya despachada' });
+        }
 
         const updated = await prisma.deliveryNote.update({
             where: { id },

@@ -49,6 +49,8 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     const [shippingLines, setShippingLines] = useState([]);
     const [airLines, setAirLines] = useState([]);
     const [ports, setPorts] = useState([]);
+    const [d2dItems, setD2dItems] = useState([]);
+    const [allies, setAllies] = useState([]);
 
     // Toggle: ¿tiene aviso de cobro vinculado?
     const [hasNotice, setHasNotice] = useState(true);
@@ -68,36 +70,56 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         vendedorId: '',
         currentLocation: '',
         // FCL
-        containerType: '',
-        containerQty: '',
+        containerType: '', // DEPRECADO
+        containerQty: '', // DEPRECADO
+        containers: [{ containerType: '40HC', quantity: 1 }], // Nuevo: array de {containerType, quantity}
         originPort: '',
         destPort: '',
         etd: '',
         eta: '',
+        transitTime: '',
+        aliadoId: '',
         // D2D
         weight: '',
         quantity: '',
         cbm: '',
+        d2dItemIds: [],
+        cst: '',
+        consolidadoManual: '',
+        transportType: 'naviera', // Por defecto naviera
+        d2dEta: '',
+        deliveryPlace: '',
+        d2dTransitTime: '',
+        d2dAliadoId: '',
+        // CONSOLIDADO
+        consolidadoNumber: '',
+        arrivalPort: '',
+        consolidadoTransitTime: '',
     });
+    const [errors, setErrors] = useState({});
 
     // Cargar catálogos
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             try {
-                const [notices, usersData, clientsData, shippingLinesData, portsData, airLinesData] = await Promise.all([
+                const [notices, usersData, clientsData, shippingLinesData, portsData, airLinesData, d2dItemsData, alliesData] = await Promise.all([
                     shipmentService.getAvailableNotices(),
                     shipmentService.getVendedores(),
                     shipmentService.getClients(),
                     shipmentService.getShippingLines(),
                     shipmentService.getPorts(),
-                    airlineService.getAirLines()
+                    airlineService.getAirLines(),
+                    shipmentService.getD2DItems(),
+                    shipmentService.getAllies()
                 ]);
                 setAvailableNotices(Array.isArray(notices) ? notices : []);
                 setUsers(Array.isArray(usersData) ? usersData : []);
                 setClients(Array.isArray(clientsData) ? clientsData : []);
                 setShippingLines(Array.isArray(shippingLinesData) ? shippingLinesData : []);
                 setPorts(Array.isArray(portsData) ? portsData : []);
+                setD2dItems(Array.isArray(d2dItemsData) ? d2dItemsData : []);
+                setAllies(Array.isArray(alliesData) ? alliesData : []);
                 setAirLines((airLinesData?.data || []))
             } catch (err) {
                 console.error('Error loading catalogs:', err);
@@ -128,13 +150,29 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 currentLocation: shipment.currentLocation || '',
                 containerType: shipment.containerType || '',
                 containerQty: shipment.containerQty || '',
+                containers: shipment.containers && shipment.containers.length > 0 
+                    ? shipment.containers 
+                    : [{ containerType: '40HC', quantity: 1 }],
                 originPort: shipment.originPort || '',
                 destPort: shipment.destPort || '',
                 etd: shipment.etd ? shipment.etd.slice(0, 10) : '',
                 eta: shipment.eta ? shipment.eta.slice(0, 10) : '',
+                transitTime: shipment.transitTime || '',
+                aliadoId: shipment.aliadoId || '',
                 weight: shipment.weight || '',
                 quantity: shipment.quantity || '',
                 cbm: shipment.cbm || '',
+                d2dItemIds: shipment.d2dShipmentItems?.map(item => item.d2dItemId) || [],
+                cst: shipment.cst || '',
+                consolidadoManual: shipment.consolidadoManual || '',
+                transportType: shipment.transportType || 'naviera',
+                d2dEta: shipment.d2dEta ? shipment.d2dEta.slice(0, 10) : '',
+                deliveryPlace: shipment.deliveryPlace || '',
+                d2dTransitTime: shipment.d2dTransitTime || '',
+                d2dAliadoId: shipment.d2dAliadoId || '',
+                consolidadoNumber: shipment.consolidadoNumber || '',
+                arrivalPort: shipment.arrivalPort || '',
+                consolidadoTransitTime: shipment.consolidadoTransitTime || '',
             });
         }
     }, [shipment, isEdit]);
@@ -169,8 +207,67 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     };
 
 
+    const validateForm = () => {
+        const err = {};
+        // Validación común: aviso o cliente ya se valida abajo
+        if (form.etd && form.eta) {
+            const etd = new Date(form.etd);
+            const eta = new Date(form.eta);
+            if (etd > eta) {
+                err.eta = 'ETA debe ser posterior o igual al ETD';
+                err.etd = 'ETD no puede ser mayor que ETA';
+            }
+        }
+        if (form.type === 'FCL') {
+            if (!Array.isArray(form.containers) || form.containers.length === 0) err.containers = 'Agrega al menos un contenedor';
+            if (Array.isArray(form.containers)) {
+                form.containers.forEach((c, i) => {
+                    if (!c.containerType) err[`containers.${i}.containerType`] = 'Tipo requerido';
+                    if (!c.quantity || c.quantity < 1) err[`containers.${i}.quantity`] = 'Cantidad >= 1';
+                });
+            }
+            if (!form.originPort) err.originPort = 'Requerido';
+            if (!form.destPort) err.destPort = 'Requerido';
+            if (!form.etd) err.etd = 'Requerido';
+            if (!form.eta) err.eta = 'Requerido';
+            if (!form.transitTime && form.transitTime !== 0) err.transitTime = 'Requerido';
+            if (!form.aliadoId) err.aliadoId = 'Requerido';
+        } else if (form.type === 'D2D') {
+            if (!form.originPort) err.originPort = 'Requerido';
+            if (!form.deliveryPlace) err.deliveryPlace = 'Requerido';
+            if (!Array.isArray(form.d2dItemIds) || form.d2dItemIds.length === 0) err.d2dItemIds = 'Selecciona al menos un ítem';
+            if (!form.weight) err.weight = 'Requerido';
+            if (!form.quantity) err.quantity = 'Requerido';
+            if (!form.cbm) err.cbm = 'Requerido';
+            if (!form.cst) err.cst = 'Requerido';
+            if (!form.d2dEta) err.d2dEta = 'Requerido';
+            if (!form.d2dTransitTime && form.d2dTransitTime !== 0) err.d2dTransitTime = 'Requerido';
+            if (!form.d2dAliadoId) err.d2dAliadoId = 'Requerido';
+        } else if (form.type === 'CONSOLIDADO') {
+            if (!form.consolidadoNumber) err.consolidadoNumber = 'Requerido';
+            if (!form.arrivalPort) err.arrivalPort = 'Requerido';
+            if (!form.etd) err.etd = 'Requerido';
+            if (!form.eta) err.eta = 'Requerido';
+            if (!form.consolidadoTransitTime && form.consolidadoTransitTime !== 0) err.consolidadoTransitTime = 'Requerido';
+        }
+        return err;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const v = validateForm();
+        if (Object.keys(v).length > 0) {
+            setErrors(v);
+            if (v.containers) {
+                showError('Contenedores requeridos', 'Agrega al menos un contenedor');
+            } else if (v.etd === 'ETD no puede ser mayor que ETA' || v.eta === 'ETA debe ser posterior o igual al ETD') {
+                showError('Fechas inválidas', 'ETD no puede ser mayor que ETA');
+            } else {
+                showError('Faltan datos', 'Revisa y llena los campos obligatorios marcados en rojo.');
+            }
+            return;
+        }
+        setErrors({});
         setSaving(true);
         try {
             if (isEdit) {
@@ -201,6 +298,8 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     if (!isOpen) return null;
 
     const isFCL = form.type === 'FCL';
+    const isConsolidado = form.type === 'CONSOLIDADO'
+
 
     // Opciones para selects
     const noticeOptions = availableNotices.map(n => ({
@@ -239,8 +338,8 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         : basePortOptions;
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]"
                 onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
@@ -272,12 +371,12 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                             {/* Tipo de embarque */}
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-2">Tipo de Embarque</label>
-                                <div className="flex gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     <button type="button"
                                         onClick={() => !isEdit && handleChange('type', 'FCL')}
                                         disabled={isEdit}
-                                        className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                                            isFCL
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                                            form.type === 'FCL'
                                                 ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
                                                 : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                                         } ${isEdit ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -286,12 +385,22 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     <button type="button"
                                         onClick={() => !isEdit && handleChange('type', 'D2D')}
                                         disabled={isEdit}
-                                        className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                                            !isFCL
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                                            form.type === 'D2D'
                                                 ? 'border-teal-400 bg-teal-50 text-teal-700'
                                                 : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                                         } ${isEdit ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
                                         <Package size={18} /> Door to Door
+                                    </button>
+                                    <button type="button"
+                                        onClick={() => !isEdit && handleChange('type', 'CONSOLIDADO')}
+                                        disabled={isEdit}
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                                            form.type === 'CONSOLIDADO'
+                                                ? 'border-purple-400 bg-purple-50 text-purple-700'
+                                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                        } ${isEdit ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                        <Package size={18} /> Consolidado
                                     </button>
                                 </div>
                             </div>
@@ -356,7 +465,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                             {/* Cliente manual (visible solo si !hasNotice o edición sin AVC) */}
                             {(!hasNotice || (isEdit && !form.paymentNoticeId)) && (
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Cliente</label>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Cliente <span className="text-red-500">*</span></label>
                                     <Select
                                         options={clientOptions}
                                         value={clientOptions.find(o => o.value === form.clientId) || null}
@@ -375,7 +484,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
 
                             {/* Vendedor */}
                             <div>
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Vendedor</label>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Vendedor <span className="text-red-500">*</span></label>
                                 <Select
                                     options={userOptions}
                                     value={userOptions.find(o => o.value === form.vendedorId) || null}
@@ -388,10 +497,20 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                 />
                             </div>
 
+                            {/* Estado */}
+                            <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Estado <span className="text-red-500">*</span></label>
+                                <select value={form.status}
+                                    onChange={e => handleChange('status', e.target.value)}
+                                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 bg-white">
+                                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1">
-                                        {form.type === 'D2D' ? 'Nro. Warehouse' : 'Nro. BL'}
+                                        {form.type === 'D2D' ? 'Nro. Warehouse' : 'Nro. BL'} <span className="text-red-500">*</span>
                                     </label>
                                     <input 
                                         type="text" 
@@ -403,7 +522,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                 </div>
                                 {isFCL && (
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">Nro. Booking</label>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Nro. Booking <span className="text-red-500">*</span></label>
                                         <input type="text" value={form.bookingNumber}
                                             onChange={e => handleChange('bookingNumber', e.target.value)}
                                             className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-sky-200"
@@ -412,12 +531,13 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                 )}
                             </div>
 
+                            {form.type !== 'D2D' && (
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1">
-                                        {isFCL ? 'Línea Naviera' : 'Línea Aérea'}
+                                        {isFCL || isConsolidado ? 'Línea Naviera' : 'Línea Aérea'} <span className="text-red-500">*</span>
                                     </label>
-                                    {isFCL ? (
+                                    {(isFCL || isConsolidado) ? (
                                         <Select
                                             options={shippingLineOptions}
                                             value={baseShippingLineOptions.find(o => o.value === form.shippingLineId) || null}
@@ -466,15 +586,8 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         />
                                     )}
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Estado</label>
-                                    <select value={form.status}
-                                        onChange={e => handleChange('status', e.target.value)}
-                                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 bg-white">
-                                        {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
-                                </div>
                             </div>
+                            )}
 
                             {/* Ubicación actual */}
                             <div>
@@ -486,32 +599,83 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                             </div>
 
                             {/* ── Campos FCL ── */}
-                            {isFCL && (
+                            {form.type === 'FCL' && (
                                 <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100 space-y-4">
                                     <h4 className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
                                         <Container size={16} /> Datos FCL
                                     </h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tipo Contenedor</label>
-                                            <select value={form.containerType}
-                                                onChange={e => handleChange('containerType', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200">
-                                                <option value="">Seleccionar...</option>
-                                                {CONTAINER_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                            </select>
+                                    
+                                    {/* Tabla de Contenedores */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="block text-xs font-semibold text-slate-600">Contenedores <span className="text-red-500">*</span></label>
+                                            <button type="button"
+                                                onClick={() => handleChange('containers', [...form.containers, { containerType: '', quantity: 1 }])}
+                                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm ${errors.containers ? 'ring-2 ring-red-200 animate-pulse' : ''}`}>
+                                                <span>+</span> Agregar Contenedor
+                                            </button>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Cantidad</label>
-                                            <input type="number" min="1" value={form.containerQty}
-                                                onChange={e => handleChange('containerQty', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                                                placeholder="1" />
-                                        </div>
+                                        {form.containers.length > 0 && (
+                                            <div className={`space-y-2 ${errors.containers ? 'border border-red-300 rounded-lg p-2 bg-red-50/40' : ''}`}>
+                                                <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600 px-2">
+                                                    <div>Tipo:</div>
+                                                    <div className='text-right pr-14'>Cantidad:</div>
+                                                </div>
+                                                {form.containers.map((container, idx) => (
+                                                    <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-indigo-100">
+                                                        <select
+                                                            id={`containerType-${idx}`}
+                                                            value={container.containerType}
+                                                            onChange={e => {
+                                                                const newType = e.target.value;
+                                                                const updated = [...form.containers];
+                                                                // Asignar nuevo tipo al item actual
+                                                                updated[idx].containerType = newType;
+                                                                // Si el nuevo tipo ya existe en otro item, fusionar cantidades y eliminar duplicado
+                                                                if (newType) {
+                                                                    const existingIndex = updated.findIndex((c, i) => i !== idx && c.containerType === newType);
+                                                                    if (existingIndex !== -1) {
+                                                                        const a = parseInt(updated[existingIndex].quantity) || 0;
+                                                                        const b = parseInt(updated[idx].quantity) || 0;
+                                                                        updated[existingIndex].quantity = a + b;
+                                                                        updated.splice(idx, 1);
+                                                                    }
+                                                                }
+                                                                handleChange('containers', updated);
+                                                            }}
+                                                            className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm">
+                                                            <option value="">Seleccionar tipo...</option>
+                                                            {CONTAINER_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                                        </select>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            value={container.quantity}
+                                                            onChange={e => {
+                                                                const updated = [...form.containers];
+                                                                updated[idx].quantity = parseInt(e.target.value) || 1;
+                                                                handleChange('containers', updated);
+                                                            }}
+                                                            className="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-sm"
+                                                            placeholder="Cant." />
+                                                        <button type="button"
+                                                            onClick={() => handleChange('containers', form.containers.filter((_, i) => i !== idx))}
+                                                            className="text-red-500 hover:text-red-600 p-1">
+                                                            <X size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {errors.containers && (
+                                                    <p className="text-xs text-red-600">{errors.containers}</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
+
+                                    
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen <span className="text-red-500">*</span></label>
                                             <Select
                                                 options={portOptions}
                                                 value={basePortOptions.find(o => o.value === form.originPort) || null}
@@ -538,7 +702,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Destino</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Destino <span className="text-red-500">*</span></label>
                                             <Select
                                                 options={portOptions}
                                                 value={basePortOptions.find(o => o.value === form.destPort) || null}
@@ -567,75 +731,304 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETD (Salida estimada)</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETD (Salida estimada) <span className="text-red-500">*</span></label>
                                             <input type="date" value={form.etd}
                                                 onChange={e => handleChange('etd', e.target.value)}
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA (Llegada estimada)</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA (Llegada estimada) <span className="text-red-500">*</span></label>
                                             <input type="date" value={form.eta}
                                                 onChange={e => handleChange('eta', e.target.value)}
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tiempo de Travesía (días) <span className="text-red-500">*</span></label>
+                                            <input type="number" min="0" value={form.transitTime}
+                                                onChange={e => handleChange('transitTime', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                                                placeholder="Ej: 30" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Aliado <span className="text-red-500">*</span></label>
+                                            <Select
+                                                options={allies.map(a => ({ value: a.id, label: a.name }))}
+                                                value={allies.find(a => a.id === form.aliadoId) ? { value: form.aliadoId, label: allies.find(a => a.id === form.aliadoId).name } : null}
+                                                onChange={opt => handleChange('aliadoId', opt?.value || '')}
+                                                placeholder="Seleccionar aliado..."
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
                                         </div>
                                     </div>
                                 </div>
                             )}
 
                             {/* ── Campos D2D ── */}
-                            {!isFCL && (
+                            {form.type === 'D2D' && (
                                 <div className="bg-teal-50/50 rounded-xl p-4 border border-teal-100 space-y-4">
                                     <h4 className="text-sm font-semibold text-teal-700 flex items-center gap-2">
                                         <Package size={16} /> Datos Door to Door
                                     </h4>
+                                    
+                                    {/* Toggle Aéreo/Naviera */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen</label>
+                                        <label className="block text-xs font-medium text-slate-500 mb-2">Tipo de transporte <span className="text-red-500">*</span></label>
+                                        <div className="flex gap-3">
+                                            <button type="button"
+                                                onClick={() => handleChange('transportType', 'naviera')}
+                                                className={`flex-1 py-2 px-4 rounded-xl border-2 text-sm font-medium transition-all ${
+                                                    form.transportType === 'naviera'
+                                                        ? 'border-teal-400 bg-teal-50 text-teal-700'
+                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                                }`}>
+                                                Naviera
+                                            </button>
+                                            <button type="button"
+                                                onClick={() => handleChange('transportType', 'aereo')}
+                                                className={`flex-1 py-2 px-4 rounded-xl border-2 text-sm font-medium transition-all ${
+                                                    form.transportType === 'aereo'
+                                                        ? 'border-sky-400 bg-sky-50 text-sky-700'
+                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                                }`}>
+                                                Aéreo
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Línea Naviera o Aérea según toggle */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                                            {form.transportType === 'aereo' ? 'Línea Aérea' : 'Línea Naviera'} <span className="text-red-500">*</span>
+                                        </label>
+                                        {form.transportType === 'aereo' ? (
+                                            <Select
+                                                options={airLines.map(a => ({ value: a.id, label: `${a.name}${a.code ? ` (${a.code})` : ''}` }))}
+                                                value={airLines.find(a => a.id === form.airLineId) ? { value: form.airLineId, label: airLines.find(a => a.id === form.airLineId).name } : null}
+                                                onChange={opt => handleChange('airLineId', opt?.value || '')}
+                                                placeholder="Seleccionar línea aérea..."
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        ) : (
+                                            <Select
+                                                options={shippingLineOptions}
+                                                value={baseShippingLineOptions.find(o => o.value === form.shippingLineId) || null}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') {
+                                                        setQuickCreateType('SHIPPING_LINE');
+                                                        return;
+                                                    }
+                                                    handleChange('shippingLineId', opt?.value || '');
+                                                }}
+                                                placeholder="Seleccionar línea naviera..."
+                                                isClearable
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto Origen <span className="text-red-500">*</span></label>
+                                            <Select
+                                                options={portOptions}
+                                                value={basePortOptions.find(o => o.value === form.originPort) || null}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') {
+                                                        setQuickCreateType('PORT_ORIGIN');
+                                                        return;
+                                                    }
+                                                    handleChange('originPort', opt?.value || '');
+                                                }}
+                                                placeholder="Seleccionar puerto..."
+                                                isClearable
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Lugar de entrega <span className="text-red-500">*</span></label>
+                                            <input type="text" value={form.deliveryPlace}
+                                                onChange={e => handleChange('deliveryPlace', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: Almacén central" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Items / Servicios <span className="text-red-500">*</span></label>
                                         <Select
-                                            options={portOptions}
-                                            value={basePortOptions.find(o => o.value === form.originPort) || null}
-                                            onChange={(opt) => {
-                                                if (opt?.value === 'NEW') {
-                                                    setQuickCreateType('PORT_ORIGIN');
-                                                    return;
-                                                }
-                                                handleChange('originPort', opt?.value || '');
+                                            isMulti
+                                            options={d2dItems.map(item => ({ value: item.id, label: item.description }))}
+                                            value={d2dItems.filter(item => form.d2dItemIds.includes(item.id)).map(item => ({ value: item.id, label: item.description }))}
+                                            onChange={(selected) => {
+                                                const ids = selected ? selected.map(s => s.value) : [];
+                                                handleChange('d2dItemIds', ids);
                                             }}
-                                            placeholder="Seleccionar puerto..."
+                                            placeholder="Seleccionar items..."
                                             isClearable
-                                            styles={{
-                                                ...selectStyles,
-                                                option: (base, state) => ({
-                                                    ...base,
-                                                    color: state.data.isAction ? '#12284bff' : base.color,
-                                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
-                                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
-                                                })
-                                            }}
+                                            styles={selectStyles}
                                             menuPortalTarget={document.body}
                                             menuPosition="fixed"
                                         />
                                     </div>
+
                                     <div className="grid grid-cols-3 gap-4">
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Peso (kg)</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Peso (kg) <span className="text-red-500">*</span></label>
                                             <input type="number" step="0.01" value={form.weight}
                                                 onChange={e => handleChange('weight', e.target.value)}
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                                                 placeholder="0.00" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Cantidad</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Cantidad <span className="text-red-500">*</span></label>
                                             <input type="number" min="1" value={form.quantity}
                                                 onChange={e => handleChange('quantity', e.target.value)}
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                                                 placeholder="0" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">CBM</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">CBM <span className="text-red-500">*</span></label>
                                             <input type="number" step="0.001" value={form.cbm}
                                                 onChange={e => handleChange('cbm', e.target.value)}
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                                                 placeholder="0.000" />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">CST <span className="text-red-500">*</span></label>
+                                            <input type="text" value={form.cst}
+                                                onChange={e => handleChange('cst', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: CST-12345" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Número de Consolidado</label>
+                                            <input type="text" value={form.consolidadoManual}
+                                                onChange={e => handleChange('consolidadoManual', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: CONS-001" />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA <span className="text-red-500">*</span></label>
+                                            <input type="date" value={form.d2dEta}
+                                                onChange={e => handleChange('d2dEta', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tiempo de Travesía (días) <span className="text-red-500">*</span></label>
+                                            <input type="number" min="0" value={form.d2dTransitTime}
+                                                onChange={e => handleChange('d2dTransitTime', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                                placeholder="Ej: 15" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Aliado <span className="text-red-500">*</span></label>
+                                            <Select
+                                                options={allies.map(a => ({ value: a.id, label: a.name }))}
+                                                value={allies.find(a => a.id === form.d2dAliadoId) ? { value: form.d2dAliadoId, label: allies.find(a => a.id === form.d2dAliadoId).name } : null}
+                                                onChange={opt => handleChange('d2dAliadoId', opt?.value || '')}
+                                                placeholder="Seleccionar..."
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Campos CONSOLIDADO ── */}
+                            {form.type === 'CONSOLIDADO' && (
+                                <div className="bg-purple-50/50 rounded-xl p-4 border border-purple-100 space-y-4">
+                                    <h4 className="text-sm font-semibold text-purple-700 flex items-center gap-2">
+                                        <Package size={16} /> Datos Consolidado
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Número de Consolidado <span className="text-red-500">*</span></label>
+                                            <input type="text" value={form.consolidadoNumber}
+                                                onChange={e => handleChange('consolidadoNumber', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                                placeholder="Ej: CONS-2024-001" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Puerto de llegada <span className="text-red-500">*</span></label>
+                                            <Select
+                                                options={portOptions}
+                                                value={basePortOptions.find(o => o.value === form.arrivalPort) || null}
+                                                onChange={(opt) => {
+                                                    if (opt?.value === 'NEW') { setQuickCreateType('PORT_DESTINATION'); return; }
+                                                    handleChange('arrivalPort', opt?.value || '');
+                                                }}
+                                                placeholder="Seleccionar puerto..."
+                                                isClearable
+                                                styles={{
+                                                    ...selectStyles,
+                                                    option: (base, state) => ({
+                                                        ...base,
+                                                        color: state.data.isAction ? '#12284bff' : base.color,
+                                                        fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                        borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                    })
+                                                }}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETD <span className="text-red-500">*</span></label>
+                                            <input type="date" value={form.etd}
+                                                onChange={e => handleChange('etd', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA <span className="text-red-500">*</span></label>
+                                            <input type="date" value={form.eta}
+                                                onChange={e => handleChange('eta', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tiempo de Travesía (días) <span className="text-red-500">*</span></label>
+                                            <input type="number" min="0" value={form.consolidadoTransitTime}
+                                                onChange={e => handleChange('consolidadoTransitTime', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                                placeholder="Ej: 45" />
                                         </div>
                                     </div>
                                 </div>

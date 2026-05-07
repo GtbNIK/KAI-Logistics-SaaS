@@ -129,18 +129,7 @@ export const deleteReceivable = async (req, res) => {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
         }
 
-        await prisma.$transaction(async (tx) => {
-            // Eliminar recibos asociados a pagos en efectivo si existen
-            const paymentIds = receivable.payments.map(p => p.id);
-            const receiptIds = receivable.payments.filter(p => p.receipt).map(p => p.receipt.id);
-            if (receiptIds.length > 0) {
-                await tx.paymentReceipt.deleteMany({ where: { id: { in: receiptIds } } });
-            }
-            if (paymentIds.length > 0) {
-                await tx.paymentTransaction.deleteMany({ where: { id: { in: paymentIds } } });
-            }
-            await tx.receivable.delete({ where: { id } });
-        });
+        await prisma.receivable.update({ where: { id }, data: { deletedAt: new Date() } });
 
         res.json({ message: 'Cuenta por cobrar eliminada', data: { id: receivable.id } });
     } catch (error) {
@@ -239,7 +228,7 @@ export const getReceivables = async (req, res) => {
 
         const [receivables, total] = await Promise.all([
             prisma.receivable.findMany({
-                where,
+                where: { ...where, deletedAt: null },
                 include: {
                     client: { select: { name: true, rifOrId: true } },
                     paymentNotice: {
@@ -255,7 +244,7 @@ export const getReceivables = async (req, res) => {
                 skip,
                 take: parseInt(limit)
             }),
-            prisma.receivable.count({ where })
+            prisma.receivable.count({ where: { ...where, deletedAt: null } })
         ]);
 
         res.json({

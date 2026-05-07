@@ -1,9 +1,10 @@
 import { AlertTriangle, LogOut } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 const SessionWarningModal = ({ isOpen, onClose, onLogout, minutesLeft }) => {
-    if (!isOpen) return null;
+    if (!isOpen || typeof document === 'undefined') return null;
 
-    return (
+    const modal = (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-in fade-in zoom-in-95">
                 {/* Header */}
@@ -47,6 +48,8 @@ const SessionWarningModal = ({ isOpen, onClose, onLogout, minutesLeft }) => {
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default SessionWarningModal;

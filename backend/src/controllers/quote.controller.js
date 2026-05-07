@@ -15,12 +15,14 @@ export const getQuotes = async (req, res) => {
             where.userId = req.user.id;
         }
 
-        // Búsqueda por número o nombre de cliente
+        // Búsqueda por número, cliente o vendedor
         if (search) {
+            const parsed = parseInt(search, 10);
+            const isNumber = !Number.isNaN(parsed);
             where.OR = [
                 { client: { name: { contains: search, mode: 'insensitive' } } },
-                // Si search es un número, buscamos por número de cotización
-                ...(process.search && !isNaN(search) ? [{ number: parseInt(search) }] : [])
+                { user: { name: { contains: search, mode: 'insensitive' } } },
+                ...(isNumber ? [{ number: parsed }] : [])
             ];
         }
 

@@ -4,6 +4,7 @@ import { X, FileText, Download, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
+import { dateToStringHelper } from '../../utils/dateHelpers';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
@@ -21,7 +22,7 @@ const formatMoney = (val = 0) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val ?? 0);
 
 const formatDate = (date) =>
-    date ? new Date(date).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+    date ? dateToStringHelper(date, { style: 'slash', shortYear: true }) : '—';
 
 const getFullAssetUrl = (path) => {
     if (!path) return '';
@@ -45,17 +46,17 @@ const loadLogoAsPngDataUrl = async (url) => {
         img.onload = () => {
             try {
                 const canvas = document.createElement('canvas');
-                const maxWidth = 450;
-                const maxHeight = 200;
+                const maxWidth = 500;
+                const maxHeight = 220;
                 const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
-                canvas.width = img.width * scale;
-                canvas.height = img.height * scale;
+                canvas.width = Math.max(1, Math.floor(img.width * scale));
+                canvas.height = Math.max(1, Math.floor(img.height * scale));
                 const ctx = canvas.getContext('2d');
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/png'));
+                resolve({ dataUrl: canvas.toDataURL('image/png'), aspect: canvas.height / canvas.width });
             } catch (error) {
                 reject(error);
             }
@@ -132,14 +133,16 @@ const CashFlowReportPDF = ({
         if (generating) return;
         setGenerating(true);
         try {
-            const doc = new jsPDF('l', 'mm', 'a4');
+            const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
             const pageW = doc.internal.pageSize.getWidth();
             const pageH = doc.internal.pageSize.getHeight();
 
             try {
-                const logoPng = await loadLogoAsPngDataUrl(logoUrl);
-                if (logoPng) {
-                    doc.addImage(logoPng, 'PNG', 15, 10, 40, 18);
+                const logoData = await loadLogoAsPngDataUrl(logoUrl);
+                if (logoData?.dataUrl) {
+                    const logoWidth = 46; // mm
+                    const logoHeight = Math.max(10, Math.min(18, logoWidth * (logoData.aspect || 0.28)));
+                    doc.addImage(logoData.dataUrl, 'PNG', 15, 12, logoWidth, logoHeight);
                 }
             } catch (error) {
                 console.warn('Error loading logo for cash flow PDF:', error);
@@ -153,46 +156,45 @@ const CashFlowReportPDF = ({
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(11);
             doc.setTextColor(60, 60, 60);
-            doc.text(companyName, pageW / 2, 26, { align: 'center' });
-            if (companyRif) {
-                doc.text(companyRif, pageW / 2, 32, { align: 'center' });
-            }
             if (dateRangeLabel) {
-                doc.text(`Período: ${dateRangeLabel}`, pageW - 15, 18, { align: 'right' });
+                const rangeText = `Período: ${dateRangeLabel}`;
+                const lines = doc.splitTextToSize(rangeText, pageW - 60);
+                doc.text(lines, pageW / 2, 26, { align: 'center' });
             }
 
-            let currentY = 40;
+            let currentY = 42;
+            let totalIncomeAll = 0;
+            let totalExpenseAll = 0;
 
-            methodGroups.forEach((group, index) => {
+            const displayedGroups = methodGroups.filter(g => g.ingresos.length > 0 || g.egresos.length > 0);
+            const hiddenGroups = methodGroups.filter(g => g.ingresos.length === 0 && g.egresos.length === 0 && g.method !== FALLBACK_METHOD_KEY);
+
+            displayedGroups.forEach((group, index) => {
                 currentY = ensureSpaceFor(doc, currentY, 70);
 
+                // Banda del método (suave, con tinte del primario)
+                const bandR = Math.min(255, Math.round(rgb.r * 0.15 + 225));
+                const bandG = Math.min(255, Math.round(rgb.g * 0.15 + 225));
+                const bandB = Math.min(255, Math.round(rgb.b * 0.15 + 225));
+                doc.setFillColor(bandR, bandG, bandB);
+                doc.rect(15, currentY - 5, pageW - 30, 8, 'F');
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(13);
                 doc.setTextColor(rgb.r, rgb.g, rgb.b);
-                doc.text(`Método: ${group.label}`, 15, currentY);
-                currentY += 6;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12.5);
+                doc.text(`Método: ${group.label}`, 18, currentY + 0.5);
+                currentY += 8;
 
                 const hasIngresos = group.ingresos.length > 0;
                 const hasEgresos = group.egresos.length > 0;
-
-                if (!hasIngresos && !hasEgresos) {
-                    doc.setFont('helvetica', 'italic');
-                    doc.setFontSize(11);
-                    doc.setTextColor(120, 120, 120);
-                    doc.text(
-                        `No se realizaron pagos mediante el método "${group.label}" en este período.`,
-                        20,
-                        currentY
-                    );
-                    currentY += 12;
-                    return;
-                }
 
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(11);
                 doc.setTextColor(60, 60, 60);
 
                 if (hasIngresos) {
+                    const ingresosTotal = group.ingresos.reduce((s, tx) => s + parseFloat(tx.amount || 0), 0);
                     doc.text('Ingresos', 20, currentY);
                     currentY += 4;
                     autoTable(doc, {
@@ -227,6 +229,7 @@ const CashFlowReportPDF = ({
                             fontSize: 8,
                             textColor: [40, 40, 40]
                         },
+                        alternateRowStyles: { fillColor: [248, 250, 252] },
                         columnStyles: {
                             0: { cellWidth: 24 },
                             1: { cellWidth: 55 },
@@ -234,9 +237,17 @@ const CashFlowReportPDF = ({
                             3: { cellWidth: 26, halign: 'right' },
                             4: { cellWidth: 40 },
                             5: { cellWidth: 45 }
+                        },
+                        foot: [[ '','', 'Total', formatMoney(ingresosTotal), '', '' ]],
+                        footStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold', fontSize: 9 },
+                        didParseCell: (data) => {
+                            if (data.section === 'body' && data.column.index === 3) {
+                                data.cell.styles.halign = 'right';
+                            }
                         }
                     });
                     currentY = doc.lastAutoTable.finalY + 8;
+                    totalIncomeAll += ingresosTotal;
                 } else {
                     doc.setFont('helvetica', 'italic');
                     doc.setFontSize(10);
@@ -251,6 +262,7 @@ const CashFlowReportPDF = ({
                 doc.setTextColor(60, 60, 60);
 
                 if (hasEgresos) {
+                    const egresosTotal = group.egresos.reduce((s, tx) => s + parseFloat(tx.amount || 0), 0);
                     doc.text('Egresos', 20, currentY);
                     currentY += 4;
                     autoTable(doc, {
@@ -285,15 +297,24 @@ const CashFlowReportPDF = ({
                             fontSize: 8,
                             textColor: [40, 40, 40]
                         },
+                        alternateRowStyles: { fillColor: [248, 250, 252] },
                         columnStyles: {
                             0: { cellWidth: 24 },
                             1: { cellWidth: 72 },
                             2: { cellWidth: 30, halign: 'right' },
                             3: { cellWidth: 32 },
                             4: { cellWidth: 35 }
+                        },
+                        foot: [[ '','Total', formatMoney(egresosTotal), '', '' ]],
+                        footStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold', fontSize: 9 },
+                        didParseCell: (data) => {
+                            if (data.section === 'body' && data.column.index === 2) {
+                                data.cell.styles.halign = 'right';
+                            }
                         }
                     });
                     currentY = doc.lastAutoTable.finalY + 10;
+                    totalExpenseAll += egresosTotal;
                 } else {
                     doc.setFont('helvetica', 'italic');
                     doc.setFontSize(10);
@@ -302,7 +323,7 @@ const CashFlowReportPDF = ({
                     currentY += 10;
                 }
 
-                if (index < methodGroups.length - 1) {
+                if (index < displayedGroups.length - 1) {
                     currentY = ensureSpaceFor(doc, currentY, 30);
                     doc.setDrawColor(220, 220, 220);
                     doc.setLineWidth(0.2);
@@ -310,6 +331,51 @@ const CashFlowReportPDF = ({
                     currentY += 8;
                 }
             });
+
+            // Mini cards de totales en cajita con borde y fondo sutil
+            currentY = ensureSpaceFor(doc, currentY, 25);
+            const balanceAll = (totalIncomeAll - totalExpenseAll);
+
+            // Caja
+            const boxX = 15;
+            const boxY = currentY;
+            const boxW = pageW - 30;
+            const boxH = 14;
+            doc.setFillColor(247, 249, 252); // slate-50 aprox
+            doc.setDrawColor(226, 232, 240); // slate-200 aprox
+            doc.setLineWidth(0.4);
+            doc.rect(boxX, boxY, boxW, boxH, 'FD');
+
+            // Textos dentro de la caja
+            const ty = boxY + 9; // alineación vertical
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11.5);
+            // Ingresos (verde)
+            doc.setTextColor(5, 150, 105);
+            doc.text(`Ingresos Totales: ${formatMoney(totalIncomeAll)}`, boxX + 7, ty);
+            // Egresos (rosado)
+            doc.setTextColor(225, 29, 72);
+            doc.text(`Egresos Totales: ${formatMoney(totalExpenseAll)}`, boxX + 85, ty);
+            // Balance (condicional)
+            if (balanceAll >= 0) {
+                doc.setTextColor(5, 150, 105);
+            } else {
+                doc.setTextColor(225, 29, 72);
+            }
+            doc.text(`Balance Total: ${formatMoney(balanceAll)}`, boxX + 155, ty);
+            currentY += boxH + 6;
+
+            // Nota final de métodos ocultos sin registros
+            if (hiddenGroups.length > 0) {
+                const list = hiddenGroups.map(g => g.label).join(', ');
+                const note = `No hay registros en este rango de fechas para los métodos de pago: ${list}.`;
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(9.5);
+                doc.setTextColor(120, 120, 120);
+                const wrapped = doc.splitTextToSize(note, pageW - 30);
+                doc.text(wrapped, 15, currentY);
+                currentY += 8;
+            }
 
             const today = new Date().toLocaleDateString('es-VE');
             const totalPages = doc.getNumberOfPages();

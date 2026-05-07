@@ -100,6 +100,33 @@ const shipmentService = {
         });
         return response.data;
     },
+
+    // ── D2D Items ────────────────────────────────────────────────
+    getD2DItems: async () => {
+        const response = await axios.get(`${API_URL}/d2d-items`, {
+            params: { all: 'true' },
+            withCredentials: true
+        });
+        return response.data?.data || response.data || [];
+    },
+
+    // ── Aliados ──────────────────────────────────────────────────
+    getAllies: async () => {
+        const response = await axios.get(`${API_URL}/allies`, {
+            params: { all: 'true' },
+            withCredentials: true
+        });
+        return response.data?.data || response.data || [];
+    },
+
+    // ── Cierre Mensual ───────────────────────────────────────────
+    getMonthlyClose: async (month) => {
+        const response = await axios.get(`${API_URL}/shipments/monthly-close`, {
+            params: { month },
+            withCredentials: true
+        });
+        return response.data;
+    },
 };
 
 export default shipmentService;

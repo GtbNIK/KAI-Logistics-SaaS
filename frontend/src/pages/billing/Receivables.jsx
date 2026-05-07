@@ -172,6 +172,7 @@ const Receivables = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
+                searchPlaceholder="Buscar CxC por número, cliente, aviso..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}

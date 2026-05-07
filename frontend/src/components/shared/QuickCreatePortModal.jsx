@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, Loader2, Anchor } from 'lucide-react';
 import portService from '../../services/port.service';
 import { useToast } from '../../context/ToastContext';
@@ -25,9 +26,9 @@ const QuickCreatePortModal = ({ isOpen, onClose, onSuccess }) => {
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || typeof document === 'undefined') return null;
 
-    return (
+    const modal = (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4" onClick={(e) => e.stopPropagation()}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -88,6 +89,8 @@ const QuickCreatePortModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 };
 
 export default QuickCreatePortModal;

@@ -65,6 +65,7 @@ export const getRates = async (req, res) => {
             shippingLineId,
             isActive,        // 'true' | 'false' | undefined
             status = 'valid', // valid | expired | all | upcoming
+            search,
             page = 1, 
             limit = 20 
         } = req.query;
@@ -96,6 +97,34 @@ export const getRates = async (req, res) => {
             where.validFrom = { gt: now };
         }
         // Si status === 'all', no agregamos filtro de validez
+
+        // Búsqueda de texto libre: ally/country/shippingLine y códigos/nombres de puertos
+        if (search && String(search).trim() !== '') {
+            const term = String(search).trim();
+            // Buscar posibles puertos por código o nombre para filtrar por IDs en arrays
+            const ports = await prisma.port.findMany({
+                where: {
+                    OR: [
+                        { code: { contains: term, mode: 'insensitive' } },
+                        { name: { contains: term, mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true }
+            });
+            const portIds = ports.map(p => p.id);
+
+            where.OR = [
+                { ally: { name: { contains: term, mode: 'insensitive' } } },
+                { ally: { internalCode: { contains: term, mode: 'insensitive' } } },
+                { country: { name: { contains: term, mode: 'insensitive' } } },
+                { shippingLine: { name: { contains: term, mode: 'insensitive' } } },
+                { shippingLine: { code: { contains: term, mode: 'insensitive' } } },
+                ...(portIds.length > 0 ? [
+                    { originPortIds: { hasSome: portIds } },
+                    { destinationPortIds: { hasSome: portIds } }
+                ] : [])
+            ];
+        }
 
         const [rates, total] = await Promise.all([
             prisma.rate.findMany({

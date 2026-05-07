@@ -43,7 +43,7 @@ export const getPayables = async (req, res) => {
 
         const [payables, total] = await Promise.all([
             prisma.payable.findMany({
-                where,
+                where: { ...where, deletedAt: null },
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
@@ -53,7 +53,7 @@ export const getPayables = async (req, res) => {
                 skip,
                 take: parseInt(limit)
             }),
-            prisma.payable.count({ where })
+            prisma.payable.count({ where: { ...where, deletedAt: null } })
         ]);
 
         res.json({
@@ -342,16 +342,8 @@ export const deletePayable = async (req, res) => {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
         }
         // Eliminar pagos asociados y luego la cuenta (cascade manual)
-        await prisma.$transaction(async (tx) => {
-            if (payable.payments.length > 0) {
-                await tx.payableTransaction.deleteMany({ where: { payableId: id } });
-            }
-            await tx.payable.delete({ where: { id } });
-        });
-        res.json({
-            message: 'Cuenta por pagar eliminada',
-            data: { id: payable.id, invoiceNr: payable.invoiceNr }
-        });
+        await prisma.payable.update({ where: { id }, data: { deletedAt: new Date() } });
+        res.json({ message: 'Cuenta por pagar eliminada (soft delete)', data: { id: payable.id, invoiceNr: payable.invoiceNr } });
     } catch (error) {
         console.error('Error in deletePayable:', error);
         res.status(500).json({ message: 'Error al eliminar cuenta por pagar' });
