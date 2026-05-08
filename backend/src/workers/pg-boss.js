@@ -21,17 +21,16 @@ export const initPgBoss = async () => {
         const PgBossModule = await import('pg-boss');
         const PgBoss = PgBossModule.PgBoss || PgBossModule.default || PgBossModule;
 
-        // Configurar SNI (servername) para que el pooler regional de Supabase
-        // identifique correctamente el tenant (evita ENOIDENTIFIER)
-        // Preferencia: PG_BOSS_SNI_HOST; fallback: db.<PROJECT_REF>.supabase.co
-        const sniHost = process.env.PG_BOSS_SNI_HOST || (process.env.SUPABASE_PROJECT_REF
-            ? `db.${process.env.SUPABASE_PROJECT_REF}.supabase.co`
-            : undefined);
+        // Importante: PgBoss espera 'connectionString' o un objeto de config válido;
+        // NO pasar 'db' personalizado aquí (rompe la interfaz interna y causa executeSql is not a function).
+        // Para el pooler multi-tenant de Supabase, añade en la URL:
+        //   ?sslmode=verify-full&options=project%3D<PROJECT_REF>&application_name=pgboss
+        // Ej: postgresql://...@aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&options=project%3Dhkmdeosytuxmzgvuteqj
+        if (!/options=project%3D/i.test(connectionString)) {
+            console.warn('[pg-boss] WARNING: La PG_BOSS_DATABASE_URL no incluye options=project%3D<PROJECT_REF>. El pooler podría rechazar la conexión (ENOIDENTIFIER).');
+        }
 
-        boss = new PgBoss({
-            connectionString,
-            ...(sniHost ? { db: { ssl: { servername: sniHost } } } : {})
-        });
+        boss = new PgBoss(connectionString);
         
         boss.on('error', error => console.error('pg-boss error:', error));
 
