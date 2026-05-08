@@ -95,4 +95,5 @@ El frontend correrá en `http://localhost:5173`
 
 ## Autor
 
-Neil - neil@example.com
+Neil - Ingeniero de Computación / Desarrollador de Software
+hrlien23@gmail.com
