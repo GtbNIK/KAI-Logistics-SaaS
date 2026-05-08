@@ -1,8 +1,18 @@
 import prisma from '../config/database.js';
 
+// Cache con TTL para catálogos que cambian raramente
+const AIRLINES_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+let AIRLINES_CACHE = { data: null, timestamp: 0 };
+
 export const getAirLines = async (req, res) => {
     try {
         const { search = '', all, includeInactive } = req.query;
+        const now = Date.now();
+
+        // Devolver cache si no hay búsqueda ni banderas y el cache está fresco
+        if (!search && !all && includeInactive !== 'true' && AIRLINES_CACHE.data && (now - AIRLINES_CACHE.timestamp < AIRLINES_CACHE_TTL)) {
+            return res.json({ data: AIRLINES_CACHE.data });
+        }
         const where = (all || includeInactive === 'true') ? {} : { isActive: true };
         if (search) {
             where.OR = [
@@ -14,6 +24,10 @@ export const getAirLines = async (req, res) => {
             where,
             orderBy: { name: 'asc' }
         });
+        // Actualizar cache solo si no hay filtros/banderas
+        if (!search && !all && includeInactive !== 'true') {
+            AIRLINES_CACHE = { data: lines, timestamp: now };
+        }
         res.json({ data: lines });
     } catch (error) {
         console.error('Error getAirLines:', error);
