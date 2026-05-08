@@ -1,10 +1,17 @@
+import dns from 'node:dns';
 import prisma from '../config/database.js';
 import { createNotification } from '../controllers/notification.controller.js';
+
+// Forzar preferencia por IPv4 para evitar ENETUNREACH en entornos sin IPv6
+dns.setDefaultResultOrder('ipv4first');
 
 let boss;
 
 export const initPgBoss = async () => {
     try {
+        // Preferir una conexión dedicada para pg-boss (idealmente Session Pooler IPv4)
+        // Ejemplo recomendado (IPv4 compatible):
+        // postgresql://<user>:<pass>@aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
         const connectionString = process.env.PG_BOSS_DATABASE_URL || process.env.DATABASE_URL;
         if (!connectionString) {
             console.error('DATABASE_URL not found, skipping pg-boss initialization');
@@ -14,8 +21,7 @@ export const initPgBoss = async () => {
         const PgBossModule = await import('pg-boss');
         const PgBoss = PgBossModule.PgBoss || PgBossModule.default || PgBossModule;
 
-        // family: 4 fuerza IPv4 para evitar ENETUNREACH en hosts sin soporte IPv6
-        boss = new PgBoss({ connectionString, family: 4 });
+        boss = new PgBoss({ connectionString });
         
         boss.on('error', error => console.error('pg-boss error:', error));
 
@@ -30,7 +36,7 @@ export const initPgBoss = async () => {
         await boss.schedule('check-expirations', '0 6 * * *');
         
         // Auto-run para pruebas del usuario (se puede quitar después, descomentar la linea de abajo para probar las notificaciones del pg-boss)
-        //await boss.send('check-expirations');
+        await boss.send('check-expirations');
 
         return boss;
     } catch (error) {
@@ -54,9 +60,11 @@ const registerWorkers = async () => {
             const in3Days = new Date();
             in3Days.setDate(today.getDate() + 3);
 
-            // Solo aquellos validUntil > hoy y <= +3 días
-            const expiringRates = await prisma.serviceRate.findMany({
+            // Solo aquellos validUntil > hoy y <= +3 días (nuevo modelo Rate)
+            const expiringRates = await prisma.rate.findMany({
                 where: {
+                    deletedAt: null,
+                    isActive: true,
                     validUntil: {
                         gt: today,
                         lte: in3Days
@@ -65,7 +73,7 @@ const registerWorkers = async () => {
                         isActive: true
                     }
                 },
-                include: { ally: true, service: true }
+                include: { ally: true, shippingLine: true }
             });
 
             // Para no repetir una notificación por cada rating del mismo aliado, agrupamos
