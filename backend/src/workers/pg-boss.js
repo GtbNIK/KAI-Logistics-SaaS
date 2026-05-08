@@ -21,7 +21,17 @@ export const initPgBoss = async () => {
         const PgBossModule = await import('pg-boss');
         const PgBoss = PgBossModule.PgBoss || PgBossModule.default || PgBossModule;
 
-        boss = new PgBoss({ connectionString });
+        // Configurar SNI (servername) para que el pooler regional de Supabase
+        // identifique correctamente el tenant (evita ENOIDENTIFIER)
+        // Preferencia: PG_BOSS_SNI_HOST; fallback: db.<PROJECT_REF>.supabase.co
+        const sniHost = process.env.PG_BOSS_SNI_HOST || (process.env.SUPABASE_PROJECT_REF
+            ? `db.${process.env.SUPABASE_PROJECT_REF}.supabase.co`
+            : undefined);
+
+        boss = new PgBoss({
+            connectionString,
+            ...(sniHost ? { db: { ssl: { servername: sniHost } } } : {})
+        });
         
         boss.on('error', error => console.error('pg-boss error:', error));
 
