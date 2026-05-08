@@ -1,25 +1,32 @@
 import prisma from '../config/database.js';
 
+// Cache con TTL para items D2D (catálogo estable)
+const D2D_ITEMS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+let D2D_ITEMS_CACHE = { data: null, timestamp: 0 };
+
 export const getD2DItems = async (req, res) => {
 	try {
 		const { search = '', all = 'true' } = req.query;
+		const now = Date.now();
+
+		// Devolver cache si no hay búsqueda y el cache está fresco
+		if (!search && D2D_ITEMS_CACHE.data && (now - D2D_ITEMS_CACHE.timestamp < D2D_ITEMS_CACHE_TTL)) {
+			return res.json({ data: D2D_ITEMS_CACHE.data });
+		}
 
 		const where = search
 			? { description: { contains: search, mode: 'insensitive' } }
 			: {};
 
-		if (all === 'true') {
-			const items = await prisma.d2DItem.findMany({
-				where,
-				orderBy: { description: 'asc' }
-			});
-			return res.json({ data: items });
-		}
-
 		const items = await prisma.d2DItem.findMany({
 			where,
 			orderBy: { description: 'asc' }
 		});
+
+		// Actualizar cache solo si no hay búsqueda
+		if (!search) {
+			D2D_ITEMS_CACHE = { data: items, timestamp: now };
+		}
 
 		res.json({ data: items });
 	} catch (error) {
