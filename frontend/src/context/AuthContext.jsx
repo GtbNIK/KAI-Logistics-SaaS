@@ -54,6 +54,15 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('sessionExpiresAt', res.data.expiresAt);
         }
 
+        // Registrar evento de inicio de sesión (para controlar modales informativos por login)
+        try {
+            const current = parseInt(localStorage.getItem('app_login_count') || '0', 10) + 1;
+            localStorage.setItem('app_login_count', String(current));
+            sessionStorage.setItem('app_last_login_seq', String(current));
+        } catch (e) {
+            // Ignorar errores de acceso a storage
+        }
+
         return res.data;
     };
 
