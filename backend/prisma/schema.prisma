@@ -56,6 +56,7 @@ enum DeliveryNoteStatus {
 enum ShipmentStatus {
   PENDING
   AT_ORIGIN_WAREHOUSE
+  AT_ORIGIN_PORT
   ON_VESSEL
   AT_DESTINATION_PORT
   CUSTOMS_CLEARANCE

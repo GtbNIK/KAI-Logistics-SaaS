@@ -7,12 +7,14 @@ import { notificationService } from '../services/notification.service';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
     TrendingUp, FileText, Ship, CreditCard, ArrowRight,
-    Users, Loader2, CalendarDays, X, Bell, ChevronRight
+    Users, Loader2, CalendarDays, X, Bell, ChevronRight, Sparkles
 } from 'lucide-react';
 import ClosureReportButton from '../components/dashboard/ClosureReportButton';
 import { generateClosurePdf } from '../components/dashboard/closurePdfGenerator';
 import { isFirstDayOfMonth, isLastDayOfMonth, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useToast } from '../context/ToastContext';
+import InformationModal from '../components/modals/InformationModal';
+import useInformationModal from '../hooks/useInformationModal';
 
 const DashboardInfoCard = ({ title, value, icon: Icon, colorClass, subtitle, delayClass = "" }) => (
     <div className={`bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group ${delayClass} animate-in fade-in-0 slide-in-from-bottom-4 fill-mode-backwards duration-700`}>
@@ -203,6 +205,9 @@ const Dashboard = () => {
     const [generatingReport, setGeneratingReport] = useState(false);
     const [showReminder, setShowReminder] = useState(false);
     const [showDateModal, setShowDateModal] = useState(false);
+
+    // Hook para el modal de información (se muestra las primeras 3 veces)
+    const { isOpen: showInfoModal, closeModal: closeInfoModal } = useInformationModal('dashboard-welcome-v2', 3);
 
     // Filtro: true = "último mes" (default), false = rango custom
     const [useCustomRange, setUseCustomRange] = useState(false);
@@ -721,6 +726,31 @@ const Dashboard = () => {
                     </div>
                 </>
             )}
+
+            {/* Modal de Información - Se muestra las primeras 3 veces */}
+            <InformationModal
+                isOpen={showInfoModal}
+                onClose={closeInfoModal}
+                icon={Sparkles}
+                title="¡Bienvenido al Dashboard!"
+            >
+                <p className="text-base">
+                    HEMOS LLEGADO A LA VERSION 1.1.0 estable. Hemos actualizado el sistema con nuevas funcionalidades para mejorar tu experiencia:
+                </p>
+                
+                <ul className="list-disc list-inside space-y-2 text-sm">
+                    <li><strong>Nuevas métricas:</strong> Ahora puedes ver estadísticas más detalladas de tus operaciones.</li>
+                    <li><strong>Filtros mejorados:</strong> Filtra por rango de fechas personalizado en las gráficas.</li>
+                    <li><strong>Notificaciones:</strong> Recibe alertas importantes directamente en el dashboard.</li>
+                    <li><strong>Reportes optimizados:</strong> Genera reportes de cierre mensual con un solo clic.</li>
+                </ul>
+
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-sm text-blue-700">
+                        💡 <strong>Tip:</strong> Este mensaje se mostrará solo las primeras 3 veces que accedas al dashboard.
+                    </p>
+                </div>
+            </InformationModal>
         </div>
     );
 };

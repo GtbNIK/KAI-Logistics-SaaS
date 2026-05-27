@@ -5,6 +5,7 @@ import { Activity, X, Loader2 } from 'lucide-react';
 const STATUS_OPTIONS = [
     { value: 'PENDING', label: 'Pendiente' },
     { value: 'AT_ORIGIN_WAREHOUSE', label: 'En Almacén Origen' },
+    { value: 'AT_ORIGIN_PORT', label: 'En Puerto Origen' },
     { value: 'ON_VESSEL', label: 'En Tránsito' },
     { value: 'AT_DESTINATION_PORT', label: 'En Puerto Destino' },
     { value: 'CUSTOMS_CLEARANCE', label: 'En Aduana' },

@@ -121,7 +121,7 @@ export const createShipment = async (req, res) => {
     try {
         const {
             paymentNoticeId, type, blNumber, whNumber, bookingNumber,
-            shippingLineId, airLineId, clientId, clientName,
+            shippingLineId, airLineId, status, clientId, clientName,
             vendedorId, currentLocation,
             originPort, destPort, etd, eta,
             weight, quantity, cbm, d2dItemIds,
@@ -167,6 +167,7 @@ export const createShipment = async (req, res) => {
             bookingNumber: bookingNumber || null,
             shippingLineId: resolvedShippingLineId,
             airLineId: resolvedAirLineId,
+            status: status || undefined,
             clientId: resolvedClientId,
             clientName: clientName || notice?.client?.name || null,
             vendedorId: vendedorId || null,
@@ -374,6 +375,7 @@ export const updateShipment = async (req, res) => {
             const statusTranslations = {
                 PENDING: 'Pendiente',
                 AT_ORIGIN_WAREHOUSE: 'En Almacén Origen',
+                AT_ORIGIN_PORT: 'En Puerto Origen',
                 ON_VESSEL: 'En Tránsito',
                 AT_DESTINATION_PORT: 'En Puerto Destino',
                 CUSTOMS_CLEARANCE: 'En Aduana',

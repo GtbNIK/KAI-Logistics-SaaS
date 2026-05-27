@@ -19,6 +19,7 @@ const STATUS_OPTIONS = [
     { value: '', label: 'Todos los estados' },
     { value: 'PENDING', label: 'Pendiente' },
     { value: 'AT_ORIGIN_WAREHOUSE', label: 'En Almacén Origen' },
+    { value: 'AT_ORIGIN_PORT', label: 'En Puerto Origen' },
     { value: 'ON_VESSEL', label: 'En Tránsito' },
     { value: 'AT_DESTINATION_PORT', label: 'En Puerto Destino' },
     { value: 'CUSTOMS_CLEARANCE', label: 'En Aduana' },
@@ -102,6 +103,7 @@ const QuickStats = ({ items }) => {
     const counts = useMemo(() => ({
         PENDING: items.filter(i => i.status === 'PENDING').length,
         AT_ORIGIN_WAREHOUSE: items.filter(i => i.status === 'AT_ORIGIN_WAREHOUSE').length,
+        AT_ORIGIN_PORT: items.filter(i => i.status === 'AT_ORIGIN_PORT').length,
         ON_VESSEL: items.filter(i => i.status === 'ON_VESSEL').length,
         AT_DESTINATION_PORT: items.filter(i => i.status === 'AT_DESTINATION_PORT').length,
         CUSTOMS_CLEARANCE: items.filter(i => i.status === 'CUSTOMS_CLEARANCE').length,
@@ -111,6 +113,7 @@ const QuickStats = ({ items }) => {
     const cards = [
         { label: 'Pendiente', value: counts.PENDING, cls: 'bg-amber-50 text-amber-600', icon: <Package size={18} className="text-amber-600" /> },
         { label: 'En Almacén Origen', value: counts.AT_ORIGIN_WAREHOUSE, cls: 'bg-orange-50 text-orange-600', icon: <Package size={18} className="text-orange-600" /> },
+        { label: 'En Puerto Origen', value: counts.AT_ORIGIN_PORT, cls: 'bg-cyan-50 text-cyan-600', icon: <Container size={18} className="text-cyan-600" /> },
         { label: 'En Tránsito', value: counts.ON_VESSEL, cls: 'bg-blue-50/40 text-blue-600', icon: <Ship size={18} className="text-blue-600" /> },
         { label: 'En Puerto Destino', value: counts.AT_DESTINATION_PORT, cls: 'bg-purple-50 text-purple-600', icon: <Container size={18} className="text-purple-600" /> },
         { label: 'En Aduana', value: counts.CUSTOMS_CLEARANCE, cls: 'bg-pink-50 text-pink-600', icon: <Package size={18} className="text-pink-600" /> },

@@ -4,6 +4,7 @@ import { X, Container, Package, Ship, MapPin, Calendar, User, FileText, Anchor, 
 const STATUS_LABELS = {
     PENDING:             'Pendiente',
     AT_ORIGIN_WAREHOUSE: 'En Almacén Origen',
+    AT_ORIGIN_PORT:      'En Puerto Origen',
     ON_VESSEL:           'En Tránsito',
     AT_DESTINATION_PORT: 'En Puerto Destino',
     CUSTOMS_CLEARANCE:   'En Aduana',
@@ -13,6 +14,7 @@ const STATUS_LABELS = {
 const STATUS_COLORS = {
     PENDING:             'bg-amber-50 text-amber-600 border-amber-200',
     AT_ORIGIN_WAREHOUSE: 'bg-orange-50 text-orange-600 border-orange-200',
+    AT_ORIGIN_PORT:      'bg-cyan-50 text-cyan-600 border-cyan-200',
     ON_VESSEL:           'bg-blue-50 text-blue-600 border-blue-200',
     AT_DESTINATION_PORT: 'bg-purple-50 text-purple-600 border-purple-200',
     CUSTOMS_CLEARANCE:   'bg-pink-50 text-pink-600 border-pink-200',
