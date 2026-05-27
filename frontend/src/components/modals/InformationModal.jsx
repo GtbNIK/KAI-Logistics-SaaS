@@ -20,6 +20,9 @@ const InformationModal = ({
 	title = "Información Importante",
 	children
 }) => {
+	// Oculto temporalmente (deshabilitado)
+	return null;
+
 	if (!isOpen) return null;
 
 	return createPortal(
