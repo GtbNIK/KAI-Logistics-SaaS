@@ -98,9 +98,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     // Si un grupo se queda sin items (ej. Finanzas para Sales), no lo mostramos
 
     return (
-        <aside 
+        <aside
             className={`
-                fixed left-0 top-0 z-20 h-screen bg-primary-dark text-white transition-all duration-300 ease-in-out border-r border-white/10 flex flex-col shadow-xl
+                fixed left-0 top-0 z-40 h-screen shrink-0 bg-primary-dark text-white transition-all duration-300 ease-in-out border-r border-white/10 flex flex-col shadow-xl
                 ${isOpen ? 'w-64' : 'w-20'}
             `}
         >
@@ -118,7 +118,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             </div>
 
             {/* Navigation Groups */}
-            <div className="flex-1 py-6 px-3 space-y-6 flex-1 py-6 px-3 space-y-6 overflow-y-auto scrollbar-hide">
+            <div className="flex-1 py-6 px-3 space-y-6 overflow-y-auto scrollbar-hide">
                 
                 {/* Dashboard Home - Item suelto */}
                 <NavLink
