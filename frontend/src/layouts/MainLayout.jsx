@@ -15,11 +15,11 @@ const MainLayout = ({ children }) => {
             {/* Sidebar Component */}
             <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
 
-            {/* Main Content Area */}
-            <div 
+            {/* Contenido principal: padding (no margin) para reservar el ancho del sidebar fijo */}
+            <div
                 className={`
-                    flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out
-                    ${isSidebarOpen ? 'ml-64' : 'ml-20'}
+                    flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-300 ease-in-out
+                    ${isSidebarOpen ? 'pl-64' : 'pl-20'}
                 `}
             >
                 {/* Navbar Superior */}

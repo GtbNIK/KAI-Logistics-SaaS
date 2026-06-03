@@ -207,6 +207,10 @@ export const buildShipmentColumns = (typeFilter) => {
             },
             { header: 'Aliado', accessor: 'd2dAliado', render: (i) => <span className="text-slate-600 text-xs">{i.d2dAliado?.name || '—'}</span> },
             {
+                header: 'TT', accessor: 'd2dTransitTime',
+                render: (i) => <span className="text-slate-600 text-xs">{i.d2dTransitTime ? `${i.d2dTransitTime} d` : '—'}</span>
+            },
+            {
                 header: 'Estado', accessor: 'status',
                 render: (item) => {
                     const statusMap = {

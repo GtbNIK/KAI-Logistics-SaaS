@@ -406,7 +406,7 @@ export const registerPayment = async (req, res) => {
                 title: 'Cuenta por Cobrar Saldada',
                 message: `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada exitosamente ($${parseFloat(receivable.totalAmount).toFixed(2)}).`,
                 type: 'SUCCESS',
-                targetRoles: ['ADMIN', 'SALES'],
+                targetRoles: ['ADMIN'],
                 entityType: 'RECEIVABLE',
                 entityId: receivable.id
             });
