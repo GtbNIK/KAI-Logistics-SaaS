@@ -186,6 +186,9 @@ export const buildShipmentColumns = (typeFilter) => {
         return [
             ...common,
             { header: 'WH', accessor: 'whNumber', render: (i) => <span className="text-slate-600 text-xs">{i.whNumber || '—'}</span> },
+            { header: 'BL', accessor: 'blNumber', render: (i) => <span className="text-slate-600 font-mono text-xs">{i.blNumber || '—'}</span> },
+            { header: 'ETD', accessor: 'etd', render: (i) => <span className="text-slate-600 text-xs">{i.etd ? i.etd.split('T')[0] : '—'}</span> },
+            { header: 'ETA', accessor: 'd2dEta', render: (i) => <span className="text-slate-600 text-xs">{i.d2dEta ? i.d2dEta.split('T')[0] : '—'}</span> },
             { header: 'CST', accessor: 'cst', render: (i) => <span className="text-slate-600 text-xs">{i.cst || '—'}</span> },
             { header: 'Consolidado', accessor: 'consolidadoManual', render: (i) => <span className="text-slate-600 text-xs">{i.consolidadoManual || '—'}</span> },
             {

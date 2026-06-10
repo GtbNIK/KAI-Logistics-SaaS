@@ -189,8 +189,9 @@ export const createShipment = async (req, res) => {
             data.aliadoId = aliadoId || null;
         }
 
-        // D2D fields
+        // D2D fields (blNumber y etd comparten el esquema común de Shipment)
         if (type === 'D2D') {
+            data.etd = etd ? new Date(etd) : null;
             data.weight = weight ? parseFloat(weight) : null;
             data.quantity = quantity ? parseInt(quantity) : null;
             data.cbm = cbm ? parseFloat(cbm) : null;
