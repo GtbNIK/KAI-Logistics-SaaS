@@ -206,7 +206,7 @@ const Dashboard = () => {
     const [showReminder, setShowReminder] = useState(false);
     const [showDateModal, setShowDateModal] = useState(false);
 
-    // Hook para el modal de información (se muestra las primeras 3 veces)
+    // Hook para el modal de información (se muestra las primeras 2 veces)
     const { isOpen: showInfoModal, closeModal: closeInfoModal } = useInformationModal('dashboard-welcome-v3', 2);
 
     // Filtro: true = "último mes" (default), false = rango custom
