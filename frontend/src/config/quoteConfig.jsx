@@ -1,6 +1,15 @@
 import { FileText, Calendar, Wallet } from 'lucide-react';
 import { toVenezuelanFormat } from '../utils/dateHelpers';
 
+// Status map reutilizable para evitar duplicación (DRY principle)
+const QUOTE_STATUS_MAP = {
+    DRAFT: { label: 'Borrador', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+    SENT: { label: 'Enviada', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+    APPROVED: { label: 'Aprobada', color: 'bg-green-50 text-green-600 border-green-200' },
+    REJECTED: { label: 'Rechazada', color: 'bg-red-50 text-red-600 border-red-200' },
+    CONVERTED: { label: 'Convertida', color: 'bg-purple-50 text-purple-600 border-purple-200' }
+};
+
 export const quoteConfig = {
     entityName: 'Cotización',
     entityNamePlural: 'Cotizaciones',
@@ -50,14 +59,7 @@ export const quoteConfig = {
             header: 'Estado', 
             accessor: 'status',
             render: (item) => {
-                const statusMap = {
-                    DRAFT: { label: 'Borrador', color: 'bg-slate-100 text-slate-600 border-slate-200' },
-                    SENT: { label: 'Enviada', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-                    APPROVED: { label: 'Aprobada', color: 'bg-green-50 text-green-600 border-green-200' },
-                    REJECTED: { label: 'Rechazada', color: 'bg-red-50 text-red-600 border-red-200' },
-                    CONVERTED: { label: 'Convertida', color: 'bg-purple-50 text-purple-600 border-purple-200' }
-                };
-                const config = statusMap[item.status] || statusMap.DRAFT;
+                const config = QUOTE_STATUS_MAP[item.status] || QUOTE_STATUS_MAP.DRAFT;
                 return (
                     <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${config.color}`}>
                         {config.label}
@@ -88,13 +90,10 @@ export const quoteConfig = {
             key: 'status',
             label: 'Estado',
             type: 'select',
-            options: [
-                { value: 'DRAFT', label: 'Borrador' },
-                { value: 'SENT', label: 'Enviada' },
-                { value: 'APPROVED', label: 'Aprobada' },
-                { value: 'REJECTED', label: 'Rechazada' },
-                { value: 'CONVERTED', label: 'Convertida' }
-            ]
+            options: Object.entries(QUOTE_STATUS_MAP).map(([value, { label }]) => ({
+                value,
+                label
+            }))
         }
     ]
 };

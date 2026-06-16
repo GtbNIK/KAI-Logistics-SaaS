@@ -9,6 +9,7 @@ const STATUS_OPTIONS = [
     { value: 'ON_VESSEL', label: 'En Tránsito' },
     { value: 'AT_DESTINATION_PORT', label: 'En Puerto Destino' },
     { value: 'CUSTOMS_CLEARANCE', label: 'En Aduana' },
+    { value: 'ARRIVED', label: 'Arribado' },
     { value: 'DELIVERED', label: 'Entregado' },
 ];
 

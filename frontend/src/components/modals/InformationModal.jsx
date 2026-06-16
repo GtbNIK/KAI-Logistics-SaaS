@@ -1,4 +1,4 @@
-import { X, Info } from 'lucide-react';
+import { X, Info, Sparkles, Ship, TrendingUp } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 /**
@@ -15,13 +15,50 @@ import { createPortal } from 'react-dom';
 const InformationModal = ({ 
 	isOpen, 
 	onClose, 
-	icon: IconComponent = Info,
+	icon: IconComponent = Sparkles,
 	imageUrl = null,
-	title = "Información Importante",
-	children
+	title = "¡Novedades en el Sistema!",
+	children: originalChildren
 }) => {
-	// Oculto temporalmente (deshabilitado)
-	return null;
+	const content = (
+		<div className="space-y-4">
+			<p className="text-slate-600">
+				¡Hola equipo de Import Services! Seguimos mejorando para ti. Aquí tienes los últimos cambios realizados:
+			</p>
+			<div className="space-y-3">
+				<div className="flex gap-3">
+					<div className="mt-1 bg-blue-50 p-1.5 rounded-lg h-fit">
+						<Ship size={16} className="text-blue-600" />
+					</div>
+					<div>
+						<p className="font-bold text-slate-800 text-sm">Mejoras en Tracking Door to Door</p>
+						<p className="text-xs text-slate-600">Ahora el Tiempo de Tránsito (TT) se calcula automáticamente y hemos añadido los campos BL y ETD para los embarques tipo Door to Door.</p>
+					</div>
+				</div>
+				<div className="flex gap-3">
+					<div className="mt-1 bg-emerald-50 p-1.5 rounded-lg h-fit">
+						<div className="w-4 h-4 bg-emerald-500 rounded-full" />
+					</div>
+					<div>
+						<p className="font-bold text-slate-800 text-sm">Nuevo Estado: ARRIBADO</p>
+						<p className="text-xs text-slate-600">Ya puedes marcar tus embarques como "Arribado" para un mejor seguimiento.</p>
+					</div>
+				</div>
+				<div className="flex gap-3">
+					<div className="mt-1 bg-purple-50 p-1.5 rounded-lg h-fit">
+						<TrendingUp size={16} className="text-purple-600" />
+					</div>
+					<div>
+						<p className="font-bold text-slate-800 text-sm">Optimización y Rendimiento</p>
+						<p className="text-xs text-slate-600">Hemos refinado el código interno para que la aplicación sea más rápida y estable.</p>
+					</div>
+				</div>
+			</div>
+			<p className="text-xs text-center text-slate-500 pt-2 italic">
+				Cada vez seguiremos trabajando para que la experiencia sea aún mejor!
+			</p>
+		</div>
+	);
 
 	if (!isOpen) return null;
 
@@ -74,7 +111,7 @@ const InformationModal = ({
 				{/* Contenido */}
 				<div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
 					<div className="text-slate-600 space-y-3">
-						{children}
+						{content || originalChildren}
 					</div>
 				</div>
 
@@ -84,7 +121,7 @@ const InformationModal = ({
 						onClick={onClose}
 						className="px-8 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
 					>
-						Cerrar
+						¡Entendido!
 					</button>
 				</div>
 			</div>

@@ -207,7 +207,7 @@ const Dashboard = () => {
     const [showDateModal, setShowDateModal] = useState(false);
 
     // Hook para el modal de información (se muestra las primeras 3 veces)
-    const { isOpen: showInfoModal, closeModal: closeInfoModal } = useInformationModal('dashboard-welcome-v2', 3);
+    const { isOpen: showInfoModal, closeModal: closeInfoModal } = useInformationModal('dashboard-welcome-v3', 2);
 
     // Filtro: true = "último mes" (default), false = rango custom
     const [useCustomRange, setUseCustomRange] = useState(false);
@@ -731,26 +731,7 @@ const Dashboard = () => {
             <InformationModal
                 isOpen={showInfoModal}
                 onClose={closeInfoModal}
-                icon={Sparkles}
-                title="¡Bienvenido al Dashboard!"
-            >
-                <p className="text-base">
-                    HEMOS LLEGADO A LA VERSION 1.1.0 estable. Hemos actualizado el sistema con nuevas funcionalidades para mejorar tu experiencia:
-                </p>
-                
-                <ul className="list-disc list-inside space-y-2 text-sm">
-                    <li><strong>Nuevas métricas:</strong> Ahora puedes ver estadísticas más detalladas de tus operaciones.</li>
-                    <li><strong>Filtros mejorados:</strong> Filtra por rango de fechas personalizado en las gráficas.</li>
-                    <li><strong>Notificaciones:</strong> Recibe alertas importantes directamente en el dashboard.</li>
-                    <li><strong>Reportes optimizados:</strong> Genera reportes de cierre mensual con un solo clic.</li>
-                </ul>
-
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                    <p className="text-sm text-blue-700">
-                        💡 <strong>Tip:</strong> Este mensaje se mostrará solo las primeras 3 veces que accedas al dashboard.
-                    </p>
-                </div>
-            </InformationModal>
+            />
         </div>
     );
 };

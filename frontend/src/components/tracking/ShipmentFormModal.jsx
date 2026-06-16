@@ -17,6 +17,7 @@ const STATUS_OPTIONS = [
     { value: 'ON_VESSEL', label: 'En Tránsito' },
     { value: 'AT_DESTINATION_PORT', label: 'En Puerto Destino' },
     { value: 'CUSTOMS_CLEARANCE', label: 'En Aduana' },
+    { value: 'ARRIVED', label: 'Arribado' },
     { value: 'DELIVERED', label: 'Entregado' },
 ];
 
@@ -1038,7 +1039,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         </div>
                                     </div>
                                     {form.etd && form.d2dEta && form.d2dTransitTime !== '' && (
-                                        <p className="text-xs text-teal-600 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
+                                        <p className="text-base text-teal-600 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
                                             Tiempo de travesía: <span className="font-semibold">{form.d2dTransitTime} días</span> (calculado entre ETD y ETA)
                                         </p>
                                     )}

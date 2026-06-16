@@ -1,4 +1,12 @@
 // Configuración de columnas para la tabla de Avisos de Cobro
+
+// Status map reutilizable para evitar duplicación (DRY principle)
+const PAYMENT_NOTICE_STATUS_MAP = {
+    PENDING:        { label: 'Pendiente',  color: 'bg-amber-50 text-amber-600 border-amber-200' },
+    PARTIALLY_PAID: { label: 'Abonada',   color: 'bg-blue-50 text-blue-600 border-blue-200' },
+    PAID:           { label: 'Pagada',    color: 'bg-green-50 text-green-600 border-green-200' },
+};
+
 export const paymentNoticeConfig = {
     entityName: 'aviso de cobro',
     entityNamePlural: 'avisos de cobro',
@@ -59,13 +67,8 @@ export const paymentNoticeConfig = {
             header: 'Estado Cobro',
             accessor: 'receivable',
             render: (item) => {
-                const statusMap = {
-                    PENDING:        { label: 'Pendiente',  color: 'bg-amber-50 text-amber-600 border-amber-200' },
-                    PARTIALLY_PAID: { label: 'Abonada',   color: 'bg-blue-50 text-blue-600 border-blue-200' },
-                    PAID:           { label: 'Pagada',    color: 'bg-green-50 text-green-600 border-green-200' },
-                };
                 const status = item.receivable?.status;
-                const cfg = statusMap[status] || statusMap.PENDING;
+                const cfg = PAYMENT_NOTICE_STATUS_MAP[status] || PAYMENT_NOTICE_STATUS_MAP.PENDING;
                 return (
                     <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${cfg.color}`}>
                         {cfg.label}

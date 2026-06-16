@@ -23,6 +23,7 @@ const STATUS_OPTIONS = [
     { value: 'ON_VESSEL', label: 'En Tránsito' },
     { value: 'AT_DESTINATION_PORT', label: 'En Puerto Destino' },
     { value: 'CUSTOMS_CLEARANCE', label: 'En Aduana' },
+    { value: 'ARRIVED', label: 'ARRIBADO' },
     { value: 'DELIVERED', label: 'Entregado' },
 ];
 
@@ -107,6 +108,7 @@ const QuickStats = ({ items }) => {
         ON_VESSEL: items.filter(i => i.status === 'ON_VESSEL').length,
         AT_DESTINATION_PORT: items.filter(i => i.status === 'AT_DESTINATION_PORT').length,
         CUSTOMS_CLEARANCE: items.filter(i => i.status === 'CUSTOMS_CLEARANCE').length,
+        ARRIVED: items.filter(i => i.status === 'ARRIVED').length,
         DELIVERED: items.filter(i => i.status === 'DELIVERED').length,
     }), [items]);
 
@@ -117,6 +119,7 @@ const QuickStats = ({ items }) => {
         { label: 'En Tránsito', value: counts.ON_VESSEL, cls: 'bg-blue-50/40 text-blue-600', icon: <Ship size={18} className="text-blue-600" /> },
         { label: 'En Puerto Destino', value: counts.AT_DESTINATION_PORT, cls: 'bg-purple-50 text-purple-600', icon: <Container size={18} className="text-purple-600" /> },
         { label: 'En Aduana', value: counts.CUSTOMS_CLEARANCE, cls: 'bg-pink-50 text-pink-600', icon: <Package size={18} className="text-pink-600" /> },
+        { label: 'Arribados', value: counts.ARRIVED, cls: 'bg-emerald-50 text-emerald-600', icon: <Container size={18} className="text-emerald-600" /> },
         { label: 'Entregados', value: counts.DELIVERED, cls: 'bg-green-50/40 text-green-600', icon: <Container size={18} className="text-green-600" /> },
     ];
 

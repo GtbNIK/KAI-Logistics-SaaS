@@ -191,7 +191,6 @@ export const createShipment = async (req, res) => {
 
         // D2D fields (blNumber y etd comparten el esquema común de Shipment)
         if (type === 'D2D') {
-            data.etd = etd ? new Date(etd) : null;
             data.weight = weight ? parseFloat(weight) : null;
             data.quantity = quantity ? parseInt(quantity) : null;
             data.cbm = cbm ? parseFloat(cbm) : null;
@@ -199,6 +198,7 @@ export const createShipment = async (req, res) => {
             data.cst = cst || null;
             data.consolidadoManual = consolidadoManual || null;
             data.transportType = transportType || null;
+            data.etd = etd ? new Date(etd) : null;
             data.d2dEta = d2dEta ? new Date(d2dEta) : null;
             data.deliveryPlace = deliveryPlace || null;
             data.d2dTransitTime = d2dTransitTime ? parseInt(d2dTransitTime) : null;
@@ -380,6 +380,7 @@ export const updateShipment = async (req, res) => {
                 ON_VESSEL: 'En Tránsito',
                 AT_DESTINATION_PORT: 'En Puerto Destino',
                 CUSTOMS_CLEARANCE: 'En Aduana',
+                ARRIVED: 'Arribado',
                 DELIVERED: 'Entregado'
             };
             const translatedStatus = statusTranslations[status] || status;
