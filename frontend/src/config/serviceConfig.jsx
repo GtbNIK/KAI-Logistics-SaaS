@@ -117,17 +117,10 @@ export const serviceConfig = {
                     type: 'select',
                     required: true,
                     placeholder: 'Seleccionar tipo...',
-                    options: [
-                        { value: 'DOOR_TO_DOOR', label: 'Puerta a Puerta' },
-                        { value: 'FCL_20', label: 'Contenedor 20\'' },
-                        { value: 'FCL_40', label: 'Contenedor 40\'' },
-                        { value: 'FCL_40HC', label: 'Contenedor 40\' HC' },
-                        { value: 'LCL', label: 'Carga Suelta (LCL)' },
-                        { value: 'AIR', label: 'Aéreo' },
-                        { value: 'WAREHOUSE', label: 'Almacenaje' },
-                        { value: 'CUSTOMS', label: 'Aduana' },
-                        { value: 'OTHER', label: 'Otro' }
-                    ],
+                    options: Object.entries(serviceTypeLabels).map(([value, { label }]) => ({
+                        value,
+                        label
+                    })),
                     icon: Tag
                 }
             ]

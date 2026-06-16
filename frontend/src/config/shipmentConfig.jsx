@@ -1,4 +1,17 @@
 // Configuración de columnas para la tabla de Embarques/Tracking
+
+// Status map reutilizable para evitar duplicación (DRY principle)
+const SHIPMENT_STATUS_MAP = {
+    PENDING:             { label: 'Pendiente',       color: 'bg-amber-50 text-amber-600 border-amber-200' },
+    AT_ORIGIN_WAREHOUSE: { label: 'En Almacén Origen', color: 'bg-orange-50 text-orange-600 border-orange-200' },
+    AT_ORIGIN_PORT:      { label: 'En Puerto Origen', color: 'bg-cyan-50 text-cyan-600 border-cyan-200' },
+    ON_VESSEL:           { label: 'En Tránsito',     color: 'bg-blue-50 text-blue-600 border-blue-200' },
+    AT_DESTINATION_PORT: { label: 'En Puerto Destino', color: 'bg-purple-50 text-purple-600 border-purple-200' },
+    CUSTOMS_CLEARANCE:   { label: 'En Aduana',       color: 'bg-pink-50 text-pink-600 border-pink-200' },
+    ARRIVED:             { label: 'Arribado',         color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+    DELIVERED:           { label: 'Entregado',       color: 'bg-green-50 text-green-600 border-green-200' },
+};
+
 export const shipmentConfig = {
     entityName: 'embarque',
     entityNamePlural: 'embarques',
@@ -68,16 +81,7 @@ export const shipmentConfig = {
             header: 'Estado',
             accessor: 'status',
             render: (item) => {
-                const statusMap = {
-                    PENDING:             { label: 'Pendiente',       color: 'bg-amber-50 text-amber-600 border-amber-200' },
-                    AT_ORIGIN_WAREHOUSE: { label: 'En Almacén Origen', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-                    AT_ORIGIN_PORT:      { label: 'En Puerto Origen', color: 'bg-cyan-50 text-cyan-600 border-cyan-200' },
-                    ON_VESSEL:           { label: 'En Tránsito',     color: 'bg-blue-50 text-blue-600 border-blue-200' },
-                    AT_DESTINATION_PORT: { label: 'En Puerto Destino', color: 'bg-purple-50 text-purple-600 border-purple-200' },
-                    CUSTOMS_CLEARANCE:   { label: 'En Aduana',       color: 'bg-pink-50 text-pink-600 border-pink-200' },
-                    DELIVERED:           { label: 'Entregado',       color: 'bg-green-50 text-green-600 border-green-200' },
-                };
-                const cfg = statusMap[item.status] || statusMap.PENDING;
+                const cfg = SHIPMENT_STATUS_MAP[item.status] || SHIPMENT_STATUS_MAP.PENDING;
                 return (
                     <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${cfg.color}`}>
                         {cfg.label}
@@ -162,16 +166,7 @@ export const buildShipmentColumns = (typeFilter) => {
             {
                 header: 'Estado', accessor: 'status',
                 render: (item) => {
-                    const statusMap = {
-                        PENDING:             { label: 'Pendiente',       color: 'bg-amber-50 text-amber-600 border-amber-200' },
-                        AT_ORIGIN_WAREHOUSE: { label: 'En Almacén Origen', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-                        AT_ORIGIN_PORT:      { label: 'En Puerto Origen', color: 'bg-cyan-50 text-cyan-600 border-cyan-200' },
-                        ON_VESSEL:           { label: 'En Tránsito',     color: 'bg-blue-50 text-blue-600 border-blue-200' },
-                        AT_DESTINATION_PORT: { label: 'En Puerto Destino', color: 'bg-purple-50 text-purple-600 border-purple-200' },
-                        CUSTOMS_CLEARANCE:   { label: 'En Aduana',       color: 'bg-pink-50 text-pink-600 border-pink-200' },
-                        DELIVERED:           { label: 'Entregado',       color: 'bg-green-50 text-green-600 border-green-200' },
-                    };
-                    const cfg = statusMap[item.status] || statusMap.PENDING;
+                    const cfg = SHIPMENT_STATUS_MAP[item.status] || SHIPMENT_STATUS_MAP.PENDING;
                     return (
                         <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${cfg.color}`}>
                             {cfg.label}
@@ -186,6 +181,9 @@ export const buildShipmentColumns = (typeFilter) => {
         return [
             ...common,
             { header: 'WH', accessor: 'whNumber', render: (i) => <span className="text-slate-600 text-xs">{i.whNumber || '—'}</span> },
+            { header: 'BL', accessor: 'blNumber', render: (i) => <span className="text-slate-600 font-mono text-xs">{i.blNumber || '—'}</span> },
+            { header: 'ETD', accessor: 'etd', render: (i) => <span className="text-slate-600 text-xs">{i.etd ? i.etd.split('T')[0] : '—'}</span> },
+            { header: 'ETA', accessor: 'd2dEta', render: (i) => <span className="text-slate-600 text-xs">{i.d2dEta ? i.d2dEta.split('T')[0] : '—'}</span> },
             { header: 'CST', accessor: 'cst', render: (i) => <span className="text-slate-600 text-xs">{i.cst || '—'}</span> },
             { header: 'Consolidado', accessor: 'consolidadoManual', render: (i) => <span className="text-slate-600 text-xs">{i.consolidadoManual || '—'}</span> },
             {
@@ -213,16 +211,7 @@ export const buildShipmentColumns = (typeFilter) => {
             {
                 header: 'Estado', accessor: 'status',
                 render: (item) => {
-                    const statusMap = {
-                        PENDING:             { label: 'Pendiente',       color: 'bg-amber-50 text-amber-600 border-amber-200' },
-                        AT_ORIGIN_WAREHOUSE: { label: 'En Almacén Origen', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-                        AT_ORIGIN_PORT:      { label: 'En Puerto Origen', color: 'bg-cyan-50 text-cyan-600 border-cyan-200' },
-                        ON_VESSEL:           { label: 'En Tránsito',     color: 'bg-blue-50 text-blue-600 border-blue-200' },
-                        AT_DESTINATION_PORT: { label: 'En Puerto Destino', color: 'bg-purple-50 text-purple-600 border-purple-200' },
-                        CUSTOMS_CLEARANCE:   { label: 'En Aduana',       color: 'bg-pink-50 text-pink-600 border-pink-200' },
-                        DELIVERED:           { label: 'Entregado',       color: 'bg-green-50 text-green-600 border-green-200' },
-                    };
-                    const cfg = statusMap[item.status] || statusMap.PENDING;
+                    const cfg = SHIPMENT_STATUS_MAP[item.status] || SHIPMENT_STATUS_MAP.PENDING;
                     return (
                         <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${cfg.color}`}>
                             {cfg.label}
@@ -245,16 +234,7 @@ export const buildShipmentColumns = (typeFilter) => {
             {
                 header: 'Estado', accessor: 'status',
                 render: (item) => {
-                    const statusMap = {
-                        PENDING:             { label: 'Pendiente',       color: 'bg-amber-50 text-amber-600 border-amber-200' },
-                        AT_ORIGIN_WAREHOUSE: { label: 'En Almacén Origen', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-                        AT_ORIGIN_PORT:      { label: 'En Puerto Origen', color: 'bg-cyan-50 text-cyan-600 border-cyan-200' },
-                        ON_VESSEL:           { label: 'En Tránsito',     color: 'bg-blue-50 text-blue-600 border-blue-200' },
-                        AT_DESTINATION_PORT: { label: 'En Puerto Destino', color: 'bg-purple-50 text-purple-600 border-purple-200' },
-                        CUSTOMS_CLEARANCE:   { label: 'En Aduana',       color: 'bg-pink-50 text-pink-600 border-pink-200' },
-                        DELIVERED:           { label: 'Entregado',       color: 'bg-green-50 text-green-600 border-green-200' },
-                    };
-                    const cfg = statusMap[item.status] || statusMap.PENDING;
+                    const cfg = SHIPMENT_STATUS_MAP[item.status] || SHIPMENT_STATUS_MAP.PENDING;
                     return (
                         <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${cfg.color}`}>
                             {cfg.label}
@@ -284,16 +264,7 @@ export const buildShipmentColumns = (typeFilter) => {
         {
             header: 'Estado', accessor: 'status',
             render: (item) => {
-                const statusMap = {
-                    PENDING:             { label: 'Pendiente',       color: 'bg-amber-50 text-amber-600 border-amber-200' },
-                    AT_ORIGIN_WAREHOUSE: { label: 'En Almacén Origen', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-                    AT_ORIGIN_PORT:      { label: 'En Puerto Origen', color: 'bg-cyan-50 text-cyan-600 border-cyan-200' },
-                    ON_VESSEL:           { label: 'En Tránsito',     color: 'bg-blue-50 text-blue-600 border-blue-200' },
-                    AT_DESTINATION_PORT: { label: 'En Puerto Destino', color: 'bg-purple-50 text-purple-600 border-purple-200' },
-                    CUSTOMS_CLEARANCE:   { label: 'En Aduana',       color: 'bg-pink-50 text-pink-600 border-pink-200' },
-                    DELIVERED:           { label: 'Entregado',       color: 'bg-green-50 text-green-600 border-green-200' },
-                };
-                const cfg = statusMap[item.status] || statusMap.PENDING;
+                const cfg = SHIPMENT_STATUS_MAP[item.status] || SHIPMENT_STATUS_MAP.PENDING;
                 return (
                     <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${cfg.color}`}>
                         {cfg.label}

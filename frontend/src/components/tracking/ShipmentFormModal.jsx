@@ -17,6 +17,7 @@ const STATUS_OPTIONS = [
     { value: 'ON_VESSEL', label: 'En Tránsito' },
     { value: 'AT_DESTINATION_PORT', label: 'En Puerto Destino' },
     { value: 'CUSTOMS_CLEARANCE', label: 'En Aduana' },
+    { value: 'ARRIVED', label: 'Arribado' },
     { value: 'DELIVERED', label: 'Entregado' },
 ];
 
@@ -33,6 +34,17 @@ const selectStyles = {
     }),
     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
     menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden' }),
+};
+
+/** Calcula los días de travesía entre ETD y ETA (diferencia en días calendario). */
+const calculateTransitDays = (etd, eta) => {
+    if (!etd || !eta) return '';
+    const [y1, m1, d1] = etd.split('-').map(Number);
+    const [y2, m2, d2] = eta.split('-').map(Number);
+    const start = Date.UTC(y1, m1 - 1, d1);
+    const end = Date.UTC(y2, m2 - 1, d2);
+    const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
+    return days >= 0 ? days : '';
 };
 
 const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
@@ -158,7 +170,10 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 destPort: shipment.destPort || '',
                 etd: shipment.etd ? shipment.etd.slice(0, 10) : '',
                 eta: shipment.eta ? shipment.eta.slice(0, 10) : '',
-                transitTime: shipment.transitTime || '',
+                transitTime: calculateTransitDays(
+                    shipment.etd ? shipment.etd.slice(0, 10) : '',
+                    shipment.eta ? shipment.eta.slice(0, 10) : ''
+                ) || shipment.transitTime || '',
                 aliadoId: shipment.aliadoId || '',
                 weight: shipment.weight || '',
                 quantity: shipment.quantity || '',
@@ -169,17 +184,41 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 transportType: shipment.transportType || 'naviera',
                 d2dEta: shipment.d2dEta ? shipment.d2dEta.slice(0, 10) : '',
                 deliveryPlace: shipment.deliveryPlace || '',
-                d2dTransitTime: shipment.d2dTransitTime || '',
+                d2dTransitTime: calculateTransitDays(
+                    shipment.etd ? shipment.etd.slice(0, 10) : '',
+                    shipment.d2dEta ? shipment.d2dEta.slice(0, 10) : ''
+                ) || shipment.d2dTransitTime || '',
                 d2dAliadoId: shipment.d2dAliadoId || '',
                 consolidadoNumber: shipment.consolidadoNumber || '',
                 arrivalPort: shipment.arrivalPort || '',
-                consolidadoTransitTime: shipment.consolidadoTransitTime || '',
+                consolidadoTransitTime: calculateTransitDays(
+                    shipment.etd ? shipment.etd.slice(0, 10) : '',
+                    shipment.eta ? shipment.eta.slice(0, 10) : ''
+                ) || shipment.consolidadoTransitTime || '',
             });
         }
     }, [shipment, isEdit]);
 
     const handleChange = (field, value) => {
-        setForm(prev => ({ ...prev, [field]: value }));
+        setForm(prev => {
+            const next = { ...prev, [field]: value };
+            // Recalcular TT automáticamente al cambiar fechas de salida/llegada
+            if (field === 'etd' || field === 'eta' || field === 'd2dEta') {
+                if (prev.type === 'FCL' || prev.type === 'CONSOLIDADO') {
+                    const etd = field === 'etd' ? value : prev.etd;
+                    const eta = field === 'eta' ? value : prev.eta;
+                    const days = calculateTransitDays(etd, eta);
+                    if (prev.type === 'FCL') next.transitTime = days;
+                    if (prev.type === 'CONSOLIDADO') next.consolidadoTransitTime = days;
+                }
+                if (prev.type === 'D2D') {
+                    const etd = field === 'etd' ? value : prev.etd;
+                    const eta = field === 'd2dEta' ? value : prev.d2dEta;
+                    next.d2dTransitTime = calculateTransitDays(etd, eta);
+                }
+            }
+            return next;
+        });
     };
 
     // Cuando el usuario cambia el modo (con/sin AVC), limpiar los campos del otro modo
@@ -219,6 +258,14 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 err.etd = 'ETD no puede ser mayor que ETA';
             }
         }
+        if (form.type === 'D2D' && form.etd && form.d2dEta) {
+            const etd = new Date(form.etd);
+            const eta = new Date(form.d2dEta);
+            if (etd > eta) {
+                err.d2dEta = 'ETA debe ser posterior o igual al ETD';
+                err.etd = 'ETD no puede ser mayor que ETA';
+            }
+        }
         if (form.type === 'FCL') {
             if (!Array.isArray(form.containers) || form.containers.length === 0) err.containers = 'Agrega al menos un contenedor';
             if (Array.isArray(form.containers)) {
@@ -231,9 +278,9 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
             if (!form.destPort) err.destPort = 'Requerido';
             if (!form.etd) err.etd = 'Requerido';
             if (!form.eta) err.eta = 'Requerido';
-            if (!form.transitTime && form.transitTime !== 0) err.transitTime = 'Requerido';
             if (!form.aliadoId) err.aliadoId = 'Requerido';
         } else if (form.type === 'D2D') {
+            if (!form.blNumber) err.blNumber = 'Requerido';
             if (!form.originPort) err.originPort = 'Requerido';
             if (!form.deliveryPlace) err.deliveryPlace = 'Requerido';
             if (!Array.isArray(form.d2dItemIds) || form.d2dItemIds.length === 0) err.d2dItemIds = 'Selecciona al menos un ítem';
@@ -241,15 +288,14 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
             if (!form.quantity) err.quantity = 'Requerido';
             if (!form.cbm) err.cbm = 'Requerido';
             if (!form.cst) err.cst = 'Requerido';
+            if (!form.etd) err.etd = 'Requerido';
             if (!form.d2dEta) err.d2dEta = 'Requerido';
-            if (!form.d2dTransitTime && form.d2dTransitTime !== 0) err.d2dTransitTime = 'Requerido';
             if (!form.d2dAliadoId) err.d2dAliadoId = 'Requerido';
         } else if (form.type === 'CONSOLIDADO') {
             if (!form.consolidadoNumber) err.consolidadoNumber = 'Requerido';
             if (!form.arrivalPort) err.arrivalPort = 'Requerido';
             if (!form.etd) err.etd = 'Requerido';
             if (!form.eta) err.eta = 'Requerido';
-            if (!form.consolidadoTransitTime && form.consolidadoTransitTime !== 0) err.consolidadoTransitTime = 'Requerido';
         }
         return err;
     };
@@ -261,7 +307,11 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
             setErrors(v);
             if (v.containers) {
                 showError('Contenedores requeridos', 'Agrega al menos un contenedor');
-            } else if (v.etd === 'ETD no puede ser mayor que ETA' || v.eta === 'ETA debe ser posterior o igual al ETD') {
+            } else if (
+                v.etd === 'ETD no puede ser mayor que ETA'
+                || v.eta === 'ETA debe ser posterior o igual al ETD'
+                || v.d2dEta === 'ETA debe ser posterior o igual al ETD'
+            ) {
                 showError('Fechas inválidas', 'ETD no puede ser mayor que ETA');
             } else {
                 showError('Faltan datos', 'Revisa y llena los campos obligatorios marcados en rojo.');
@@ -271,8 +321,16 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         setErrors({});
         setSaving(true);
         try {
+            const payload = { ...form };
+            if (form.type === 'FCL') {
+                payload.transitTime = calculateTransitDays(form.etd, form.eta);
+            } else if (form.type === 'CONSOLIDADO') {
+                payload.consolidadoTransitTime = calculateTransitDays(form.etd, form.eta);
+            } else if (form.type === 'D2D') {
+                payload.d2dTransitTime = calculateTransitDays(form.etd, form.d2dEta);
+            }
             if (isEdit) {
-                await shipmentService.updateShipment(shipment.id, form);
+                await shipmentService.updateShipment(shipment.id, payload);
                 showSuccess('Embarque actualizado', 'Los cambios se guardaron correctamente');
             } else {
                 if (hasNotice && !form.paymentNoticeId) {
@@ -285,7 +343,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                     setSaving(false);
                     return;
                 }
-                await shipmentService.createShipment(form);
+                await shipmentService.createShipment(payload);
                 showSuccess('Embarque creado', 'El tracking se registró correctamente');
             }
             onSuccess();
@@ -509,18 +567,47 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
+                                {form.type === 'D2D' ? (
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                                                Nro. Warehouse <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={form.whNumber}
+                                                onChange={e => handleChange('whNumber', e.target.value)}
+                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-sky-200"
+                                                placeholder="WH-000..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                                                Nro. BL <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={form.blNumber}
+                                                onChange={e => handleChange('blNumber', e.target.value)}
+                                                className={`w-full border rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-sky-200 ${errors.blNumber ? 'border-red-300 focus:ring-red-200' : 'border-slate-200'}`}
+                                                placeholder="BL-000..."
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
                                 <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1">
-                                        {form.type === 'D2D' ? 'Nro. Warehouse' : 'Nro. BL'} <span className="text-red-500">*</span>
+                                        Nro. BL <span className="text-red-500">*</span>
                                     </label>
                                     <input 
                                         type="text" 
-                                        value={form.type === 'D2D' ? form.whNumber : form.blNumber}
-                                        onChange={e => handleChange(form.type === 'D2D' ? 'whNumber' : 'blNumber', e.target.value)}
+                                        value={form.blNumber}
+                                        onChange={e => handleChange('blNumber', e.target.value)}
                                         className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-sky-200"
-                                        placeholder={form.type === 'D2D' ? 'WH-000...' : 'BL-000...'} 
+                                        placeholder="BL-000..." 
                                     />
                                 </div>
+                                )}
                                 {isFCL && (
                                     <div>
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Nro. Booking <span className="text-red-500">*</span></label>
@@ -744,27 +831,23 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tiempo de Travesía (días) <span className="text-red-500">*</span></label>
-                                            <input type="number" min="0" value={form.transitTime}
-                                                onChange={e => handleChange('transitTime', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                                                placeholder="Ej: 30" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Aliado <span className="text-red-500">*</span></label>
-                                            <Select
-                                                options={allies.map(a => ({ value: a.id, label: a.name }))}
-                                                value={allies.find(a => a.id === form.aliadoId) ? { value: form.aliadoId, label: allies.find(a => a.id === form.aliadoId).name } : null}
-                                                onChange={opt => handleChange('aliadoId', opt?.value || '')}
-                                                placeholder="Seleccionar aliado..."
-                                                isClearable
-                                                styles={selectStyles}
-                                                menuPortalTarget={document.body}
-                                                menuPosition="fixed"
-                                            />
-                                        </div>
+                                    {form.etd && form.eta && form.transitTime !== '' && (
+                                        <p className="text-base w-[670px] text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                                            Tiempo de travesía: <span className="font-semibold">{form.transitTime} días</span> (calculado entre ETD y ETA)
+                                        </p>
+                                    )}
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Aliado <span className="text-red-500">*</span></label>
+                                        <Select
+                                            options={allies.map(a => ({ value: a.id, label: a.name }))}
+                                            value={allies.find(a => a.id === form.aliadoId) ? { value: form.aliadoId, label: allies.find(a => a.id === form.aliadoId).name } : null}
+                                            onChange={opt => handleChange('aliadoId', opt?.value || '')}
+                                            placeholder="Seleccionar aliado..."
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPortalTarget={document.body}
+                                            menuPosition="fixed"
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -941,33 +1024,37 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA <span className="text-red-500">*</span></label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETD (Salida estimada) <span className="text-red-500">*</span></label>
+                                            <input type="date" value={form.etd}
+                                                onChange={e => handleChange('etd', e.target.value)}
+                                                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 ${errors.etd ? 'border-red-300 focus:ring-red-200' : 'border-slate-200'}`} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1">ETA (Llegada estimada) <span className="text-red-500">*</span></label>
                                             <input type="date" value={form.d2dEta}
                                                 onChange={e => handleChange('d2dEta', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200" />
+                                                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 ${errors.d2dEta ? 'border-red-300 focus:ring-red-200' : 'border-slate-200'}`} />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tiempo de Travesía (días) <span className="text-red-500">*</span></label>
-                                            <input type="number" min="0" value={form.d2dTransitTime}
-                                                onChange={e => handleChange('d2dTransitTime', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-                                                placeholder="Ej: 15" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Aliado <span className="text-red-500">*</span></label>
-                                            <Select
-                                                options={allies.map(a => ({ value: a.id, label: a.name }))}
-                                                value={allies.find(a => a.id === form.d2dAliadoId) ? { value: form.d2dAliadoId, label: allies.find(a => a.id === form.d2dAliadoId).name } : null}
-                                                onChange={opt => handleChange('d2dAliadoId', opt?.value || '')}
-                                                placeholder="Seleccionar..."
-                                                isClearable
-                                                styles={selectStyles}
-                                                menuPortalTarget={document.body}
-                                                menuPosition="fixed"
-                                            />
-                                        </div>
+                                    </div>
+                                    {form.etd && form.d2dEta && form.d2dTransitTime !== '' && (
+                                        <p className="text-base text-teal-600 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
+                                            Tiempo de travesía: <span className="font-semibold">{form.d2dTransitTime} días</span> (calculado entre ETD y ETA)
+                                        </p>
+                                    )}
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Aliado <span className="text-red-500">*</span></label>
+                                        <Select
+                                            options={allies.map(a => ({ value: a.id, label: a.name }))}
+                                            value={allies.find(a => a.id === form.d2dAliadoId) ? { value: form.d2dAliadoId, label: allies.find(a => a.id === form.d2dAliadoId).name } : null}
+                                            onChange={opt => handleChange('d2dAliadoId', opt?.value || '')}
+                                            placeholder="Seleccionar..."
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPortalTarget={document.body}
+                                            menuPosition="fixed"
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -1011,7 +1098,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-medium text-slate-500 mb-1">ETD <span className="text-red-500">*</span></label>
                                             <input type="date" value={form.etd}
@@ -1024,14 +1111,12 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                                 onChange={e => handleChange('eta', e.target.value)}
                                                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200" />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Tiempo de Travesía (días) <span className="text-red-500">*</span></label>
-                                            <input type="number" min="0" value={form.consolidadoTransitTime}
-                                                onChange={e => handleChange('consolidadoTransitTime', e.target.value)}
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-                                                placeholder="Ej: 45" />
-                                        </div>
                                     </div>
+                                    {form.etd && form.eta && form.consolidadoTransitTime !== '' && (
+                                        <p className="text-xs text-purple-600 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
+                                            Tiempo de travesía: <span className="font-semibold">{form.consolidadoTransitTime} días</span> (calculado entre ETD y ETA)
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </>

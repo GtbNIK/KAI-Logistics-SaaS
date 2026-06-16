@@ -8,6 +8,7 @@ const STATUS_LABELS = {
     ON_VESSEL:           'En Tránsito',
     AT_DESTINATION_PORT: 'En Puerto Destino',
     CUSTOMS_CLEARANCE:   'En Aduana',
+    ARRIVED:             'Arribado',
     DELIVERED:           'Entregado',
 };
 
@@ -18,6 +19,7 @@ const STATUS_COLORS = {
     ON_VESSEL:           'bg-blue-50 text-blue-600 border-blue-200',
     AT_DESTINATION_PORT: 'bg-purple-50 text-purple-600 border-purple-200',
     CUSTOMS_CLEARANCE:   'bg-pink-50 text-pink-600 border-pink-200',
+    ARRIVED:             'bg-emerald-50 text-emerald-600 border-emerald-200',
     DELIVERED:           'bg-green-50 text-green-600 border-green-200',
 };
 
@@ -138,11 +140,14 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                                 Información General
                             </h3>
-                            <InfoRow icon={FileText}
-                                label={s.type === 'D2D' ? 'Nro. Warehouse' : 'Nro. BL'}
-                                value={s.type === 'D2D' ? s.whNumber : s.blNumber}
-                                mono
-                            />
+                            {s.type === 'D2D' ? (
+                                <>
+                                    <InfoRow icon={FileText} label="Nro. Warehouse" value={s.whNumber} mono />
+                                    <InfoRow icon={FileText} label="Nro. BL" value={s.blNumber} mono />
+                                </>
+                            ) : (
+                                <InfoRow icon={FileText} label="Nro. BL" value={s.blNumber} mono />
+                            )}
                             {isFCL && <InfoRow icon={FileText} label="Nro. Booking" value={s.bookingNumber} mono />}
                             <InfoRow icon={lineIcon} label={lineLabel} value={shippingLineName} />
                             <InfoRow icon={User} label="Cliente" value={s.clientName || s.clientRel?.name} />
@@ -181,7 +186,8 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                                 <InfoRow icon={Package} label="CBM" value={s.cbm ? parseFloat(s.cbm) : null} />
                                 <InfoRow icon={FileText} label="CST" value={s.cst} />
                                 <InfoRow icon={FileText} label="Nro. Consolidado" value={s.consolidadoManual} />
-                                <InfoRow icon={Calendar} label="ETA" value={formatDate(s.d2dEta)} />
+                                <InfoRow icon={Calendar} label="ETD — Salida estimada" value={formatDate(s.etd)} />
+                                <InfoRow icon={Calendar} label="ETA — Llegada estimada" value={formatDate(s.d2dEta)} />
                                 <InfoRow icon={Calendar} label="TT (días)" value={s.d2dTransitTime} />
                                 <InfoRow icon={User} label="Aliado" value={s.d2dAliado?.name} />
                             </div>
