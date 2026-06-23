@@ -219,6 +219,8 @@ export const getPaymentNotices = async (req, res) => {
                 : searchConditions;
         }
 
+        const isAdmin = req.user.role === 'ADMIN';
+
         const [notices, total] = await Promise.all([
             prisma.paymentNotice.findMany({
                 where,
@@ -226,7 +228,7 @@ export const getPaymentNotices = async (req, res) => {
                     client: { select: { name: true, rifOrId: true } },
                     quote: { select: { number: true } },
                     items: true,
-                    receivable: { select: { id: true, number: true, status: true, balance: true, paidAmount: true } },
+                    ...(isAdmin ? { receivable: { select: { id: true, number: true, status: true, balance: true, paidAmount: true } } } : {}),
                     tracking: { select: { id: true } }
                 },
                 orderBy: { createdAt: 'desc' },
@@ -259,6 +261,7 @@ export const getPaymentNotices = async (req, res) => {
 export const getPaymentNoticeById = async (req, res) => {
     try {
         const { id } = req.params;
+        const isAdmin = req.user.role === 'ADMIN';
 
         const notice = await prisma.paymentNotice.findUnique({
             where: { id },
@@ -275,13 +278,15 @@ export const getPaymentNoticeById = async (req, res) => {
                 quote: {
                     select: { number: true }
                 },
-                receivable: {
-                    include: {
-                        payments: {
-                            orderBy: { date: 'desc' }
+                ...(isAdmin ? {
+                    receivable: {
+                        include: {
+                            payments: {
+                                orderBy: { date: 'desc' }
+                            }
                         }
                     }
-                }
+                } : {})
             }
         });
 

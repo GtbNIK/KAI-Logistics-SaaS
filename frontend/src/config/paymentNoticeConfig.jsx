@@ -7,11 +7,10 @@ const PAYMENT_NOTICE_STATUS_MAP = {
     PAID:           { label: 'Pagada',    color: 'bg-green-50 text-green-600 border-green-200' },
 };
 
-export const paymentNoticeConfig = {
-    entityName: 'aviso de cobro',
-    entityNamePlural: 'avisos de cobro',
+const getColumns = (user) => {
+    const isAdmin = user?.role === 'ADMIN';
 
-    columns: [
+    const baseColumns = [
         {
             header: 'Número',
             accessor: 'number',
@@ -55,20 +54,6 @@ export const paymentNoticeConfig = {
             }
         },
         {
-            header: 'Cuenta por Cobrar',
-            accessor: 'receivable',
-            render: (item) => {
-                if (item.receivable) {
-                    return (
-                        <span className="px-2 py-1 text-xs font-bold rounded-md border bg-purple-50 text-purple-600 border-purple-200">
-                            CXC-{String(item.receivable.number).padStart(5, '0')}
-                        </span>
-                    );
-                }
-                return <span className="text-slate-400 text-xs">—</span>;
-            }
-        },
-        {
             header: 'Total',
             accessor: 'totalAmount',
             render: (item) => (
@@ -90,5 +75,31 @@ export const paymentNoticeConfig = {
                 );
             }
         },
-    ]
+    ];
+
+    // Solo agregar columna de cuenta por cobrar para ADMIN
+    if (isAdmin) {
+        baseColumns.splice(4, 0, {
+            header: 'Cuenta por Cobrar',
+            accessor: 'receivable',
+            render: (item) => {
+                if (item.receivable) {
+                    return (
+                        <span className="px-2 py-1 text-xs font-bold rounded-md border bg-purple-50 text-purple-600 border-purple-200">
+                            CXC-{String(item.receivable.number).padStart(5, '0')}
+                        </span>
+                    );
+                }
+                return <span className="text-slate-400 text-xs">—</span>;
+            }
+        });
+    }
+
+    return baseColumns;
+};
+
+export const paymentNoticeConfig = {
+    entityName: 'aviso de cobro',
+    entityNamePlural: 'avisos de cobro',
+    getColumns
 };

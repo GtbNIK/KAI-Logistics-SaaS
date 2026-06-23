@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const NoticeDetailModal = ({ notice, onClose }) => {
+const NoticeDetailModal = ({ notice, onClose, user }) => {
     const [loading, setLoading] = useState(true);
     const [fullNotice, setFullNotice] = useState(null);
 
@@ -107,7 +107,7 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                                         </span>
                                     </div>
                                 )}
-                                {n.receivable && (
+                                {n.receivable && user?.role === 'ADMIN' && (
                                     <div className="flex items-center gap-2 text-sm">
                                         <span className="text-slate-500">Cuenta por cobrar asociada:</span>
                                         <span className="px-2 py-0.5 text-xs font-bold rounded-md border bg-purple-50 text-purple-600 border-purple-200">

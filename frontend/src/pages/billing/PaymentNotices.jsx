@@ -122,7 +122,7 @@ const PaymentNotices = () => {
             <EntityTable
                 entityName={paymentNoticeConfig.entityName}
                 entityNamePlural={paymentNoticeConfig.entityNamePlural}
-                columns={paymentNoticeConfig.columns}
+                columns={paymentNoticeConfig.getColumns(user)}
                 items={items}
                 loading={loading}
                 search={search}
@@ -144,7 +144,7 @@ const PaymentNotices = () => {
             />
 
             {viewingNotice && (
-                <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} />
+                <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} user={user} />
             )}
 
             {showPDFModal && printingNotice && (
