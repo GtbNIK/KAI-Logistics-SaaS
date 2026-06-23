@@ -23,7 +23,7 @@ const STATUS_OPTIONS = [
     { value: 'ON_VESSEL', label: 'En Tránsito' },
     { value: 'AT_DESTINATION_PORT', label: 'En Puerto Destino' },
     { value: 'CUSTOMS_CLEARANCE', label: 'En Aduana' },
-    { value: 'ARRIVED', label: 'ARRIBADO' },
+    { value: 'ARRIVED', label: 'Arribado' },
     { value: 'DELIVERED', label: 'Entregado' },
 ];
 
@@ -197,22 +197,28 @@ const Shipments = () => {
     // Filtros en línea
     const filters = (
         <div className="flex items-center gap-3">
-            <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-                {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            {isAdmin && (
+            <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-500 mb-1">Por estado:</span>
                 <select
-                    value={vendedorFilter}
-                    onChange={e => setVendedorFilter(e.target.value)}
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value)}
                     className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                    <option value="">Todos los vendedores</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
+            </div>
+            {isAdmin && (
+                <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-500 mb-1">Por vendedor:</span>
+                    <select
+                        value={vendedorFilter}
+                        onChange={e => setVendedorFilter(e.target.value)}
+                        className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                        <option value="">Todos los vendedores</option>
+                        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                </div>
             )}
         </div>
     );

@@ -193,7 +193,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                                                     {paymentMethods.find(m => m.value === p.method)?.label || p.method}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-400 text-xs font-mono">{p.reference || '—'}</td>
-                                                <td className="px-4 py-3 text-slate-500 text-xs max-w-[200px] truncate break-words whitespace-pre-wrap" title={p.notes || ''}>
+                                                <td className="px-4 py-3 text-slate-500 text-xs max-w-[100px] truncate break-words whitespace-pre-wrap" title={p.notes || ''}>
                                                     {p.notes || '—'}
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">

@@ -25,8 +25,7 @@ const usePayables = () => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
-    const [beneficiaryIdFilter, setBeneficiaryIdFilter] = useState('');
-    const [beneficiaries, setBeneficiaries] = useState([]);
+    const [beneficiaryTypeFilter, setBeneficiaryTypeFilter] = useState('');
     const { showError } = useToast();
 
     useEffect(() => {
@@ -34,34 +33,26 @@ const usePayables = () => {
         return () => clearTimeout(t);
     }, [search]);
 
-    useEffect(() => { setPage(1); }, [statusFilter, beneficiaryIdFilter]);
-
-    // Cargar lista de beneficiarios (allies y svcProviders) para el filtro
-    useEffect(() => {
-        const fetchBeneficiaries = async () => {
-            try {
-                const [alliesRes, providersRes] = await Promise.all([
-                    axios.get(`${API_URL}/allies`),
-                    axios.get(`${API_URL}/svc-providers`)
-                ]);
-                const allies = (alliesRes.data?.data || alliesRes.data || []).map(a => ({ id: a.id, name: a.name, type: 'Aliado' }));
-                const providers = (providersRes.data?.data || providersRes.data || []).map(p => ({ id: p.id, name: p.name, type: 'Servicio' }));
-                setBeneficiaries([...allies, ...providers]);
-            } catch {
-                // Silencioso, no bloquear si falla
-            }
-        };
-        fetchBeneficiaries();
-    }, []);
+    useEffect(() => { setPage(1); }, [statusFilter, beneficiaryTypeFilter]);
 
     const fetchPayables = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
             if (statusFilter) params.append('status', statusFilter);
-            if (beneficiaryIdFilter) params.append('beneficiaryId', beneficiaryIdFilter);
             const res = await axios.get(`${API_URL}/payables?${params}`);
-            setItems(res.data.data || []);
+            let filteredItems = res.data.data || [];
+            
+            // Filtrar por tipo de beneficiario en el frontend
+            if (beneficiaryTypeFilter) {
+                filteredItems = filteredItems.filter(item => {
+                    if (beneficiaryTypeFilter === 'ally') return item.allyId !== null;
+                    if (beneficiaryTypeFilter === 'provider') return item.svcProviderId !== null;
+                    return true;
+                });
+            }
+            
+            setItems(filteredItems);
             setTotalItems(res.data.meta?.total || 0);
             setTotalPages(res.data.meta?.totalPages || 1);
         } catch {
@@ -69,14 +60,14 @@ const usePayables = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter, beneficiaryIdFilter]);
+    }, [page, debouncedSearch, statusFilter, beneficiaryTypeFilter]);
 
     useEffect(() => { fetchPayables(); }, [fetchPayables]);
 
     return {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter,
-        beneficiaryIdFilter, setBeneficiaryIdFilter, beneficiaries,
+        beneficiaryTypeFilter, setBeneficiaryTypeFilter,
         refresh: fetchPayables
     };
 };
@@ -94,7 +85,7 @@ const Payables = () => {
     const {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter,
-        beneficiaryIdFilter, setBeneficiaryIdFilter, beneficiaries, refresh
+        beneficiaryTypeFilter, setBeneficiaryTypeFilter, refresh
     } = usePayables();
 
     const totalPending = items.reduce((acc, p) => {
@@ -111,29 +102,34 @@ const Payables = () => {
     };
 
     const statusSelect = (
-        <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-700"
-        >
-            <option value="">Todos</option>
-            <option value="PENDING">Pendiente</option>
-            <option value="PARTIALLY_PAID">Abonada</option>
-            <option value="PAID">Pagada</option>
-        </select>
+        <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-500 mb-1">Por estado:</span>
+            <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-700"
+            >
+                <option value="">Todos</option>
+                <option value="PENDING">Pendiente</option>
+                <option value="PARTIALLY_PAID">Abonada</option>
+                <option value="PAID">Pagada</option>
+            </select>
+        </div>
     );
 
-    const beneficiarySelect = (
-        <select
-            value={beneficiaryIdFilter}
-            onChange={e => setBeneficiaryIdFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-700"
-        >
-            <option value="">Todos los beneficiarios</option>
-            {beneficiaries.map(b => (
-                <option key={b.id} value={b.id}>{b.name} ({b.type})</option>
-            ))}
-        </select>
+    const beneficiaryTypeSelect = (
+        <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-500 mb-1">Por tipo de beneficiario:</span>
+            <select
+                value={beneficiaryTypeFilter}
+                onChange={e => setBeneficiaryTypeFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-700"
+            >
+                <option value="">Todos los tipos</option>
+                <option value="ally">Aliados</option>
+                <option value="provider">Proveedores de Servicio</option>
+            </select>
+        </div>
     );
 
     return (
@@ -190,7 +186,7 @@ const Payables = () => {
                 extraFilters={
                     <div className="flex gap-2">
                         {statusSelect}
-                        {beneficiarySelect}
+                        {beneficiaryTypeSelect}
                     </div>
                 }
                 onView={(item) => setViewingPayable(item)}

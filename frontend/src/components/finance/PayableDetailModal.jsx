@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TrendingDown, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Trash2 } from 'lucide-react';
-import { toVenezuelanFormat } from '../../utils/dateHelpers';
+import { TrendingDown, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { toVenezuelanFormat, getTodayLocal } from '../../utils/dateHelpers';
 import payableService from '../../services/payable.service';
 import { useToast } from '../../context/ToastContext';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
@@ -32,6 +32,16 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
     const beneficiary = p.ally?.name || p.svcProvider?.name || 'N/A';
     const beneficiaryType = p.ally ? 'Aliado' : p.svcProvider ? 'Servicio' : '';
 
+    // Verificar si la fecha límite pasó
+    const isOverdue = p.dueDate ? (() => {
+        const today = getTodayLocal();
+        const dueDate = new Date(p.dueDate);
+        const todayDate = new Date(today);
+        dueDate.setHours(0, 0, 0, 0);
+        todayDate.setHours(0, 0, 0, 0);
+        return dueDate < todayDate;
+    })() : false;
+
     const handleDeletePayment = async () => {
         if (!paymentToDelete) return;
         setDeletingPayment(true);
@@ -58,21 +68,27 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
                 className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] transform transition-all animate-in fade-in zoom-in-95 duration-200"
                 onClick={e => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <div className={`flex items-center justify-between px-6 py-4 border-b ${isOverdue ? 'border-red-200 bg-red-100' : 'border-slate-100'}`}>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-50 rounded-xl">
-                            <TrendingDown className="text-red-500" size={22} />
+                        <div className={`p-2 rounded-xl ${isOverdue ? 'bg-red-200' : 'bg-red-50'}`}>
+                            <TrendingDown className={isOverdue ? 'text-red-700' : 'text-red-500'} size={22} />
                         </div>
                         <div>
-                            <h2 className="font-bold text-slate-800 text-xl">
+                            <h2 className={`font-bold text-xl ${isOverdue ? 'text-red-800' : 'text-slate-800'}`}>
                                 {beneficiary}
                             </h2>
-                            <p className="text-xs text-slate-500">
+                            <p className={`text-xs ${isOverdue ? 'text-red-600' : 'text-slate-500'}`}>
                                 CXP-{String(p.number || 0).padStart(5, '0')} · Cuenta por Pagar
                                 {beneficiaryType ? ` · ${beneficiaryType}` : ''}
                             </p>
                         </div>
                     </div>
+                    {isOverdue && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-full text-xs font-bold animate-pulse">
+                            <AlertTriangle size={12} />
+                            <span>ESTA CUENTA POR PAGAR PASÓ SU FECHA LÍMITE</span>
+                        </div>
+                    )}
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                         <X size={20} />
                     </button>
@@ -82,7 +98,7 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
                     {/* Descripción */}
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
                         <p className="text-xs font-semibold text-slate-500 mb-1">Descripción</p>
-                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{p.description}</p>
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap truncate break-words">{p.description}</p>
                     </div>
 
                     {/* Factura y fecha límite */}
@@ -167,7 +183,7 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
                                                     {paymentMethods.find(m => m.value === pay.method)?.label || pay.method}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-400 text-xs font-mono">{pay.reference || '—'}</td>
-                                                <td className="px-4 py-3 text-slate-500 text-xs max-w-[150px] truncate" title={pay.notes || ''}>
+                                                <td className="px-4 py-3 text-slate-500 text-xs max-w-[100px] truncate break-words whitespace-pre-wrap" title={pay.notes || ''}>
                                                     {pay.notes || '—'}
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">

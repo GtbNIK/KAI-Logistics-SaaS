@@ -363,70 +363,82 @@ const Rates = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                         {/* Filtro de País (solo para OTHER) */}
                         {activeTab === 'OTHER' && (
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-500 mb-1">Por país:</span>
+                                <select
+                                    value={customFilters?.countryId || ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value || undefined;
+                                        const nextFilters = { ...customFilters, countryId: value };
+                                        setCustomFilters(nextFilters);
+                                        setPage(1);
+                                    }}
+                                    className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                                >
+                                    <option value="">Todos los países</option>
+                                    {countries.map(country => (
+                                        <option key={country.id} value={country.id}>
+                                            {country.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-500 mb-1">Por aliado:</span>
                             <select
-                                value={customFilters?.countryId || ''}
+                                value={customFilters?.allyId || ''}
                                 onChange={(e) => {
                                     const value = e.target.value || undefined;
-                                    const nextFilters = { ...customFilters, countryId: value };
+                                    const nextFilters = { ...customFilters, allyId: value };
                                     setCustomFilters(nextFilters);
                                     setPage(1);
                                 }}
                                 className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
                             >
-                                <option value="">Todos los países</option>
-                                {countries.map(country => (
-                                    <option key={country.id} value={country.id}>
-                                        {country.name}
+                                <option value="">Todos los aliados</option>
+                                {allies.map(ally => (
+                                    <option key={ally.id} value={ally.id}>
+                                        {ally.name} ({ally.internalCode})
                                     </option>
                                 ))}
                             </select>
-                        )}
-                        <select
-                            value={customFilters?.allyId || ''}
-                            onChange={(e) => {
-                                const value = e.target.value || undefined;
-                                const nextFilters = { ...customFilters, allyId: value };
-                                setCustomFilters(nextFilters);
-                                setPage(1);
-                            }}
-                            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
-                        >
-                            <option value="">Todos los aliados</option>
-                            {allies.map(ally => (
-                                <option key={ally.id} value={ally.id}>
-                                    {ally.name} ({ally.internalCode})
-                                </option>
-                            ))}
-                        </select>
-                        <select
-                            value={customFilters?.isActive || ''}
-                            onChange={(e) => {
-                                const value = e.target.value || undefined;
-                                const nextFilters = { ...customFilters, isActive: value };
-                                setCustomFilters(nextFilters);
-                                setPage(1);
-                            }}
-                            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
-                        >
-                            <option value="">Activas e inactivas</option>
-                            <option value="true">Solo activas</option>
-                            <option value="false">Solo inactivas</option>
-                        </select>
-                        <select
-                            value={customFilters?.status || 'valid'}
-                            onChange={(e) => {
-                                const value = e.target.value || 'valid';
-                                const nextFilters = { ...customFilters, status: value };
-                                setCustomFilters(nextFilters);
-                                setPage(1);
-                            }}
-                            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
-                        >
-                            <option value="valid">Vigentes</option>
-                            <option value="upcoming">Próximas</option>
-                            <option value="expired">Expiradas</option>
-                            <option value="all">Todas</option>
-                        </select>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-500 mb-1">Por estado:</span>
+                            <select
+                                value={customFilters?.isActive || ''}
+                                onChange={(e) => {
+                                    const value = e.target.value || undefined;
+                                    const nextFilters = { ...customFilters, isActive: value };
+                                    setCustomFilters(nextFilters);
+                                    setPage(1);
+                                }}
+                                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                            >
+                                <option value="">Activas e inactivas</option>
+                                <option value="true">Solo activas</option>
+                                <option value="false">Solo inactivas</option>
+                            </select>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-500 mb-1">Por vigencia:</span>
+                            <select
+                                value={customFilters?.status || 'valid'}
+                                onChange={(e) => {
+                                    const value = e.target.value || 'valid';
+                                    const nextFilters = { ...customFilters, status: value };
+                                    setCustomFilters(nextFilters);
+                                    setPage(1);
+                                }}
+                                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                            >
+                                <option value="valid">Vigentes</option>
+                                <option value="upcoming">Próximas</option>
+                                <option value="expired">Expiradas</option>
+                                <option value="all">Todas</option>
+                            </select>
+                        </div>
                     </div>
                 }
             />

@@ -119,6 +119,21 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
             return showError('Validación', 'El monto debe ser mayor a 0');
         }
 
+        // Validar fecha límite no sea menor a fecha actual
+        if (dueDate) {
+            const today = getTodayLocal();
+            const selectedDate = new Date(dueDate);
+            const todayDate = new Date(today);
+            
+            // Comparar solo fechas (ignorar horas)
+            selectedDate.setHours(0, 0, 0, 0);
+            todayDate.setHours(0, 0, 0, 0);
+            
+            if (selectedDate < todayDate) {
+                return showError('Validación', 'La fecha límite no puede ser anterior a la fecha actual');
+            }
+        }
+
         setSaving(true);
         try {
             const payload = {

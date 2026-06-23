@@ -264,20 +264,23 @@ const Clients = () => {
                 codeColor={clientConfig.codeColor}
                 extraFilters={
                     user?.role === 'ADMIN' && users.length > 0 && (
-                        <select
-                            value={customFilters.assignedToId || ''}
-                            onChange={(e) => setCustomFilters(
-                                e.target.value
-                                    ? { assignedToId: e.target.value }
-                                    : {}
-                            )}
-                            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
-                        >
-                            <option value="">Todos los vendedores</option>
-                            {users.map(u => (
-                                <option key={u.id} value={u.id}>{u.name}</option>
-                            ))}
-                        </select>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-500 mb-1">Por vendedor:</span>
+                            <select
+                                value={customFilters.assignedToId || ''}
+                                onChange={(e) => setCustomFilters(
+                                    e.target.value
+                                        ? { assignedToId: e.target.value }
+                                        : {}
+                                )}
+                                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all text-slate-700"
+                            >
+                                <option value="">Todos los vendedores</option>
+                                {users.map(u => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </div>
                     )
                 }
             />
