@@ -92,15 +92,30 @@ const NoticeDetailModal = ({ notice, onClose }) => {
                         </div>
                     </div>
 
-                    {n.quote && (
-                        <div className="flex items-center gap-2 text-sm bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">
-                            <FileText size={14} className="text-blue-400" />
-                            <span className="text-slate-600">
-                                Originado desde:{' '}
-                                <span className="font-semibold text-blue-700">
-                                    COT-{String(n.quote.number).padStart(5, '0')}
-                                </span>
-                            </span>
+                    {/* Sección Origen */}
+                    {(n.quote || n.receivable) && (
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                                <FileText size={12} /> Origen
+                            </h3>
+                            <div className="space-y-2">
+                                {n.quote && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <span className="text-slate-500">Viene de la Cotización:</span>
+                                        <span className="px-2 py-0.5 text-xs font-bold rounded-md border bg-blue-50 text-blue-600 border-blue-200">
+                                            COT-{String(n.quote.number).padStart(5, '0')}
+                                        </span>
+                                    </div>
+                                )}
+                                {n.receivable && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <span className="text-slate-500">Cuenta por cobrar asociada:</span>
+                                        <span className="px-2 py-0.5 text-xs font-bold rounded-md border bg-purple-50 text-purple-600 border-purple-200">
+                                            CXC-{String(n.receivable.number).padStart(5, '0')}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 

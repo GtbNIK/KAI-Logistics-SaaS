@@ -226,7 +226,7 @@ export const getPaymentNotices = async (req, res) => {
                     client: { select: { name: true, rifOrId: true } },
                     quote: { select: { number: true } },
                     items: true,
-                    receivable: { select: { id: true, status: true, balance: true, paidAmount: true } },
+                    receivable: { select: { id: true, number: true, status: true, balance: true, paidAmount: true } },
                     tracking: { select: { id: true } }
                 },
                 orderBy: { createdAt: 'desc' },

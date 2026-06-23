@@ -36,6 +36,20 @@ export const receivableConfig = {
             )
         },
         {
+            header: 'Aviso de Cobro',
+            accessor: 'paymentNotice',
+            render: (item) => {
+                if (item.paymentNotice) {
+                    return (
+                        <span className="px-2 py-1 text-xs font-bold rounded-md border bg-purple-50 text-purple-600 border-purple-200">
+                            AVC-{String(item.paymentNotice.number).padStart(5, '0')}
+                        </span>
+                    );
+                }
+                return <span className="text-slate-400 text-xs">—</span>;
+            }
+        },
+        {
             header: 'Total',
             accessor: 'totalAmount',
             render: (item) => (

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TrendingUp, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Printer, Trash2 } from 'lucide-react';
+import { TrendingUp, X, DollarSign, Wallet, Clock, BadgeDollarSign, Plus, Printer, Trash2, Receipt, FileText, AlertCircle } from 'lucide-react';
 import { toVenezuelanFormat } from '../../utils/dateHelpers';
 import PaymentReceiptPDFModal from './PaymentReceiptPDFModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
@@ -80,12 +80,54 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                 </div>
 
                 <div className="overflow-y-auto p-6 space-y-5">
-                    {r.manualNotes && (
-                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-                            <p className="text-xs font-semibold text-slate-500 mb-1">Notas</p>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{r.manualNotes}</p>
-                        </div>
-                    )}
+                    {/* Sección Origen y Notas en la misma fila */}
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Sección Origen */}
+                        {r.paymentNotice ? (
+                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                                    <Receipt size={14} /> Origen
+                                </h2>
+                                <div className="text-sm text-slate-600">
+                                    Aviso de cobro asociado:
+                                    <div className="mt-1">
+                                        <span className="px-2 py-0.5 text-sm font-bold rounded-md border bg-purple-50 text-purple-600 border-purple-200">
+                                            AVC-{String(r.paymentNotice.number).padStart(5, '0')}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-red-100 rounded-xl p-4 border border-red-200">
+                                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                                    <Receipt size={14} /> Origen
+                                </h2>
+                                <div className="text-sm text-red-600 flex items-center gap-1">
+                                    <AlertCircle size={10} />
+                                    <span>No proviene de un aviso de cobro</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Sección Notas */}
+                        {r.manualNotes ? (
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                                    <FileText size={14} /> Notas
+                                </h2>
+                                <p className="text-sm text-slate-700 break-words whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                    {r.manualNotes}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                                    <FileText size={14} /> Notas
+                                </h2>
+                                <p className="text-sm text-slate-400 italic">Sin notas</p>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="grid grid-cols-3 gap-3">
                         <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
@@ -151,7 +193,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                                                     {paymentMethods.find(m => m.value === p.method)?.label || p.method}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-400 text-xs font-mono">{p.reference || '—'}</td>
-                                                <td className="px-4 py-3 text-slate-500 text-xs max-w-[150px] truncate" title={p.notes || ''}>
+                                                <td className="px-4 py-3 text-slate-500 text-xs max-w-[200px] truncate break-words whitespace-pre-wrap" title={p.notes || ''}>
                                                     {p.notes || '—'}
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">
