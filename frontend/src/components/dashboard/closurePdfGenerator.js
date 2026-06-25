@@ -8,10 +8,11 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import dashboardService from '../../services/dashboard.service';
+import { dateToStringHelper, toVenezuelanFormat } from '../../utils/dateHelpers';
 
-const DEFAULT_LOGO = '/1.png';
-const CANVAS_EXPORT_QUALITY = 0.6;
-const CANVAS_SCALE = 1.2;
+const DEFAULT_LOGO = '/2.png';
+const CANVAS_EXPORT_QUALITY = 0.8;
+const CANVAS_SCALE = 3;
 const PDF_OPTIONS = { compress: true };
 
 const loadImage = (url) => {
@@ -64,7 +65,15 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
 
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Reporte Operativo: ${result.rangeLabel}`, 14, 27);
+        
+        // Formatear el rango de fechas usando los helpers locales para evitar desfases de huso horario
+        const formattedStartDate = dateToStringHelper(dateRange?.startDate, { style: 'text' });
+        const formattedEndDate = dateToStringHelper(dateRange?.endDate, { style: 'text' });
+        const dateRangeLabel = formattedStartDate !== '—' && formattedEndDate !== '—'
+            ? `${formattedStartDate} — ${formattedEndDate}`
+            : (result.rangeLabel || 'Período seleccionado');
+
+        doc.text(`Reporte Operativo: ${dateRangeLabel}`, 14, 27);
 
         // --- Logo (escalado dinámico por proporción) ---
         try {
@@ -91,100 +100,137 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
 
         // --- Resumen Financiero (Izquierda) ---
         doc.setTextColor(51, 65, 85);
-        doc.setFontSize(16);
+        doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
-        doc.text('Resumen Financiero', 14, 55);
+        doc.text('Resumen Financiero', 14, 52);
 
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
 
-        doc.text('Total Ingresos (CXC):', 14, 65);
+        doc.text('Total Ingresos (CXC):', 14, 61);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(16, 185, 129);
-        doc.text(formatMoney(result.totalIngresos), 60, 65);
+        doc.text(formatMoney(result.totalIngresos), 60, 61);
 
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(51, 65, 85);
-        doc.text('Total Egresos (CXP):', 14, 75);
+        doc.text('Total Egresos (CXP):', 14, 70);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(244, 63, 94);
-        doc.text(formatMoney(result.totalEgresos), 60, 75);
+        doc.text(formatMoney(result.totalEgresos), 60, 70);
 
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(51, 65, 85);
-        doc.text('Balance Neto:', 14, 85);
+        doc.text('Balance Neto:', 14, 79);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(15, 23, 42);
-        doc.text(formatMoney(result.balanceNeto), 60, 85);
+        doc.text(formatMoney(result.balanceNeto), 60, 79);
 
         // --- KPIs Operativos (Derecha) ---
         if (metrics) {
             doc.setTextColor(51, 65, 85);
-            doc.setFontSize(16);
+            doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
-            doc.text('Indicadores', 120, 55);
+            doc.text('Indicadores', 120, 52);
 
-            doc.setFontSize(11);
+            doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
 
-            doc.text('Cotizaciones Aprobadas:', 120, 65);
+            doc.text('Cotizaciones Aprobadas:', 120, 61);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(14, 165, 233);
-            doc.text(String(metrics.approvedQuotesCount || 0), 185, 65);
+            doc.text(String(metrics.approvedQuotesCount || 0), 185, 61);
 
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(51, 65, 85);
-            doc.text('Cobradas:', 120, 75);
+            doc.text('Cobradas:', 120, 70);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(16, 185, 129);
-            doc.text(formatMoney(metrics.cxcPaidAmount || 0), 185, 75);
+            doc.text(formatMoney(metrics.cxcPaidAmount || 0), 185, 70);
 
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(51, 65, 85);
-            doc.text('Embarques en Curso:', 120, 85);
+            doc.text('Embarques en Curso:', 120, 79);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(245, 158, 11);
-            doc.text(String(metrics.pendingShipmentsCount || 0), 185, 85);
+            doc.text(String(metrics.pendingShipmentsCount || 0), 185, 79);
 
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(51, 65, 85);
-            doc.text('Por Pagar:', 120, 95);
+            doc.text('Por Pagar:', 120, 88);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(244, 63, 94);
-            doc.text(formatMoney(metrics.cxpPendingAmount || 0), 185, 95);
+            doc.text(formatMoney(metrics.cxpPendingAmount || 0), 185, 88);
         }
 
         // --- Capturas de las gráficas ---
         const renderCharts = async () => {
+            const margin = 14;
+            const usableWidth = pageWidth - (margin * 2);
+            let currentY = 100;
 
-            // Gráfica de líneas (55% del ancho)
+            // Gráfica de líneas (ancho completo, más alta)
             if (chartRef?.current) {
                 try {
-                    const canvas = await html2canvas(chartRef.current, { backgroundColor: '#ffffff', scale: CANVAS_SCALE, logging: false });
+                    // Añadimos una pequeña holgura vertical en html2canvas para que no corte la base de los textos (descendientes de letras como j, p, q, y)
+                    const canvas = await html2canvas(chartRef.current, { 
+                        backgroundColor: '#ffffff', 
+                        scale: CANVAS_SCALE, 
+                        logging: false,
+                        height: chartRef.current.scrollHeight + 10 // Usar scrollHeight para capturar todo el contenido
+                    });
                     const chartImgData = canvasToJpeg(canvas);
-                    const chartWidth   = (pageWidth - 42) * 0.55;
-                    const chartHeight  = (canvas.height / canvas.width) * chartWidth;
+                    // Aumentamos el tamaño de la gráfica de líneas al 85% del ancho útil para que se vea óptima y legible
+                    const finalWidth = usableWidth * 0.75;
+                    const finalHeight = (canvas.height / canvas.width) * finalWidth;
+                    const centeredX = margin + (usableWidth - finalWidth) / 2;
 
-                    doc.setFontSize(12);
+                    doc.setFontSize(11);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(51, 65, 85);
-                    doc.text('Cotizaciones Creadas', 14, 110);
-                    doc.addImage(chartImgData, 'JPEG', 14, 115, chartWidth, chartHeight);
+                    doc.text('Cotizaciones Creadas', margin, currentY);
+                    doc.addImage(chartImgData, 'JPEG', centeredX, currentY + 4, finalWidth, finalHeight);
+                    currentY += finalHeight + 12;
                 } catch (err) {
                     console.warn('No se pudo capturar la gráfica de líneas:', err);
                 }
             }
 
-            // Gráfica de Donut (45% del ancho, al lado derecho)
+            // Gráfica de Donut (ancho completo, debajo de la línea)
             if (donutChartRef?.current) {
                 try {
-                    const canvas2 = await html2canvas(donutChartRef.current, { backgroundColor: '#ffffff', scale: CANVAS_SCALE, logging: false });
+                    // Usamos scrollHeight para que html2canvas capture todo el contenido expandido de la leyenda oculta tras el scroll
+                    const canvas2 = await html2canvas(donutChartRef.current, { 
+                        backgroundColor: '#ffffff', 
+                        scale: CANVAS_SCALE, 
+                        logging: false,
+                        height: donutChartRef.current.scrollHeight + 15, // Captura el scrollHeight completo con una pequeña holgura
+                        onclone: (clonedDoc) => {
+                            const legend = clonedDoc.querySelector('[data-pdf-legend="true"]');
+                            if (legend) {
+                                legend.style.maxHeight = 'none';
+                                legend.style.overflow = 'visible';
+                                // Aseguramos que ningún span interno mantenga overflow: hidden o truncados que corten las tipografías
+                                const spans = legend.querySelectorAll('span');
+                                spans.forEach(span => {
+                                    span.style.overflow = 'visible';
+                                    span.style.textOverflow = 'clip';
+                                    span.style.whiteSpace = 'normal';
+                                });
+                            }
+                        }
+                    });
                     const chartImgData2 = canvasToJpeg(canvas2);
-                    const chartWidth2   = (pageWidth - 42) * 0.45;
-                    const chartHeight2  = (canvas2.height / canvas2.width) * chartWidth2;
-                    const startX        = 14 + ((pageWidth - 42) * 0.55) + 14;
+                    // Reducimos el ancho al 50% de la página para que su altura proporcional disminuya sustancialmente y quepa completo
+                    const finalWidth2 = usableWidth * 0.5;
+                    const finalHeight2 = (canvas2.height / canvas2.width) * finalWidth2;
+                    const centeredX2 = margin + (usableWidth - finalWidth2) / 2;
 
-                    doc.addImage(chartImgData2, 'JPEG', startX, 110, chartWidth2, chartHeight2);
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(51, 65, 85);
+                    doc.text('Distribución de Servicios', margin, currentY);
+                    doc.addImage(chartImgData2, 'JPEG', centeredX2, currentY + 4, finalWidth2, finalHeight2);
                 } catch (err) {
                     console.warn('No se pudo capturar la gráfica de donut:', err);
                 }
@@ -204,8 +250,9 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
 
         const tableData = result.transactions.map((t, index) => [
             index + 1,
-            new Date(t.createdAt).toLocaleDateString('es-VE'),
+            toVenezuelanFormat(t.createdAt),
             t.typeStr,
+            t.counterparty || 'N/A',
             t.accountNumber,
             t.method || 'N/A',
             `${t.typeStr.includes('INGRESO') ? '+' : '-'} ${formatMoney(t.amount)}`,
@@ -214,17 +261,23 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
 
         autoTable(doc, {
             startY: tableHeadingY + 5,
-            head: [['#', 'Fecha', 'Tipo', 'Nro. Cuenta', 'Método', 'Monto', 'Referencia']],
+            head: [['#', 'Fecha', 'Tipo', 'Cliente / Proveedor', 'Nro. Cuenta', 'Método', 'Monto', 'Referencia']],
             body: tableData,
             theme: 'striped',
             headStyles:  { fillColor: rgbColor, textColor: 255, fontStyle: 'bold' },
             styles:      { fontSize: 8, cellPadding: 4 },
             columnStyles: {
-                5: { halign: 'right', fontStyle: 'bold' },
-                6: { cellWidth: 40 }
+                0: { cellWidth: 12 },
+                1: { cellWidth: 22 },
+                2: { cellWidth: 21 },
+                3: { cellWidth: 35 },
+                4: { cellWidth: 20 },
+                5: { cellWidth: 23 },
+                6: { halign: 'right', fontStyle: 'bold', cellWidth: 25 },
+                7: { cellWidth: 23 }
             },
             didParseCell(data) {
-                if (data.section === 'body' && data.column.index === 5) {
+                if (data.section === 'body' && data.column.index === 6) {
                     if (data.cell.raw.includes('+')) data.cell.styles.textColor = [16, 185, 129];
                     else if (data.cell.raw.includes('-')) data.cell.styles.textColor = [244, 63, 94];
                 }

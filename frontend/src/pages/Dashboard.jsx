@@ -15,6 +15,7 @@ import { isFirstDayOfMonth, isLastDayOfMonth, format, startOfMonth, endOfMonth, 
 import { useToast } from '../context/ToastContext';
 import InformationModal from '../components/modals/InformationModal';
 import useInformationModal from '../hooks/useInformationModal';
+import { dateToStringHelper } from '../utils/dateHelpers';
 
 const DashboardInfoCard = ({ title, value, icon: Icon, colorClass, subtitle, delayClass = "" }) => (
     <div className={`bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group ${delayClass} animate-in fade-in-0 slide-in-from-bottom-4 fill-mode-backwards duration-700`}>
@@ -62,6 +63,7 @@ const PreviewTable = ({ title, icon: Icon, items, onNavigate, renderRow, emptyMe
 
 const CHART_RANGE_OPTIONS = [
     { value: 1, label: 'Último mes' },
+    { value: 2, label: '2 meses' },
     { value: 3, label: '3 meses' },
     { value: 6, label: '6 meses' },
     { value: 12, label: '12 meses' },
@@ -128,16 +130,25 @@ const CompactDateSelector = ({ label, day, month, year, onDay, onMonth, onYear }
 };
 
 // Modal de selección de rango de fechas
-const DateRangeModal = ({ onClose, onApply, primaryColor }) => {
+const DateRangeModal = ({ onClose, onApply, primaryColor, initialFrom, initialTo }) => {
+    // Helper para parsear 'yyyy-MM-dd' sin problemas de timezone
+    const parseDateParts = (dateStr) => {
+        if (!dateStr) return null;
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return { day: d, month: m, year: y };
+    };
+
     const now = new Date();
+    const fromParts = parseDateParts(initialFrom);
+    const toParts   = parseDateParts(initialTo);
 
-    const [fromDay,   setFromDay]   = useState(1);
-    const [fromMonth, setFromMonth] = useState(now.getMonth() + 1);
-    const [fromYear,  setFromYear]  = useState(now.getFullYear());
+    const [fromDay,   setFromDay]   = useState(fromParts?.day   ?? 1);
+    const [fromMonth, setFromMonth] = useState(fromParts?.month ?? (now.getMonth() + 1));
+    const [fromYear,  setFromYear]  = useState(fromParts?.year  ?? now.getFullYear());
 
-    const [toDay,   setToDay]   = useState(now.getDate());
-    const [toMonth, setToMonth] = useState(now.getMonth() + 1);
-    const [toYear,  setToYear]  = useState(now.getFullYear());
+    const [toDay,   setToDay]   = useState(toParts?.day   ?? now.getDate());
+    const [toMonth, setToMonth] = useState(toParts?.month ?? (now.getMonth() + 1));
+    const [toYear,  setToYear]  = useState(toParts?.year  ?? now.getFullYear());
 
     const fromStr = buildDateStr(fromDay, fromMonth, fromYear);
     const toStr   = buildDateStr(toDay,   toMonth,   toYear);
@@ -275,7 +286,10 @@ const Dashboard = () => {
         setUseCustomRange(false);
         setStartDate(sDate);
         setEndDate(eDate);
-        fetchSummary(sDate, eDate, chartRange);
+        // Reseteamos las gráficas a 1 mes para sincronizar con el rango del dashboard
+        setChartRange(1);
+        setDonutRange(1);
+        fetchSummary(sDate, eDate, 1, 1);
     };
 
     // El modal de fechas aplica el rango
@@ -283,7 +297,20 @@ const Dashboard = () => {
         setUseCustomRange(true);
         setStartDate(from);
         setEndDate(to);
-        fetchSummary(from, to, chartRange);
+        
+        // Calculamos la diferencia aproximada en meses para sincronizar las gráficas
+        const diffMs = new Date(to) - new Date(from);
+        const diffMonths = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30.4)));
+        
+        // Mapear al valor más cercano de CHART_RANGE_OPTIONS (1, 2, 3, 6, 12)
+        const allowedRanges = [1, 2, 3, 6, 12];
+        const closestRange = allowedRanges.reduce((prev, curr) => 
+            Math.abs(curr - diffMonths) < Math.abs(prev - diffMonths) ? curr : prev
+        );
+
+        setChartRange(closestRange);
+        setDonutRange(closestRange);
+        fetchSummary(from, to, closestRange, closestRange);
     };
 
     const handleChartRangeChange = (newRange) => {
@@ -344,7 +371,7 @@ const Dashboard = () => {
         new Date(dateString).toLocaleDateString('es-VE', { month: 'short', day: 'numeric' });
 
     const rangeLabel = useCustomRange
-        ? `${startDate} — ${endDate}`
+        ? `${dateToStringHelper(startDate, { style: 'slash' })} — ${dateToStringHelper(endDate, { style: 'slash' })}`
         : 'Último mes';
 
     return (
@@ -384,6 +411,8 @@ const Dashboard = () => {
                     primaryColor={primaryColor}
                     onClose={() => setShowDateModal(false)}
                     onApply={handleApplyCustomRange}
+                    initialFrom={startDate}
+                    initialTo={endDate}
                 />
             )}
             
@@ -531,7 +560,7 @@ const Dashboard = () => {
                             : 'grid-cols-1'
                     }`}>
                         {/* Línea: Cotizaciones Creadas */}
-                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col min-h-[400px] animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700 [animation-delay:500ms]">
+                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col min-h-[480px] animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700 [animation-delay:500ms]">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                     <div className="p-2 bg-slate-50 rounded-xl">
@@ -555,7 +584,7 @@ const Dashboard = () => {
                                     ))}
                                 </div>
                             </div>
-                            <div className="h-[260px] w-full flex-1" ref={chartRef}>
+                            <div className="h-[350px] w-full flex-1" ref={chartRef}>
                                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                     <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
@@ -584,7 +613,7 @@ const Dashboard = () => {
 
                         {/* Donut: Distribución de servicios en Avisos de Cobro */}
                         {user?.role === 'ADMIN' && (
-                            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700 [animation-delay:600ms]" ref={donutChartRef}>
+                            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col min-h-[480px] animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700 [animation-delay:600ms]">
                                 <div className="flex justify-between items-center mb-5">
                                     <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                                         <div className="p-2 bg-slate-50 rounded-xl">
@@ -609,62 +638,64 @@ const Dashboard = () => {
                                     </div>
                                 </div>
 
-                                {serviceDistribution.length === 0 ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
-                                        <FileText className="w-8 h-8 text-slate-200" />
-                                        <p>Sin datos en este período</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="flex-1 min-h-[160px]">
-                                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                                                <PieChart>
-                                                    <Pie
-                                                        data={serviceDistribution}
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius="52%"
-                                                        outerRadius="75%"
-                                                        paddingAngle={3}
-                                                        dataKey="value"
-                                                        nameKey="name"
-                                                    >
-                                                        {serviceDistribution.map((entry, index) => (
-                                                            <Cell 
-                                                                key={`cell-${index}`} 
-                                                                fill={DONUT_COLORS[index % DONUT_COLORS.length]}
-                                                                stroke="transparent"
-                                                            />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip
-                                                        contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                                        formatter={(value, name, props) => {
-                                                            const pct = totalServiceValue > 0 
-                                                                ? ((value / totalServiceValue) * 100).toFixed(1) 
-                                                                : 0;
-                                                            const label = SERVICE_LABELS[props.payload?.type] || name;
-                                                            return [`${pct}% · $${value.toFixed(0)}`, label];
-                                                        }}
-                                                    />
-                                                </PieChart>
-                                            </ResponsiveContainer>
+                                <div ref={donutChartRef} className="flex-1 flex flex-col">
+                                    {serviceDistribution.length === 0 ? (
+                                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+                                            <FileText className="w-8 h-8 text-slate-200" />
+                                            <p>Sin datos en este período</p>
                                         </div>
-                                        {/* Leyenda */}
-                                        <div className="mt-3 space-y-1.5 overflow-y-auto max-h-[110px] custom-scrollbar">
-                                            {serviceDistribution.map((entry, index) => {
-                                                const pct = totalServiceValue > 0 ? ((entry.value / totalServiceValue) * 100).toFixed(1) : 0;
-                                                return (
-                                                    <div key={entry.type} className="flex items-center gap-2">
-                                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }} />
-                                                        <span className="text-[11px] text-slate-600 truncate flex-1">{SERVICE_LABELS[entry.type] || entry.name}</span>
-                                                        <span className="text-[11px] font-semibold text-slate-700 shrink-0">{pct}%</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                )}
+                                    ) : (
+                                        <>
+                                            <div className="h-[210px] w-full flex-none">
+                                                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={serviceDistribution}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius="52%"
+                                                            outerRadius="75%"
+                                                            paddingAngle={3}
+                                                            dataKey="value"
+                                                            nameKey="name"
+                                                        >
+                                                            {serviceDistribution.map((entry, index) => (
+                                                                <Cell 
+                                                                    key={`cell-${index}`} 
+                                                                    fill={DONUT_COLORS[index % DONUT_COLORS.length]}
+                                                                    stroke="transparent"
+                                                                />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip
+                                                            contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                            formatter={(value, name, props) => {
+                                                                const pct = totalServiceValue > 0 
+                                                                    ? ((value / totalServiceValue) * 100).toFixed(1) 
+                                                                    : 0;
+                                                                const label = SERVICE_LABELS[props.payload?.type] || name;
+                                                                return [`${pct}% · $${value.toFixed(0)}`, label];
+                                                            }}
+                                                        />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            {/* Leyenda */}
+                                            <div data-pdf-legend="true" className="mt-3 space-y-1.5 overflow-y-auto max-h-[110px] custom-scrollbar">
+                                                {serviceDistribution.map((entry, index) => {
+                                                    const pct = totalServiceValue > 0 ? ((entry.value / totalServiceValue) * 100).toFixed(1) : 0;
+                                                    return (
+                                                        <div key={entry.type} className="flex items-center gap-2 py-0.5 leading-relaxed">
+                                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }} />
+                                                            <span className="text-[11px] text-slate-600 flex-1">{SERVICE_LABELS[entry.type] || entry.name}</span>
+                                                            <span className="text-[11px] font-semibold text-slate-700 shrink-0">{pct}%</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

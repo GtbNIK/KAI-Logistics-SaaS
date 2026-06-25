@@ -130,7 +130,7 @@ export const getDashboardSummary = async (req, res) => {
         // --- CHART DATA ---
         // El chartRange es independiente: cuántos meses hacia atrás mostrar
         const chartRange = parseInt(req.query.chartRange) || 1;
-        const chartStart = chartRange === 1 ? startDate : subMonths(now, chartRange);
+        const chartStart = chartRange === 1 ? startDate : subMonths(startOfMonth(now), chartRange - 1);
         const chartEnd = chartRange === 1 ? endDate : now;
 
         const quotesChartQuery = {
@@ -182,7 +182,7 @@ export const getDashboardSummary = async (req, res) => {
 
         // --- DONUT: Distribución de servicios en Avisos de Cobro ---
         const donutRange = parseInt(req.query.donutRange) || 1;
-        const donutStart = subMonths(now, donutRange);
+        const donutStart = subMonths(startOfMonth(now), donutRange - 1);
         const donutEnd = now;
 
         // Buscamos items directamente de los Avisos de Cobro creados en ese rango
@@ -262,14 +262,29 @@ export const getMonthlyReportData = async (req, res) => {
         // Ingresos -> Transacciones de CXC
         const rxTransactions = await prisma.paymentTransaction.findMany({
             where: { createdAt: dateFilter },
-            include: { receivable: { select: { number: true } } }
+            include: {
+                receivable: {
+                    select: {
+                        number: true,
+                        client: { select: { name: true } }
+                    }
+                }
+            }
         });
         const totalIngresos = rxTransactions.reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
 
         // Egresos -> Transacciones de CXP
         const pxTransactions = await prisma.payableTransaction.findMany({
             where: { date: dateFilter },
-            include: { payable: { select: { number: true } } }
+            include: {
+                payable: {
+                    select: {
+                        number: true,
+                        ally: { select: { name: true } },
+                        svcProvider: { select: { name: true } }
+                    }
+                }
+            }
         });
         const totalEgresos = pxTransactions.reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
 
@@ -278,13 +293,15 @@ export const getMonthlyReportData = async (req, res) => {
                 ...t,
                 typeStr: 'INGRESO (CXC)',
                 recordDate: t.createdAt || t.date,
-                accountNumber: t.receivable?.number ? `CXC-${t.receivable.number}` : 'N/A'
+                accountNumber: t.receivable?.number ? `CXC-${t.receivable.number}` : 'N/A',
+                counterparty: t.receivable?.client?.name || 'N/A'
             })),
             ...pxTransactions.map(t => ({
                 ...t,
                 typeStr: 'EGRESO (CXP)',
                 recordDate: t.date,
-                accountNumber: t.payable?.number ? `CXP-${t.payable.number}` : 'N/A'
+                accountNumber: t.payable?.number ? `CXP-${t.payable.number}` : 'N/A',
+                counterparty: t.payable?.ally?.name || t.payable?.svcProvider?.name || 'N/A'
             }))
         ].sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
 
