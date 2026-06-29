@@ -148,6 +148,8 @@ const Shipments = () => {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
     const [preAlertaShipment, setPreAlertaShipment] = useState(null);
+    const [page, setPage] = useState(1);
+    const pageSize = 10;
     const { showSuccess } = useToast();
     const { settings } = useSettings();
     const { user } = useAuth();
@@ -163,6 +165,7 @@ const Shipments = () => {
 
     useEffect(() => {
         setTypeFilter(activeTab);
+        setPage(1);
     }, [activeTab, setTypeFilter]);
 
     const totalsByType = useMemo(() => ({
@@ -170,6 +173,14 @@ const Shipments = () => {
         D2D: allItems.filter(i => i.type === 'D2D').length,
         CONSOLIDADO: allItems.filter(i => i.type === 'CONSOLIDADO').length,
     }), [allItems]);
+
+    // Paginación local
+    const totalItems = items.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    const paginatedItems = useMemo(
+        () => items.slice((page - 1) * pageSize, page * pageSize),
+        [items, page, pageSize]
+    );
 
     // Auto-open modal if URL contains ?id=
     useAutoOpenModal(setViewingShipment, shipmentService.getShipment);
@@ -307,10 +318,14 @@ const Shipments = () => {
                 columns={buildShipmentColumns(activeTab)}
                 entityName={shipmentConfig.entityName}
                 entityNamePlural={shipmentConfig.entityNamePlural}
-                items={items}
+                items={paginatedItems}
                 loading={loading}
                 search={search}
-                onSearchChange={setSearch}
+                onSearchChange={(v) => { setSearch(v); setPage(1); }}
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                onPageChange={setPage}
                 searchPlaceholder="Buscar embarques por número, cliente...."
                 onView={setViewingShipment}
                 onEdit={(s) => setFormModal({ open: true, shipment: s })}

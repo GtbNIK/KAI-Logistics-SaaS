@@ -74,7 +74,7 @@ export const generatePreAlertaPdf = async (shipment, images = [], currentUser, s
     try {
         const logoUrl = settings?.logoUrl || '/1.png';
         const logoImg = await loadImage(logoUrl);
-        const logoBase64 = await resizeImage(logoImg, { maxWidth: 200, maxHeight: 100, format: 'png' });
+        const logoBase64 = await resizeImage(logoImg, { maxWidth: 1200, maxHeight: 600, format: 'png' });
         const logoWidthMm = 45;
         const logoHeightMm = logoWidthMm * (logoImg.height / logoImg.width);
         doc.addImage(logoBase64, 'PNG', margin, y, logoWidthMm, logoHeightMm);
@@ -298,7 +298,7 @@ export const generatePreAlertaPdf = async (shipment, images = [], currentUser, s
     }
 
     // Guardar PDF
-    const fileName = `PREALERTA_${getWarehouseNumber(shipment)}_${today.replace(/\//g, '-')}.pdf`;
+    const fileName = `PREALERTA_WH${getWarehouseNumber(shipment)}_${today.replace(/\//g, '-')}.pdf`;
     doc.save(fileName);
     return fileName;
 };

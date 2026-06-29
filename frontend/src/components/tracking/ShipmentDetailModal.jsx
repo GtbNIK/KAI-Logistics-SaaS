@@ -251,17 +251,19 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit, onGeneratePreAlerta })
                     <button onClick={onClose} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors">
                         Cerrar
                     </button>
-                    <button onClick={onGeneratePreAlerta}
-                        style={{ backgroundColor: settings?.primaryColor || '#0e48e9' }}
-                        className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg transition-all hover:opacity-90 active:scale-95">
-                        <FileWarning size={16} /> Generar PRE-ALERTA
-                    </button>
+
                     {s.status !== 'DELIVERED' && (
                         <button onClick={onEdit}
                             className="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-sky-600/20 transition-all active:scale-95">
                             Editar
                         </button>
                     )}
+
+                    <button onClick={onGeneratePreAlerta}
+                        style={{ backgroundColor: settings?.primaryColor || '#0e48e9' }}
+                        className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg transition-all hover:opacity-90 active:scale-95">
+                        <FileWarning size={16} /> Generar PRE-ALERTA
+                    </button>
                 </div>
             </div>
         </div>,
