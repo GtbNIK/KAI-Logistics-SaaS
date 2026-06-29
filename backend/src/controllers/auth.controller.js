@@ -9,7 +9,7 @@ import { generateToken } from '../utils/jwt.js';
  */
 export const register = async (req, res) => {
     try {
-        const { email, password, name, role } = req.body;
+        const { email, password, name, phoneNumber, role } = req.body;
 
         // Validar campos requeridos
         if (!email || !password || !name || !role) {
@@ -40,12 +40,14 @@ export const register = async (req, res) => {
                 email,
                 password: hashedPassword,
                 name,
+                phoneNumber: phoneNumber || null,
                 role
             },
             select: {
                 id: true,
                 email: true,
                 name: true,
+                phoneNumber: true,
                 role: true,
                 createdAt: true
             }
@@ -196,6 +198,7 @@ export const getMe = async (req, res) => {
                 id: true,
                 email: true,
                 name: true,
+                phoneNumber: true,
                 role: true,
                 createdAt: true
             }
@@ -233,6 +236,7 @@ export const getUsers = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
+                phoneNumber: true,
                 role: true,
                 isActive: true
             },
@@ -258,15 +262,16 @@ export const getUsers = async (req, res) => {
 export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, email, role } = req.body;
+        const { name, email, phoneNumber, role } = req.body;
 
         const updatedUser = await prisma.user.update({
             where: { id },
-            data: { name, email, role },
+            data: { name, email, phoneNumber: phoneNumber || null, role },
             select: {
                 id: true,
                 name: true,
                 email: true,
+                phoneNumber: true,
                 role: true
             }
         });

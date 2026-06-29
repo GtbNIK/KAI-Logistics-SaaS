@@ -78,6 +78,7 @@ model User {
   email     String   @unique
   password  String   // Hashed
   name      String
+  phoneNumber String?  
   role      UserRole
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -537,6 +538,13 @@ model Shipment {
   shippingLineRel ShippingLine? @relation(fields: [shippingLineId], references: [id])
   status          ShipmentStatus @default(PENDING)
   currentLocation String?  // Para futura vista pública de tracking
+
+  // Campos de Pre-Alerta
+  tracking        String?  // Número de tracking del paquete
+  pVol            Decimal? @db.Decimal(10, 2) // Peso por volumen
+  pMax            Decimal? @db.Decimal(10, 2) // Peso máximo
+  value           Decimal? @db.Decimal(10, 2) // Valor declarado
+  dimensions      String?  // Dimensiones descriptivas
 
   // Cliente (FK + nombre denormalizado)
   clientId        String?

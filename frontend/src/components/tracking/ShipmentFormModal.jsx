@@ -82,6 +82,12 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         clientName: '',
         vendedorId: '',
         currentLocation: '',
+        // Pre-Alerta
+        tracking: '',
+        pVol: '',
+        pMax: '',
+        value: '',
+        dimensions: '',
         // FCL
         containerType: '', // DEPRECADO
         containerQty: '', // DEPRECADO
@@ -161,6 +167,11 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 clientName: shipment.clientName || '',
                 vendedorId: shipment.vendedorId || '',
                 currentLocation: shipment.currentLocation || '',
+                tracking: shipment.tracking || '',
+                pVol: shipment.pVol || '',
+                pMax: shipment.pMax || '',
+                value: shipment.value || '',
+                dimensions: shipment.dimensions || '',
                 containerType: shipment.containerType || '',
                 containerQty: shipment.containerQty || '',
                 containers: shipment.containers && shipment.containers.length > 0 
@@ -686,6 +697,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     placeholder="Ej: En tránsito - Puerto de Shanghai" />
                             </div>
 
+
                             {/* ── Campos FCL ── */}
                             {form.type === 'FCL' && (
                                 <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100 space-y-4">
@@ -1119,6 +1131,50 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     )}
                                 </div>
                             )}
+
+                            {/* ── Datos de Pre-Alerta ── */}
+                            <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100 space-y-4">
+                                <h4 className="text-sm font-semibold text-amber-700 flex items-center gap-2">
+                                    <Package size={16} /> Datos de Pre-Alerta (opcionales)
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Nro. Tracking</label>
+                                        <input type="text" value={form.tracking}
+                                            onChange={e => handleChange('tracking', e.target.value)}
+                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-200"
+                                            placeholder="Ej: 1Z999AA10123456784" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Dimensiones</label>
+                                        <input type="text" value={form.dimensions}
+                                            onChange={e => handleChange('dimensions', e.target.value)}
+                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                                            placeholder="Ej: 71x40x20 cm" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Peso por Volumen (pVol)</label>
+                                        <input type="number" step="0.01" value={form.pVol}
+                                            onChange={e => handleChange('pVol', e.target.value)}
+                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                                            placeholder="0.00" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Peso Máximo (pMax)</label>
+                                        <input type="number" step="0.01" value={form.pMax}
+                                            onChange={e => handleChange('pMax', e.target.value)}
+                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                                            placeholder="0.00" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Valor declarado</label>
+                                        <input type="number" step="0.01" value={form.value}
+                                            onChange={e => handleChange('value', e.target.value)}
+                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                                            placeholder="0.00" />
+                                    </div>
+                                </div>
+                            </div>
                         </>
                     )}
                 </form>

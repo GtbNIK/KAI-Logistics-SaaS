@@ -8,7 +8,7 @@ import authService from '../../services/auth.service';
 import {
     Save, Briefcase, Users, Key, Palette,
     FileText, Image, UserPlus, Mail, Lock,
-    User, ShieldCheck, Eye, EyeOff, X, Upload, Trash2
+    User, ShieldCheck, Eye, EyeOff, X, Upload, Trash2, Phone
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────
@@ -41,6 +41,14 @@ const getUserFormSections = (isNew) => [
                 required: true,
                 icon: Mail,
                 placeholder: 'usuario@empresa.com',
+            },
+            {
+                name: 'phoneNumber',
+                label: 'Teléfono',
+                type: 'text',
+                required: false,
+                icon: Phone,
+                placeholder: '+58 412 123 4567',
             },
             {
                 name: 'role',
@@ -119,6 +127,13 @@ const UserViewModal = ({ isOpen, onClose, user }) => {
                             <div>
                                 <p className="text-xs text-slate-400 font-medium">Correo electrónico</p>
                                 <p className="text-sm text-slate-700 font-medium">{user.email}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                            <Phone size={16} className="text-slate-400 shrink-0" />
+                            <div>
+                                <p className="text-xs text-slate-400 font-medium">Teléfono</p>
+                                <p className="text-sm text-slate-700 font-medium">{user.phoneNumber || 'No especificado'}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">

@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
 import { dateToStringHelper } from '../../utils/dateHelpers';
+import { resizePngDataUrl } from '../../utils/imageHelpers';
 import axios from 'axios';
 
 const DEFAULT_LOGO = '/1.png';
@@ -20,26 +21,6 @@ const hexToRgb = (hex) => {
         g: parseInt(result[2], 16),
         b: parseInt(result[3], 16)
     } : { r: 0, g: 51, b: 102 };
-};
-
-// Redimensionar PNG manteniendo proporción
-const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
-    const srcW = img.naturalWidth || img.width;
-    const srcH = img.naturalHeight || img.height;
-    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
-    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
-    const scale = Math.min(scaleW, scaleH, 1);
-    const outW = Math.max(1, Math.floor(srcW * scale));
-    const outH = Math.max(1, Math.floor(srcH * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.clearRect(0, 0, outW, outH);
-    ctx.drawImage(img, 0, 0, outW, outH);
-    return canvas.toDataURL('image/png');
 };
 
 const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = {}) => {

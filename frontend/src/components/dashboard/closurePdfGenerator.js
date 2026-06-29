@@ -180,7 +180,7 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
                         height: chartRef.current.scrollHeight + 10 // Usar scrollHeight para capturar todo el contenido
                     });
                     const chartImgData = canvasToJpeg(canvas);
-                    // Aumentamos el tamaño de la gráfica de líneas al 85% del ancho útil para que se vea óptima y legible
+                    // Aumentamos el tamaño de la gráfica de líneas al 75% del ancho útil para que se vea óptima y legible
                     const finalWidth = usableWidth * 0.75;
                     const finalHeight = (canvas.height / canvas.width) * finalWidth;
                     const centeredX = margin + (usableWidth - finalWidth) / 2;

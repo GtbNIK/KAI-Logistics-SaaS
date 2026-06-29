@@ -56,8 +56,8 @@ export const getShipments = async (req, res) => {
                     }
                 },
                 containers: true,
-                aliado: { select: { id: true, name: true } },
-                d2dAliado: { select: { id: true, name: true } },
+                aliado: { select: { id: true, name: true, internalCode: true } },
+                d2dAliado: { select: { id: true, name: true, internalCode: true } },
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -97,8 +97,8 @@ export const getShipment = async (req, res) => {
                     }
                 },
                 containers: true,
-                aliado: { select: { id: true, name: true } },
-                d2dAliado: { select: { id: true, name: true } },
+                aliado: { select: { id: true, name: true, internalCode: true } },
+                d2dAliado: { select: { id: true, name: true, internalCode: true } },
             }
         });
 
@@ -123,6 +123,7 @@ export const createShipment = async (req, res) => {
             paymentNoticeId, type, blNumber, whNumber, bookingNumber,
             shippingLineId, airLineId, status, clientId, clientName,
             vendedorId, currentLocation,
+            tracking, pVol, pMax, value, dimensions,
             originPort, destPort, etd, eta,
             weight, quantity, cbm, d2dItemIds,
             // Nuevos campos FCL
@@ -172,6 +173,11 @@ export const createShipment = async (req, res) => {
             clientName: clientName || notice?.client?.name || null,
             vendedorId: vendedorId || null,
             currentLocation: currentLocation || null,
+            tracking: tracking || null,
+            pVol: pVol ? parseFloat(pVol) : null,
+            pMax: pMax ? parseFloat(pMax) : null,
+            value: value ? parseFloat(value) : null,
+            dimensions: dimensions || null,
             updatedById: req.user.id,
         };
 
@@ -268,6 +274,7 @@ export const updateShipment = async (req, res) => {
         const {
             blNumber, whNumber, bookingNumber, shippingLineId, airLineId, status,
             clientId, clientName, vendedorId, currentLocation,
+            tracking, pVol, pMax, value, dimensions,
             originPort, destPort, etd, eta,
             weight, quantity, cbm, d2dItemIds,
             // Nuevos campos FCL
@@ -295,6 +302,11 @@ export const updateShipment = async (req, res) => {
         if (clientName !== undefined) data.clientName = clientName || null;
         if (vendedorId !== undefined) data.vendedorId = vendedorId || null;
         if (currentLocation !== undefined) data.currentLocation = currentLocation || null;
+        if (tracking !== undefined) data.tracking = tracking || null;
+        if (pVol !== undefined) data.pVol = pVol ? parseFloat(pVol) : null;
+        if (pMax !== undefined) data.pMax = pMax ? parseFloat(pMax) : null;
+        if (value !== undefined) data.value = value ? parseFloat(value) : null;
+        if (dimensions !== undefined) data.dimensions = dimensions || null;
         if (originPort !== undefined) data.originPort = originPort || null;
         if (destPort !== undefined) data.destPort = destPort || null;
         if (etd !== undefined) data.etd = etd ? new Date(etd) : null;

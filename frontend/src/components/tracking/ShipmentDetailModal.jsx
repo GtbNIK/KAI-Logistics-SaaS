@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
-import { X, Container, Package, Ship, MapPin, Calendar, User, FileText, Anchor, Navigation, Plane } from 'lucide-react';
+import { X, Container, Package, Ship, MapPin, Calendar, User, FileText, Anchor, Navigation, Plane, FileWarning } from 'lucide-react';
+import { useSettings } from '../../context/SettingsContext';
 
 const STATUS_LABELS = {
     PENDING:             'Pendiente',
@@ -34,7 +35,8 @@ const InfoRow = ({ icon: Icon, label, value, mono }) => (
     </div>
 );
 
-const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
+const ShipmentDetailModal = ({ shipment, onClose, onEdit, onGeneratePreAlerta }) => {
+    const { settings } = useSettings();
     if (!shipment) return null;
     const s = shipment;
     const isFCL = s.type === 'FCL';
@@ -248,6 +250,11 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit }) => {
                 <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                     <button onClick={onClose} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors">
                         Cerrar
+                    </button>
+                    <button onClick={onGeneratePreAlerta}
+                        style={{ backgroundColor: settings?.primaryColor || '#0e48e9' }}
+                        className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg transition-all hover:opacity-90 active:scale-95">
+                        <FileWarning size={16} /> Generar PRE-ALERTA
                     </button>
                     {s.status !== 'DELIVERED' && (
                         <button onClick={onEdit}

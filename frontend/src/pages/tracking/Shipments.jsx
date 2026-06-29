@@ -9,6 +9,7 @@ import { shipmentConfig, buildShipmentColumns } from '../../config/shipmentConfi
 import ShipmentDetailModal from '../../components/tracking/ShipmentDetailModal';
 import ChangeShipmentStatusModal from '../../components/tracking/ChangeShipmentStatusModal';
 import ShipmentFormModal from '../../components/tracking/ShipmentFormModal';
+import PreAlertaModal from '../../components/tracking/PreAlertaModal';
 import TrackingMonthlyCloseModal from '../../components/tracking/TrackingMonthlyCloseModal';
 import shipmentService from '../../services/shipment.service';
 import authService from '../../services/auth.service';
@@ -146,6 +147,7 @@ const Shipments = () => {
     const [deletingShipment, setDeletingShipment] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
+    const [preAlertaShipment, setPreAlertaShipment] = useState(null);
     const { showSuccess } = useToast();
     const { settings } = useSettings();
     const { user } = useAuth();
@@ -336,6 +338,17 @@ const Shipments = () => {
                     shipment={viewingShipment}
                     onClose={() => setViewingShipment(null)}
                     onEdit={() => handleEdit(viewingShipment)}
+                    onGeneratePreAlerta={() => setPreAlertaShipment(viewingShipment)}
+                />
+            )}
+
+            {/* Modal de Pre-Alerta */}
+            {preAlertaShipment && (
+                <PreAlertaModal
+                    isOpen={!!preAlertaShipment}
+                    onClose={() => setPreAlertaShipment(null)}
+                    shipment={preAlertaShipment}
+                    currentUser={user}
                 />
             )}
 
