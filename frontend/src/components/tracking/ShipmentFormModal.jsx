@@ -277,16 +277,25 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 err.etd = 'ETD no puede ser mayor que ETA';
             }
         }
+        // Validación de valores negativos
+        if (form.weight && parseFloat(form.weight) < 0) err.weight = 'No puede ser negativo';
+        if (form.quantity && parseFloat(form.quantity) < 0) err.quantity = 'No puede ser negativo';
+        if (form.cbm && parseFloat(form.cbm) < 0) err.cbm = 'No puede ser negativo';
+        if (form.pVol && parseFloat(form.pVol) < 0) err.pVol = 'No puede ser negativo';
+        if (form.pMax && parseFloat(form.pMax) < 0) err.pMax = 'No puede ser negativo';
+        if (form.value && parseFloat(form.value) < 0) err.value = 'No puede ser negativo';
         if (form.type === 'FCL') {
             if (!Array.isArray(form.containers) || form.containers.length === 0) err.containers = 'Agrega al menos un contenedor';
             if (Array.isArray(form.containers)) {
                 form.containers.forEach((c, i) => {
                     if (!c.containerType) err[`containers.${i}.containerType`] = 'Tipo requerido';
                     if (!c.quantity || c.quantity < 1) err[`containers.${i}.quantity`] = 'Cantidad >= 1';
+                    if (c.quantity && parseFloat(c.quantity) < 0) err[`containers.${i}.quantity`] = 'No puede ser negativo';
                 });
             }
             if (!form.originPort) err.originPort = 'Requerido';
             if (!form.destPort) err.destPort = 'Requerido';
+            if (form.originPort && form.destPort && form.originPort === form.destPort) err.samePorts = 'Puertos iguales';
             if (!form.etd) err.etd = 'Requerido';
             if (!form.eta) err.eta = 'Requerido';
             if (!form.aliadoId) err.aliadoId = 'Requerido';
@@ -324,6 +333,30 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 || v.d2dEta === 'ETA debe ser posterior o igual al ETD'
             ) {
                 showError('Fechas inválidas', 'ETD no puede ser mayor que ETA');
+            } else if (v.samePorts === 'Puertos iguales') {
+                showError('Puertos iguales', 'El puerto de Origen y el puerto de Destino son el mismo.');
+            } else if (
+                v.weight === 'No puede ser negativo'
+                || v.quantity === 'No puede ser negativo'
+                || v.cbm === 'No puede ser negativo'
+                || v.pVol === 'No puede ser negativo'
+                || v.pMax === 'No puede ser negativo'
+                || v.value === 'No puede ser negativo'
+                || Object.keys(v).some(key => key.startsWith('containers.') && v[key] === 'No puede ser negativo')
+            ) {
+                const negField = Object.keys(v).find(key => v[key] === 'No puede ser negativo');
+                const fieldNames = {
+                    weight: 'Peso',
+                    quantity: 'Cantidad',
+                    cbm: 'CBM',
+                    pVol: 'Peso por Volumen',
+                    pMax: 'Peso Máximo',
+                    value: 'Valor declarado',
+                };
+                const fieldName = negField?.startsWith('containers.') 
+                    ? 'Cantidad de contenedor' 
+                    : fieldNames[negField] || negField;
+                showError('Valor negativo', `El campo "${fieldName}" no puede ser negativo`);
             } else {
                 showError('Faltan datos', 'Revisa y llena los campos obligatorios marcados en rojo.');
             }

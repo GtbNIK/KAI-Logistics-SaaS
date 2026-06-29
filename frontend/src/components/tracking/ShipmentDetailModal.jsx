@@ -180,18 +180,20 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit, onGeneratePreAlerta })
                                 <h3 className="text-xs font-semibold text-teal-400 uppercase tracking-wider mb-3">
                                     Datos Door to Door
                                 </h3>
-                                <InfoRow icon={FileText} label="Tipo transporte" value={s.transportType === 'aereo' ? 'Aéreo' : 'Naviera'} />
-                                <InfoRow icon={MapPin} label="Puerto Origen" value={s.originPort} />
-                                <InfoRow icon={MapPin} label="Lugar de entrega" value={s.deliveryPlace} />
-                                <InfoRow icon={Package} label="Peso (kg)" value={s.weight ? `${parseFloat(s.weight)} kg` : null} />
-                                <InfoRow icon={Package} label="Cantidad" value={s.quantity} />
-                                <InfoRow icon={Package} label="CBM" value={s.cbm ? parseFloat(s.cbm) : null} />
-                                <InfoRow icon={FileText} label="CST" value={s.cst} />
-                                <InfoRow icon={FileText} label="Nro. Consolidado" value={s.consolidadoManual} />
-                                <InfoRow icon={Calendar} label="ETD — Salida estimada" value={formatDate(s.etd)} />
-                                <InfoRow icon={Calendar} label="ETA — Llegada estimada" value={formatDate(s.d2dEta)} />
-                                <InfoRow icon={Calendar} label="TT (días)" value={s.d2dTransitTime} />
-                                <InfoRow icon={User} label="Aliado" value={s.d2dAliado?.name} />
+                                <div className="grid grid-cols-2 gap-x-4">
+                                    <InfoRow icon={FileText} label="Tipo transporte" value={s.transportType === 'aereo' ? 'Aéreo' : 'Naviera'} />
+                                    <InfoRow icon={MapPin} label="Puerto Origen" value={s.originPort} />
+                                    <InfoRow icon={MapPin} label="Lugar de entrega" value={s.deliveryPlace} />
+                                    <InfoRow icon={Package} label="Peso (kg)" value={s.weight ? `${parseFloat(s.weight)} kg` : null} />
+                                    <InfoRow icon={Package} label="Cantidad" value={s.quantity} />
+                                    <InfoRow icon={Package} label="CBM" value={s.cbm ? parseFloat(s.cbm) : null} />
+                                    <InfoRow icon={FileText} label="CST" value={s.cst} />
+                                    <InfoRow icon={FileText} label="Nro. Consolidado" value={s.consolidadoManual} />
+                                    <InfoRow icon={Calendar} label="ETD — Salida estimada" value={formatDate(s.etd)} />
+                                    <InfoRow icon={Calendar} label="ETA — Llegada estimada" value={formatDate(s.d2dEta)} />
+                                    <InfoRow icon={Calendar} label="TT (días)" value={s.d2dTransitTime} />
+                                    <InfoRow icon={User} label="Aliado" value={s.d2dAliado?.name} />
+                                </div>
                             </div>
                         )}
 
@@ -205,6 +207,27 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit, onGeneratePreAlerta })
                                 <InfoRow icon={Calendar} label="ETD — Salida estimada" value={formatDate(s.etd)} />
                                 <InfoRow icon={Calendar} label="ETA — Llegada estimada" value={formatDate(s.eta)} />
                                 <InfoRow icon={Calendar} label="TT (días)" value={s.consolidadoTransitTime} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Datos de Pre-Alerta */}
+                    <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100">
+                        <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <FileWarning size={14} /> Datos de Pre-Alerta
+                        </h3>
+                        {(s.tracking || s.dimensions || s.pVol || s.pMax || s.value) ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4">
+                                <InfoRow icon={FileText} label="Tracking" value={s.tracking} mono />
+                                <InfoRow icon={Package} label="Dimensiones" value={s.dimensions} />
+                                <InfoRow icon={Package} label="Peso por Volumen (pVol)" value={s.pVol ? `${parseFloat(s.pVol)} kg` : null} />
+                                <InfoRow icon={Package} label="Peso Máximo (pMax)" value={s.pMax ? `${parseFloat(s.pMax)} kg` : null} />
+                                <InfoRow icon={FileText} label="Valor declarado" value={s.value ? `$${parseFloat(s.value).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null} />
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 py-3 text-amber-700 bg-amber-100/50 rounded-lg px-3">
+                                <FileWarning size={16} />
+                                <p className="text-sm">El embarque aún no tiene datos de Pre-Alerta, para agregarlos pulse el botón "Editar"</p>
                             </div>
                         )}
                     </div>

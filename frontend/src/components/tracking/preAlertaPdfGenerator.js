@@ -216,6 +216,13 @@ export const generatePreAlertaPdf = async (shipment, images = [], currentUser, s
         return row[col.key] || '—';
     }));
 
+    // ── Encabezado de tabla ──
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 64, 175);
+    doc.text('PAQUETES FINALES', pageWidth / 2, y, { align: 'center' });
+    y += 6;
+
     // ── Tabla ──
     autoTable(doc, {
         startY: y,
