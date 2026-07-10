@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
 import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
+import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
 import airlineService from '../../services/airline.service';
 
 const STATUS_OPTIONS = [
@@ -1014,15 +1015,33 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Items / Servicios <span className="text-red-500">*</span></label>
                                         <Select
                                             isMulti
-                                            options={d2dItems.map(item => ({ value: item.id, label: item.description }))}
+                                            options={(() => {
+                                                const base = d2dItems.map(item => ({ value: item.id, label: item.description }));
+                                                return user?.role === 'ADMIN'
+                                                    ? [...base, { value: 'NEW', label: '+ Agregar nuevo item', isAction: true }]
+                                                    : base;
+                                            })()}
                                             value={d2dItems.filter(item => form.d2dItemIds.includes(item.id)).map(item => ({ value: item.id, label: item.description }))}
                                             onChange={(selected) => {
+                                                const last = selected?.[selected.length - 1];
+                                                if (last?.value === 'NEW') {
+                                                    setQuickCreateType('D2D_ITEM');
+                                                    return;
+                                                }
                                                 const ids = selected ? selected.map(s => s.value) : [];
                                                 handleChange('d2dItemIds', ids);
                                             }}
                                             placeholder="Seleccionar items..."
                                             isClearable
-                                            styles={selectStyles}
+                                            styles={{
+                                                ...selectStyles,
+                                                option: (base, state) => ({
+                                                    ...base,
+                                                    color: state.data.isAction ? '#12284bff' : base.color,
+                                                    fontWeight: state.data.isAction ? 'bold' : base.fontWeight,
+                                                    borderTop: state.data.isAction ? '1px solid #e2e8f0' : 'none'
+                                                })
+                                            }}
                                             menuPortalTarget={document.body}
                                             menuPosition="fixed"
                                         />
@@ -1259,6 +1278,15 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 onSuccess={(newLine) => {
                     setAirLines(prev => [...prev, newLine.data].sort((a, b) => a.name.localeCompare(b.name)));
                     handleChange('airLineId', newLine.value);
+                    setQuickCreateType(null);
+                }}
+            />
+
+            <QuickCreateD2DItemModal
+                isOpen={quickCreateType === 'D2D_ITEM'}
+                onClose={() => setQuickCreateType(null)}
+                onSuccess={(newItem) => {
+                    setD2dItems(prev => [...prev, { id: newItem.value, description: newItem.label }].sort((a, b) => a.description.localeCompare(b.description)));
                     setQuickCreateType(null);
                 }}
             />

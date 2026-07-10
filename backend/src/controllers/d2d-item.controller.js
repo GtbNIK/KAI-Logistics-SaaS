@@ -55,6 +55,9 @@ export const createD2DItem = async (req, res) => {
 			data: { description: finalDescription }
 		});
 
+		// Invalidar caché para que el nuevo item sea visible de inmediato
+		D2D_ITEMS_CACHE = { data: null, timestamp: 0 };
+
 		res.status(201).json(created);
 	} catch (error) {
 		console.error('Error in createD2DItem:', error);
