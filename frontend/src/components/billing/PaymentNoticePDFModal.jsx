@@ -122,6 +122,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 : (zonaPart ? zonaPart.replace('Zona: ', '').trim() : '-');
 
             const isFclService = ['FCL_20', 'FCL_40', 'FCL_40HC'].includes(serviceType);
+            const isDoorToDoor = serviceType === 'DOOR_TO_DOOR';
             const carrierCode = isFclService ? (item.shippingLine?.code || '-') : '-';
             const quantity = Number(item.quantity) || 0;
             const unitPrice = Number(item.unitPrice) || 0;
@@ -137,7 +138,8 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 carrierCode,
                 quantity,
                 unitPrice,
-                subtotal
+                subtotal,
+                isDoorToDoor
             };
         });
     };
@@ -284,7 +286,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 item.service,
                 item.destination,
                 item.carrierCode,
-                item.quantity,
+                `${item.quantity}${item.isDoorToDoor ? ' CBM' : ''}`,
                 `$${item.unitPrice.toFixed(2)}`,
                 `$${item.subtotal.toFixed(2)}`
             ]);
@@ -527,7 +529,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                                 <td className="py-2 px-3">{item.service}</td>
                                                 <td className="py-2 px-3">{item.destination}</td>
                                                 <td className="py-2 px-3 text-center">{item.carrierCode}</td>
-                                                <td className="py-2 px-3 text-center">{item.quantity}</td>
+                                                <td className="py-2 px-3 text-center">{item.quantity}{item.isDoorToDoor ? ' CBM' : ''}</td>
                                                 <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
                                                 <td className="py-2 px-3 text-right font-semibold">${item.subtotal.toFixed(2)}</td>
                                             </tr>
