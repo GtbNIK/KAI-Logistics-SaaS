@@ -112,6 +112,7 @@ model Client {
   // Nuevos campos solicitados
   clientDetails    String?  // Descripción de lo que hace o pide comúnmente
   deactivationNote String?  @db.Text // Nota al desactivar
+  creditBalance    Decimal  @default(0) @db.Decimal(10, 2) // Saldo a favor del cliente por sobrepagos
   
   isActive       Boolean  @default(true) // Para inactivar clientes
   deletedAt      DateTime? // Soft delete
@@ -714,6 +715,7 @@ model PaymentTransaction {
   receivable    Receivable  @relation(fields: [receivableId], references: [id])
   
   amount        Decimal     @db.Decimal(10, 2)
+  overpaymentApplied Decimal? @db.Decimal(10, 2) // Porción del pago que fue a saldo a favor del cliente
   date          DateTime    @default(now())
   method        String      // "EFECTIVO USD", "TRANSFERENCIA", "TRANSFERENCIA INTERNACIONAL", "PAGO MÓVIL", "BINANCE (USDT)", "ZELLE", "OTRO"
   reference     String?

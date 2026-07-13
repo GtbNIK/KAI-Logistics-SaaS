@@ -118,6 +118,15 @@ export const convertFromQuote = async (req, res) => {
             return res.status(400).json({ message: 'Esta cotización ya tiene un Aviso de Cobro generado', paymentNoticeId: existingNotice.id });
         }
 
+        // Obtener saldo a favor del cliente
+        const clientData = await prisma.client.findUnique({
+            where: { id: quote.clientId },
+            select: { creditBalance: true }
+        });
+        const creditAvailable = clientData ? Number(clientData.creditBalance) : 0;
+        const appliedCredit = Math.min(creditAvailable, Number(quote.totalAmount));
+        const remainingAmount = Number(quote.totalAmount) - appliedCredit;
+
         // 2. Transacción de base de datos para asegurar integridad
         const result = await prisma.$transaction(async (tx) => {
             // A. Crear PaymentNotice y PaymentNoticeItems
@@ -156,19 +165,36 @@ export const convertFromQuote = async (req, res) => {
                 }
             });
 
-            // B. Crear Receivable (Cuenta por cobrar)
-            await tx.receivable.create({
+            // B. Crear Receivable (Cuenta por cobrar) aplicando saldo a favor si existe
+            const receivable = await tx.receivable.create({
                 data: {
                     paymentNoticeId: paymentNotice.id,
                     clientId: quote.clientId,
                     totalAmount: quote.totalAmount,
-                    paidAmount: 0,
-                    balance: quote.totalAmount,
-                    status: 'PENDING'
+                    paidAmount: appliedCredit,
+                    balance: remainingAmount,
+                    status: remainingAmount <= 0 ? 'PAID' : 'PENDING'
                 }
             });
 
-            // C. Actualizar estado de la cotización
+            // C. Si se aplicó crédito, registrar transacción y actualizar saldo a favor
+            if (appliedCredit > 0) {
+                await tx.paymentTransaction.create({
+                    data: {
+                        receivableId: receivable.id,
+                        amount: appliedCredit,
+                        method: 'CREDIT_BALANCE',
+                        notes: `Saldo a favor aplicado automáticamente ($${appliedCredit.toFixed(2)})`
+                    }
+                });
+
+                await tx.client.update({
+                    where: { id: quote.clientId },
+                    data: { creditBalance: { decrement: appliedCredit } }
+                });
+            }
+
+            // D. Actualizar estado de la cotización
             await tx.quote.update({
                 where: { id: quote.id },
                 data: { status: 'CONVERTED' }
@@ -530,6 +556,15 @@ export const createPaymentNotice = async (req, res) => {
             return res.status(400).json({ message: 'El monto total debe ser mayor a 0' });
         }
 
+        // Obtener saldo a favor del cliente
+        const clientBal = await prisma.client.findUnique({
+            where: { id: clientId },
+            select: { creditBalance: true }
+        });
+        const creditAvail = clientBal ? Number(clientBal.creditBalance) : 0;
+        const appliedCredit = Math.min(creditAvail, totalAmount);
+        const remainingAmount = totalAmount - appliedCredit;
+
         // Transacción: crear PaymentNotice + Items + Receivable
         const result = await prisma.$transaction(async (tx) => {
             const paymentNotice = await tx.paymentNotice.create({
@@ -547,17 +582,34 @@ export const createPaymentNotice = async (req, res) => {
                 }
             });
 
-            // Crear Receivable asociado
-            await tx.receivable.create({
+            // Crear Receivable asociado, aplicando saldo a favor si existe
+            const receivable = await tx.receivable.create({
                 data: {
                     paymentNoticeId: paymentNotice.id,
                     clientId,
                     totalAmount,
-                    paidAmount: 0,
-                    balance: totalAmount,
-                    status: 'PENDING'
+                    paidAmount: appliedCredit,
+                    balance: remainingAmount,
+                    status: remainingAmount <= 0 ? 'PAID' : 'PENDING'
                 }
             });
+
+            // Si se aplicó crédito, registrar transacción y actualizar saldo a favor
+            if (appliedCredit > 0) {
+                await tx.paymentTransaction.create({
+                    data: {
+                        receivableId: receivable.id,
+                        amount: appliedCredit,
+                        method: 'CREDIT_BALANCE',
+                        notes: `Saldo a favor aplicado automáticamente ($${appliedCredit.toFixed(2)})`
+                    }
+                });
+
+                await tx.client.update({
+                    where: { id: clientId },
+                    data: { creditBalance: { decrement: appliedCredit } }
+                });
+            }
 
             return paymentNotice;
         });

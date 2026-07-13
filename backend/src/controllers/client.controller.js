@@ -422,7 +422,7 @@ export const getClientReceivablesSummary = async (req, res) => {
         }
 
         // Contar receivables activas (no pagadas completamente)
-        const [activeCount, totalBalance] = await Promise.all([
+        const [activeCount, totalBalance, clientInfo] = await Promise.all([
             prisma.receivable.count({
                 where: {
                     clientId: id,
@@ -435,12 +435,17 @@ export const getClientReceivablesSummary = async (req, res) => {
                     status: { in: ['PENDING', 'PARTIALLY_PAID'] }
                 },
                 _sum: { balance: true }
+            }),
+            prisma.client.findUnique({
+                where: { id },
+                select: { creditBalance: true }
             })
         ]);
 
         res.json({
             activeCount,
-            totalPendingBalance: totalBalance._sum.balance || 0
+            totalPendingBalance: totalBalance._sum.balance || 0,
+            creditBalance: clientInfo ? Number(clientInfo.creditBalance) : 0
         });
     } catch (error) {
         console.error('Error in getClientReceivablesSummary:', error);

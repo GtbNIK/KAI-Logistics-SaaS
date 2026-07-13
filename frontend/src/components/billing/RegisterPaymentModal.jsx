@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CreditCard, X, Plus } from 'lucide-react';
+import { CreditCard, X, Plus, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { getTodayLocal, toLocalISOString } from '../../utils/dateHelpers';
@@ -24,6 +24,8 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
     const [notes, setNotes] = useState('');
     const [date, setDate] = useState(getTodayLocal());
     const [loading, setLoading] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [pendingAmount, setPendingAmount] = useState(0);
     const { showSuccess, showError } = useToast();
 
     if (!receivable) return null;
@@ -31,11 +33,19 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
     const pendingBalance = Math.max(0, Number(pendingRaw.toFixed(2)));
     const client = receivable.paymentNotice?.client || receivable.client;
 
-    const handleSubmit = async (e) => {
+    const handleSubmitClick = (e) => {
         e.preventDefault();
         const normalizedAmount = parseFloat(String(amount).replace(',', '.'));
         if (!normalizedAmount || normalizedAmount <= 0) return showError('Validación', 'El monto debe ser mayor a 0');
-        if (normalizedAmount > pendingBalance + 0.000001) return showError('Validación', `No puede superar $${pendingBalance.toFixed(2)}`);
+        if (normalizedAmount > pendingBalance + 0.000001) {
+            setPendingAmount(normalizedAmount);
+            setShowConfirm(true);
+            return;
+        }
+        doSubmit(normalizedAmount);
+    };
+
+    const doSubmit = async (normalizedAmount) => {
         setLoading(true);
         try {
             await axios.post(`${API_URL}/receivables/${receivable.id}/payments`, {
@@ -48,8 +58,11 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
             showError('Error', error.response?.data?.message || 'No se pudo registrar el pago');
         } finally {
             setLoading(false);
+            setShowConfirm(false);
         }
     };
+
+    const overpaymentAmount = pendingAmount > 0 ? pendingAmount - pendingBalance : 0;
 
     return createPortal(
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -90,15 +103,15 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmitClick} className="p-6 space-y-4">
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-700">Monto a Abonar (USD)</label>
                         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary bg-slate-50">
                             <span className="text-slate-400 font-medium text-sm">$</span>
-                            <input type="number" step="0.01" min="0.01" max={Number(pendingBalance.toFixed(2))}
+                            <input type="number" step="0.01" min="0.01"
                                 value={amount} onChange={e => setAmount(e.target.value.replace(',', '.'))}
                                 className="flex-1 bg-transparent text-sm focus:outline-none text-slate-800 font-semibold"
-                                placeholder={`Máx. ${pendingBalance.toFixed(2)}`} required />
+                                placeholder="0.00" required />
                         </div>
                     </div>
                     <div className="space-y-1">
@@ -125,20 +138,51 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
                             className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50"
                             rows={2} placeholder="Información adicional del pago..." />
                     </div>
-                    <div className="pt-2 flex justify-end gap-3 border-t border-slate-100">
-                        <button type="button" onClick={onClose}
-                            className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm">
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={loading}
-                            className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-green-600/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 text-sm">
-                            {loading
-                                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                : <Plus size={16} />
-                            }
-                            Registrar Abono
-                        </button>
-                    </div>
+
+                    {showConfirm && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="text-amber-600 mt-0.5 shrink-0" size={20} />
+                                <div className="text-sm text-amber-800">
+                                    <p className="font-semibold mb-1">Estás a punto de registrar un sobrepago</p>
+                                    <p>El abono de <strong>${pendingAmount.toFixed(2)}</strong> supera el saldo pendiente (<strong>${pendingBalance.toFixed(2)}</strong>).</p>
+                                    <p className="mt-1">Se generará un <strong>saldo a favor de ${overpaymentAmount.toFixed(2)}</strong> para <strong>{client?.name}</strong> que se aplicará automáticamente a su próxima cuenta por cobrar.</p>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-3">
+                                <button type="button" onClick={() => setShowConfirm(false)}
+                                    className="px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 rounded-lg transition-colors">
+                                    Cancelar
+                                </button>
+                                <button type="button" onClick={() => doSubmit(pendingAmount)}
+                                    disabled={loading}
+                                    className="px-4 py-2 text-sm font-medium bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-70">
+                                    {loading
+                                        ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        : <Plus size={16} />
+                                    }
+                                    Confirmar Sobrepago
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {!showConfirm && (
+                        <div className="pt-2 flex justify-end gap-3 border-t border-slate-100">
+                            <button type="button" onClick={onClose}
+                                className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm">
+                                Cancelar
+                            </button>
+                            <button type="submit" disabled={loading}
+                                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-green-600/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 text-sm">
+                                {loading
+                                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    : <Plus size={16} />
+                                }
+                                Registrar Abono
+                            </button>
+                        </div>
+                    )}
                 </form>
             </div>
         </div>,

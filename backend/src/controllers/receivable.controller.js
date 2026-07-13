@@ -14,18 +14,51 @@ export const createReceivable = async (req, res) => {
             return res.status(400).json({ message: 'El monto total debe ser mayor a 0' });
         }
 
+        // Aplicar saldo a favor del cliente automáticamente
+        const client = await prisma.client.findUnique({
+            where: { id: clientId },
+            select: { creditBalance: true }
+        });
+
+        const creditAvailable = client ? Number(client.creditBalance) : 0;
+        const appliedCredit = Math.min(creditAvailable, amount);
+        const remainingAmount = amount - appliedCredit;
+
         const receivable = await prisma.receivable.create({
             data: {
                 paymentNoticeId: null,
                 clientId,
                 totalAmount: amount,
-                paidAmount: 0,
-                balance: amount,
-                status: 'PENDING',
+                paidAmount: appliedCredit,
+                balance: remainingAmount,
+                status: remainingAmount <= 0 ? 'PAID' : 'PENDING',
                 manualNotes: manualNotes || null
-            },
+            }
+        });
+
+        // Si se aplicó crédito, registrar transacción y actualizar saldo a favor
+        if (appliedCredit > 0) {
+            await prisma.$transaction(async (tx) => {
+                await tx.paymentTransaction.create({
+                    data: {
+                        receivableId: receivable.id,
+                        amount: appliedCredit,
+                        method: 'CREDIT_BALANCE',
+                        notes: `Saldo a favor aplicado automáticamente ($${appliedCredit.toFixed(2)})`
+                    }
+                });
+
+                await tx.client.update({
+                    where: { id: clientId },
+                    data: { creditBalance: { decrement: appliedCredit } }
+                });
+            });
+        }
+
+        const created = await prisma.receivable.findUnique({
+            where: { id: receivable.id },
             include: {
-                client: { select: { name: true, rifOrId: true } },
+                client: { select: { name: true, rifOrId: true, creditBalance: true } },
                 paymentNotice: {
                     select: {
                         number: true,
@@ -38,8 +71,10 @@ export const createReceivable = async (req, res) => {
         });
 
         res.status(201).json({
-            message: 'Cuenta por cobrar creada exitosamente',
-            data: receivable
+            message: appliedCredit > 0
+                ? `Cuenta por cobrar creada. Se aplicaron $${appliedCredit.toFixed(2)} de saldo a favor.`
+                : 'Cuenta por cobrar creada exitosamente',
+            data: created
         });
     } catch (error) {
         console.error('Error in createReceivable:', error);
@@ -157,12 +192,24 @@ export const deleteReceivablePayment = async (req, res) => {
         }
 
         const paymentAmount = Number(payment.amount);
+        const overpaymentAmount = payment.overpaymentApplied ? Number(payment.overpaymentApplied) : 0;
+
         const result = await prisma.$transaction(async (tx) => {
             if (payment.receipt) {
                 await tx.paymentReceipt.delete({ where: { id: payment.receipt.id } });
             }
 
             await tx.paymentTransaction.delete({ where: { id: payment.id } });
+
+            // Revertir saldo a favor si el pago generó sobrepago
+            if (overpaymentAmount > 0) {
+                await tx.client.update({
+                    where: { id: receivable.clientId },
+                    data: {
+                        creditBalance: { decrement: overpaymentAmount }
+                    }
+                });
+            }
 
             const newPaidAmount = Math.max(0, Number(receivable.paidAmount) - paymentAmount);
             const totalAmount = Number(receivable.totalAmount);
@@ -342,23 +389,23 @@ export const registerPayment = async (req, res) => {
             return res.status(400).json({ message: 'Esta cuenta ya está pagada en su totalidad' });
         }
 
-        // Validar que el pago no exceda el saldo
         const paymentAmount = Number(amount);
         const currentBalance = Number(receivable.balance);
-        
-        if (paymentAmount > currentBalance) {
-            return res.status(400).json({ 
-                message: 'El pago excede el saldo pendiente',
-                balance: currentBalance 
-            });
-        }
+        const totalAmount = Number(receivable.totalAmount);
 
-        const newPaidAmount = Number(receivable.paidAmount) + paymentAmount;
-        const newBalance = currentBalance - paymentAmount;
-        
-        let newStatus = 'PARTIALLY_PAID';
-        if (newBalance <= 0) {
+        // Permite sobrepagos: el excedente se convierte en saldo a favor del cliente
+        let newPaidAmount, newBalance, newStatus;
+        let overpaymentAmount = 0;
+
+        if (paymentAmount > currentBalance) {
+            overpaymentAmount = paymentAmount - currentBalance;
+            newPaidAmount = totalAmount;
+            newBalance = 0;
             newStatus = 'PAID';
+        } else {
+            newPaidAmount = Number(receivable.paidAmount) + paymentAmount;
+            newBalance = currentBalance - paymentAmount;
+            newStatus = newBalance <= 0 ? 'PAID' : 'PARTIALLY_PAID';
         }
 
         // Transacción para registrar el pago y actualizar la cuenta
@@ -368,6 +415,7 @@ export const registerPayment = async (req, res) => {
                 data: {
                     receivableId: receivable.id,
                     amount: paymentAmount,
+                    overpaymentApplied: overpaymentAmount > 0 ? overpaymentAmount : null,
                     method,
                     reference,
                     notes: notes || null,
@@ -397,14 +445,34 @@ export const registerPayment = async (req, res) => {
                 }
             });
 
+            // 4. Si hay sobrepago, acumular saldo a favor del cliente
+            if (overpaymentAmount > 0) {
+                await tx.client.update({
+                    where: { id: receivable.clientId },
+                    data: {
+                        creditBalance: { increment: overpaymentAmount }
+                    }
+                });
+            }
+
             return { payment, receipt, updatedReceivable };
         });
 
         // Generar notificación si la CXC ha sido pagada en su totalidad
         if (newStatus === 'PAID') {
+            let notificationMessage;
+            if (overpaymentAmount > 0) {
+                const clientData = await prisma.client.findUnique({
+                    where: { id: receivable.clientId },
+                    select: { creditBalance: true }
+                });
+                notificationMessage = `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada. Se generó un sobrepago de $${parseFloat(overpaymentAmount).toFixed(2)} → Saldo a favor del cliente: $${parseFloat(clientData.creditBalance).toFixed(2)}.`;
+            } else {
+                notificationMessage = `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada exitosamente ($${parseFloat(receivable.totalAmount).toFixed(2)}).`;
+            }
             await createNotification({
                 title: 'Cuenta por Cobrar Saldada',
-                message: `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada exitosamente ($${parseFloat(receivable.totalAmount).toFixed(2)}).`,
+                message: notificationMessage,
                 type: 'SUCCESS',
                 targetRoles: ['ADMIN'],
                 entityType: 'RECEIVABLE',

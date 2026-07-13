@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle, Clock } from 'lucide-react';
+import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle, Clock, Wallet } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 
@@ -100,6 +100,26 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                                 </p>
                                 <p className="text-xs text-red-600 mt-0.5">
                                     Saldo pendiente: <span className="font-bold">${Number(receivablesSummary.totalPendingBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Badge Saldo a Favor */}
+                {!loadingReceivables && receivablesSummary?.creditBalance > 0 && (
+                    <div className="mx-6 mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 bg-emerald-100 rounded-lg">
+                                <Wallet className="text-emerald-600" size={18} />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-semibold text-emerald-800">Saldo a Favor</p>
+                                <p className="text-xs text-emerald-600 mt-0.5">
+                                    El cliente tiene un saldo a favor de <span className="font-bold">${Number(receivablesSummary.creditBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </p>
+                                <p className="text-xs text-emerald-500 mt-0.5">
+                                    Se aplicará automáticamente a su próxima cuenta por cobrar.
                                 </p>
                             </div>
                         </div>
