@@ -199,7 +199,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                                             className={({ isActive }) => `
                                                                 block px-3 py-2 rounded-lg text-sm transition-all duration-200
                                                                 ${isActive 
-                                                                    ? 'bg-white/10 text-white font-medium shadow-inner' 
+                                                                    ? 'bg-secondary text-white font-medium shadow-lg shadow-secondary/20' 
                                                                     : 'text-white/50 hover:bg-white/5 hover:text-white'
                                                                 }
                                                             `}
@@ -221,7 +221,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                         className={({ isActive }) => `
                                             flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative
                                             ${isActive 
-                                                ? 'bg-white/10 text-white font-medium shadow-inner' 
+                                                ? 'bg-secondary text-white font-medium shadow-lg shadow-secondary/20' 
                                                 : 'text-white/60 hover:bg-white/5 hover:text-white'
                                             }
                                             ${!isOpen ? 'justify-center' : ''}
