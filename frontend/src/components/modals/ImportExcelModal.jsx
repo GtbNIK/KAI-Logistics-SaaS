@@ -63,11 +63,15 @@ const ImportExcelModal = ({ isOpen, onClose, onSuccess }) => {
                 for (let i = 0; i < data.length; i++) {
                     const row = data[i];
                     try {
+                        const rawPhone = String(row['Teléfono'] || row['telefono'] || row['Telefono'] || '');
+                        // Si el teléfono no comienza con '+' se normaliza asumiendo código de Venezuela (+58)
+                        const phone = rawPhone.startsWith('+') ? rawPhone : `+58${rawPhone}`;
+
                         await clientService.createClient({
                             name: row['Nombre'] || row['nombre'] || '',
                             rifOrId: row['RIF'] || row['rif'] || row['Cédula'] || '',
                             email: row['Email'] || row['email'] || '',
-                            phone: row['Teléfono'] || row['telefono'] || row['Telefono'] || '',
+                            phone,
                             contactPerson: row['Contacto'] || row['contacto'] || row['Persona de Contacto'] || '',
                             address: row['Dirección'] || row['direccion'] || row['Direccion'] || '',
                             deliveryAddress: row['Dirección de Entrega'] || row['direccion_entrega'] || row['Direccion Entrega'] || row['Dirección'] || '',
@@ -109,7 +113,7 @@ const ImportExcelModal = ({ isOpen, onClose, onSuccess }) => {
                 'Nombre': 'Ejemplo Empresa C.A.',
                 'RIF': 'J-12345678-9',
                 'Email': 'contacto@ejemplo.com',
-                'Teléfono': '+58 412 1234567',
+                'Teléfono': '+584121234567',
                 'Contacto': 'Juan Pérez',
                 'Dirección': 'Av. Principal, Edificio X, Piso 5',
                 'Dirección de Entrega': 'Av. Principal, Edificio X, Piso 5',

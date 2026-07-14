@@ -36,6 +36,8 @@ export const createClient = async (req, res) => {
         
         // Normalizar RIF/Cédula
         const normalizedRifOrId = normalizeRifOrId(rifOrId);
+        // Asegurar que phone sea string
+        const normalizedPhone = String(phone || '');
         
         // Verificar duplicados
         const existingClient = await prisma.client.findFirst({
@@ -43,7 +45,7 @@ export const createClient = async (req, res) => {
                 OR: [
                     { rifOrId: normalizedRifOrId },
                     { email },
-                    { phone }
+                    { phone: normalizedPhone }
                 ]
             }
         });
@@ -52,7 +54,7 @@ export const createClient = async (req, res) => {
             let field = 'datos';
             if (existingClient.rifOrId === normalizedRifOrId) field = 'RIF/Cédula';
             else if (existingClient.email === email) field = 'Email';
-            else if (existingClient.phone === phone) field = 'Teléfono';
+            else if (existingClient.phone === normalizedPhone) field = 'Teléfono';
             
             return res.status(400).json({ 
                 message: `Ya existe un cliente con ese ${field}` 
@@ -77,7 +79,7 @@ export const createClient = async (req, res) => {
                 name,
                 rifOrId: normalizedRifOrId,
                 email,
-                phone,
+                phone: normalizedPhone,
                 address,
                 deliveryAddress,
                 contactPerson,
@@ -239,6 +241,8 @@ export const updateClient = async (req, res) => {
 
         // Normalizar RIF/Cédula
         const normalizedRifOrId = normalizeRifOrId(rifOrId);
+        // Asegurar que phone sea string
+        const normalizedPhone = String(phone || '');
 
         const existingClient = await prisma.client.findUnique({ 
             where: { id },
@@ -256,13 +260,13 @@ export const updateClient = async (req, res) => {
         // Verificar duplicados SOLO si los valores cambiaron
         const rifChanged = normalizedRifOrId !== existingClient.rifOrId;
         const emailChanged = email !== existingClient.email;
-        const phoneChanged = phone !== existingClient.phone;
+        const phoneChanged = normalizedPhone !== existingClient.phone;
 
         if (rifChanged || emailChanged || phoneChanged) {
             const orConditions = [];
             if (rifChanged) orConditions.push({ rifOrId: normalizedRifOrId });
             if (emailChanged) orConditions.push({ email });
-            if (phoneChanged) orConditions.push({ phone });
+            if (phoneChanged) orConditions.push({ phone: normalizedPhone });
 
             const duplicate = await prisma.client.findFirst({
                 where: {
@@ -277,7 +281,7 @@ export const updateClient = async (req, res) => {
                 let field = 'datos';
                 if (rifChanged && duplicate.rifOrId === normalizedRifOrId) field = 'RIF/Cédula';
                 else if (emailChanged && duplicate.email === email) field = 'Email';
-                else if (phoneChanged && duplicate.phone === phone) field = 'Teléfono';
+                else if (phoneChanged && duplicate.phone === normalizedPhone) field = 'Teléfono';
                 
                 return res.status(400).json({ 
                     message: `Ya existe otro cliente con ese ${field}` 
@@ -301,7 +305,7 @@ export const updateClient = async (req, res) => {
                 name,
                 rifOrId: normalizedRifOrId,
                 email,
-                phone,
+                phone: normalizedPhone,
                 address,
                 deliveryAddress,
                 contactPerson,
