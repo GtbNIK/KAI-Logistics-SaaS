@@ -62,6 +62,17 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
         return 'text-slate-500';
     };
 
+    // Mapeo de roles a español
+    const roleLabels = {
+        ADMIN: 'Admin',
+        SALES: 'Ventas',
+        OPERATIONS: 'Operaciones',
+        ACCOUNTING: 'Contabilidad',
+        LOGISTICS: 'Logística',
+    };
+
+    const getRoleLabel = (role) => roleLabels[role] || role?.toLowerCase();
+
     // Mapeo simple de rutas a títulos
     const getPageTitle = (pathname) => {
         if (pathname === '/dashboard') return 'Resumen General';
@@ -236,7 +247,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                         >
                             <div className="text-right hidden md:block">
                                 <p className="text-sm font-medium text-slate-700 leading-none">{user?.name}</p>
-                                <p className="text-xs text-slate-400 mt-1 capitalize leading-none">{user?.role?.toLowerCase()}</p>
+                                <p className="text-xs text-slate-400 mt-1 capitalize leading-none">{getRoleLabel(user?.role)}</p>
                             </div>
                             <div className="h-9 w-9 bg-primary-dark/5 rounded-full flex items-center justify-center text-primary-dark font-bold border border-primary-dark/10">
                                 {user?.name?.charAt(0) || 'U'}
@@ -257,7 +268,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                 >
                                     <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 md:hidden">
                                         <p className="font-medium text-slate-700">{user?.name}</p>
-                                        <p className="text-xs text-slate-400 capitalize">{user?.role?.toLowerCase()}</p>
+                                        <p className="text-xs text-slate-400 capitalize">{getRoleLabel(user?.role)}</p>
                                     </div>
 
                                     <button 
