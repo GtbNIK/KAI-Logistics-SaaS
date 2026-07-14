@@ -723,7 +723,7 @@ const Settings = () => {
                         <button
                             onClick={handleSaveSettings}
                             disabled={saving}
-                            className="inline-flex items-center gap-2 bg-primary-dark hover:bg-primary text-white px-10 py-3 rounded-xl font-bold text-base transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40 disabled:opacity-50 disabled:transform-none transform hover:-translate-y-0.5"
+                            className="inline-flex items-center gap-2 bg-secondary hover:bg-orange-600 text-white px-10 py-3 rounded-xl font-bold text-base transition-all shadow-lg shadow-secondary/20 hover:shadow-secondary/40 disabled:opacity-50 disabled:transform-none transform hover:-translate-y-0.5"
                         >
                             <Save size={16} />
                             {saving ? 'Guardando...' : 'Guardar Cambios'}
