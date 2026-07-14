@@ -190,11 +190,15 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
             return;
         }
 
-        if (!formData.validUntil) {
-            showError('Campos requeridos', 'Selecciona una fecha de validez para la tarifa');
+        if (!formData.validFrom) {
+            showError('Campos requeridos', 'Selecciona una fecha de inicio de validez');
             return;
         }
-        if (formData.validFrom && new Date(formData.validUntil) <= new Date(formData.validFrom)) {
+        if (!formData.validUntil) {
+            showError('Campos requeridos', 'Selecciona una fecha de fin de validez');
+            return;
+        }
+        if (new Date(formData.validUntil) <= new Date(formData.validFrom)) {
             showError('Rango inválido', 'La fecha fin debe ser posterior a la fecha inicio');
             return;
         }
@@ -544,7 +548,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-slate-700 mb-1 block">
-                                        Válida desde
+                                        Válida desde <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="date" name="validFrom"
