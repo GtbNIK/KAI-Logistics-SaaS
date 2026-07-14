@@ -113,7 +113,7 @@ const ImportExcelModal = ({ isOpen, onClose, onSuccess }) => {
                 'Nombre': 'Ejemplo Empresa C.A.',
                 'RIF': 'J-12345678-9',
                 'Email': 'contacto@ejemplo.com',
-                'Teléfono': '+584121234567',
+                'Teléfono': '04121234567',
                 'Contacto': 'Juan Pérez',
                 'Dirección': 'Av. Principal, Edificio X, Piso 5',
                 'Dirección de Entrega': 'Av. Principal, Edificio X, Piso 5',
