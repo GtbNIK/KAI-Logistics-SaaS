@@ -280,7 +280,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
 
                     {/* Cliente */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Cliente *</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Cliente <span className="text-red-500">*</span></label>
                         <Select
                             options={filteredClients}
                             value={clientOptions.find(c => c.value === clientId) || null}
@@ -329,7 +329,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
 
                                         {/* Servicio */}
                                         <div>
-                                            <label className="text-xs text-slate-500 mb-1 block">Servicio *</label>
+                                            <label className="text-xs text-slate-500 mb-1 block">Servicio <span className="text-red-500">*</span></label>
                                             <Select
                                                 options={serviceOptions}
                                                 value={baseServiceOptions.find(o => o.value === item.serviceId) || null}
@@ -534,7 +534,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-xs text-slate-500">Precio Unit. (USD) *</label>
+                                                <label className="text-xs text-slate-500">Precio Unit. (USD) <span className="text-red-500">*</span></label>
                                                 <div className="flex items-center gap-1 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
                                                     <span className="text-slate-400 text-sm">$</span>
                                                     <input type="number" min="0" step="0.01" value={item.unitPrice}

@@ -114,6 +114,8 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
         if (!clientId) return showError('Error', 'Selecciona un cliente');
         if (!warehouseNumber.trim()) return showError('Error', 'El número de Warehouse es obligatorio');
         if (items.some(i => !i.description.trim())) return showError('Error', 'Todos los items deben tener descripción');
+        if (items.some(i => !i.weight || Number(i.weight) <= 0)) return showError('Error', 'Todos los items deben tener un peso válido (mayor a 0)');
+        if (items.some(i => !i.cbm || Number(i.cbm) <= 0)) return showError('Error', 'Todos los items deben tener un CBM válido (mayor a 0)');
 
         setSaving(true);
         try {
@@ -199,7 +201,7 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Número de Warehouse *</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Número de Warehouse <span className="text-red-500">*</span></label>
                         <input type="text" value={warehouseNumber} onChange={e => setWarehouseNumber(e.target.value)}
                             className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             placeholder="Ej: WH-12345" required />
@@ -266,13 +268,13 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
                                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                     </div>
                                     <div>
-									<label className="text-xs text-slate-400">Peso (KG)</label>
+									<label className="text-xs text-slate-400">Peso (KG) <span className="text-red-500">*</span></label>
 									<input type="number" min="0" step="0.01" value={item.weight}
 										onChange={e => updateItem(idx, 'weight', e.target.value)}
 										className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                     </div>
                                     <div>
-									<label className="text-xs text-slate-400">CBM</label>
+									<label className="text-xs text-slate-400">CBM <span className="text-red-500">*</span></label>
 									<input type="number" min="0" step="0.001" value={item.cbm}
 										onChange={e => updateItem(idx, 'cbm', e.target.value)}
 										className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
