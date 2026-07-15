@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { TrendingUp, X, Plus } from 'lucide-react';
+import { TrendingUp, X, Plus, Wallet } from 'lucide-react';
 import axios from 'axios';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
@@ -14,6 +14,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
     const [totalAmount, setTotalAmount] = useState('');
     const [manualNotes, setManualNotes] = useState('');
     const [saving, setSaving] = useState(false);
+    const [creditBalance, setCreditBalance] = useState(0);
     const { showSuccess, showError } = useToast();
     const isEdit = Boolean(receivable);
 
@@ -41,13 +42,25 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
             setClientInputValue('');
             setTotalAmount(receivable.totalAmount ? Number(receivable.totalAmount).toString() : '');
             setManualNotes(receivable.manualNotes || '');
+            setCreditBalance(0);
         } else {
             setClientId('');
             setClientInputValue('');
             setTotalAmount('');
             setManualNotes('');
+            setCreditBalance(0);
         }
     }, [isOpen, receivable]);
+
+    useEffect(() => {
+        if (!clientId || isEdit) {
+            setCreditBalance(0);
+            return;
+        }
+        axios.get(`${API_URL}/clients/${clientId}/receivables-summary`, { withCredentials: true })
+            .then(res => setCreditBalance(res.data.creditBalance || 0))
+            .catch(() => setCreditBalance(0));
+    }, [clientId, isEdit]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -129,6 +142,22 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
                             />
                         </div>
                     </div>
+
+                    {!isEdit && creditBalance > 0 && (
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                            <div className="flex items-start gap-3">
+                                <div className="p-1.5 bg-emerald-100 rounded-lg shrink-0">
+                                    <Wallet className="text-emerald-600" size={18} />
+                                </div>
+                                <div className="text-sm text-emerald-800">
+                                    <p className="font-semibold mb-0.5">Saldo a favor disponible</p>
+                                    <p>
+                                        Este cliente tiene un saldo a favor de <strong>${Number(creditBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>. Se agregará automáticamente como abono a esta cuenta por cobrar.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-700">Notas <span className="text-slate-400">(opcional)</span></label>
