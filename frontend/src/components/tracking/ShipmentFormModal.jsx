@@ -289,6 +289,21 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 err.etd = 'ETD no puede ser mayor que ETA';
             }
         }
+        // Validación de fecha de llegada real
+        if (form.arrivalDate) {
+            const arrival = new Date(form.arrivalDate);
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            if (arrival > today) {
+                err.arrivalDate = 'No puede ser mayor a la fecha de hoy';
+            }
+            if (form.etd) {
+                const etd = new Date(form.etd);
+                if (arrival < etd) {
+                    err.arrivalDate = 'No puede ser menor al ETD';
+                }
+            }
+        }
         // Validación de valores negativos
         if (form.weight && parseFloat(form.weight) < 0) err.weight = 'No puede ser negativo';
         if (form.quantity && parseFloat(form.quantity) < 0) err.quantity = 'No puede ser negativo';
@@ -345,6 +360,10 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 || v.d2dEta === 'ETA debe ser posterior o igual al ETD'
             ) {
                 showError('Fechas inválidas', 'ETD no puede ser mayor que ETA');
+            } else if (v.arrivalDate === 'No puede ser mayor a la fecha de hoy') {
+                showError('Fecha inválida', 'La fecha de llegada real no puede ser posterior a hoy');
+            } else if (v.arrivalDate === 'No puede ser menor al ETD') {
+                showError('Fecha inválida', 'La fecha de llegada real no puede ser anterior al ETD');
             } else if (v.samePorts === 'Puertos iguales') {
                 showError('Puertos iguales', 'El puerto de Origen y el puerto de Destino son el mismo.');
             } else if (
