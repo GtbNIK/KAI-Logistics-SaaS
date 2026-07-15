@@ -158,6 +158,15 @@ const ShipmentDetailModal = ({ shipment, onClose, onEdit, onGeneratePreAlerta })
                                 <InfoRow icon={FileText} label="Aviso de Cobro"
                                     value={`AVC-${String(s.paymentNotice.number || 0).padStart(5, '0')}`} />
                             )}
+                            {s.arrivalDate && (
+                                <div className="flex items-start gap-3 py-2.5 border-b border-slate-100 last:border-0">
+                                    <Calendar size={15} className="text-emerald-500 mt-0.5 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-emerald-500 mb-0.5 font-bold uppercase tracking-wider">Fecha de llegada real</p>
+                                        <p className="text-sm text-emerald-700 font-medium truncate">{formatDate(s.arrivalDate)}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Columna derecha: Datos específicos de tipo */}

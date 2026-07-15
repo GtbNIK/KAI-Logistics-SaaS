@@ -122,7 +122,7 @@ export const createShipment = async (req, res) => {
         const {
             paymentNoticeId, type, blNumber, whNumber, bookingNumber,
             shippingLineId, airLineId, status, clientId, clientName,
-            vendedorId, currentLocation,
+vendedorId, currentLocation, arrivalDate,
             tracking, pVol, pMax, value, dimensions,
             originPort, destPort, etd, eta,
             weight, quantity, cbm, d2dItemIds,
@@ -173,6 +173,7 @@ export const createShipment = async (req, res) => {
             clientName: clientName || notice?.client?.name || null,
             vendedorId: vendedorId || null,
             currentLocation: currentLocation || null,
+            arrivalDate: arrivalDate ? new Date(arrivalDate) : null,
             tracking: tracking || null,
             pVol: pVol ? parseFloat(pVol) : null,
             pMax: pMax ? parseFloat(pMax) : null,
@@ -273,7 +274,7 @@ export const updateShipment = async (req, res) => {
         const { id } = req.params;
         const {
             blNumber, whNumber, bookingNumber, shippingLineId, airLineId, status,
-            clientId, clientName, vendedorId, currentLocation,
+            clientId, clientName, vendedorId, currentLocation, arrivalDate,
             tracking, pVol, pMax, value, dimensions,
             originPort, destPort, etd, eta,
             weight, quantity, cbm, d2dItemIds,
@@ -302,6 +303,7 @@ export const updateShipment = async (req, res) => {
         if (clientName !== undefined) data.clientName = clientName || null;
         if (vendedorId !== undefined) data.vendedorId = vendedorId || null;
         if (currentLocation !== undefined) data.currentLocation = currentLocation || null;
+        if (arrivalDate !== undefined) data.arrivalDate = arrivalDate ? new Date(arrivalDate) : null;
         if (tracking !== undefined) data.tracking = tracking || null;
         if (pVol !== undefined) data.pVol = pVol ? parseFloat(pVol) : null;
         if (pMax !== undefined) data.pMax = pMax ? parseFloat(pMax) : null;

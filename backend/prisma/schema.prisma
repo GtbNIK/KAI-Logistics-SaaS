@@ -539,6 +539,7 @@ model Shipment {
   shippingLineRel ShippingLine? @relation(fields: [shippingLineId], references: [id])
   status          ShipmentStatus @default(PENDING)
   currentLocation String?  // Para futura vista pública de tracking
+  arrivalDate     DateTime? // Fecha de llegada real
 
   // Campos de Pre-Alerta
   tracking        String?  // Número de tracking del paquete

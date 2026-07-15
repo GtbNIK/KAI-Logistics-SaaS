@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Container, Package } from 'lucide-react';
+import { X, Loader2, Container, Package, Calendar } from 'lucide-react';
 import Select from 'react-select';
 import shipmentService from '../../services/shipment.service';
 import { useToast } from '../../context/ToastContext';
@@ -55,6 +55,15 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [quickCreateType, setQuickCreateType] = useState(null);
+    const [pulseArrival, setPulseArrival] = useState(false);
+    const arrivalRef = useRef(null);
+
+    const scrollToArrival = () => {
+        setPulseArrival(true);
+        arrivalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        arrivalRef.current?.querySelector('input')?.focus();
+        setTimeout(() => setPulseArrival(false), 1500);
+    };
 
     // Catálogos
     const [availableNotices, setAvailableNotices] = useState([]);
@@ -83,6 +92,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
         clientName: '',
         vendedorId: '',
         currentLocation: '',
+        arrivalDate: '',
         // Pre-Alerta
         tracking: '',
         pVol: '',
@@ -168,6 +178,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                 clientName: shipment.clientName || '',
                 vendedorId: shipment.vendedorId || '',
                 currentLocation: shipment.currentLocation || '',
+                arrivalDate: shipment.arrivalDate ? shipment.arrivalDate.slice(0, 10) : '',
                 tracking: shipment.tracking || '',
                 pVol: shipment.pVol || '',
                 pMax: shipment.pMax || '',
@@ -472,6 +483,22 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                         </div>
                     ) : (
                         <>
+                            {/* Banner de fecha de llegada (solo en edición y si no tiene fecha) */}
+                            {isEdit && !form.arrivalDate && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Calendar size={20} className="text-emerald-500 shrink-0" />
+                                        <p className="text-sm text-emerald-800 font-semibold">
+                                            Este embarque ya llegó a almacén? <span className="text-emerald-600">AGREGA SU FECHA DE LLEGADA</span>
+                                        </p>
+                                    </div>
+                                    <button type="button" onClick={scrollToArrival}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all active:scale-95">
+                                        Ir
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Tipo de embarque */}
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-2">Tipo de Embarque</label>
@@ -729,6 +756,14 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                     onChange={e => handleChange('currentLocation', e.target.value)}
                                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
                                     placeholder="Ej: En tránsito - Puerto de Shanghai" />
+                            </div>
+
+                            {/* Fecha de llegada real (visible para todos los tipos) */}
+                            <div ref={arrivalRef}>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Fecha de llegada real (opcional)</label>
+                                <input type="date" value={form.arrivalDate}
+                                    onChange={e => handleChange('arrivalDate', e.target.value)}
+                                    className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 ${pulseArrival ? 'ring-2 ring-emerald-400 border-emerald-400 animate-pulse' : 'border-slate-200'}`} />
                             </div>
 
 
