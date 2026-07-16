@@ -87,7 +87,7 @@ const addPageHeader = (doc, logoData, companyName, title, rgb, pageW) => {
 };
 
 // ─── PDF: generador principal ─────────────────────────────────────────────────
-export const generateMonthlyClosePDF = async ({ data, settings, chartsRef }) => {
+export const generateMonthlyClosePDF = async ({ data, settings, chartsRef, chartsByClientRef }) => {
     const companyName = settings?.companyName || 'ERP Logística';
     const primaryColor = settings?.primaryColor || '#0ea5e9';
     const logoUrl = settings?.logoUrl || '/1.png';
@@ -304,9 +304,9 @@ export const generateMonthlyClosePDF = async ({ data, settings, chartsRef }) => 
         });
     }
 
-    // ── Página 3: Gráficas ──
+    // ── Página 3: Gráficas por Vendedor ──
     doc.addPage();
-    addPageHeader(doc, logoData, companyName, `Gráficas — ${monthLabel}`, rgb, pageW);
+    addPageHeader(doc, logoData, companyName, `Gráficas por Vendedor — ${monthLabel}`, rgb, pageW);
 
     if (chartsRef?.current) {
         try {
@@ -321,11 +321,35 @@ export const generateMonthlyClosePDF = async ({ data, settings, chartsRef }) => 
             const imgH = (canvas.height / canvas.width) * imgW;
             doc.addImage(imgData, 'JPEG', 12, 32, imgW, Math.min(imgH, pageH - 48));
         } catch (err) {
-            console.warn('No se pudieron capturar las gráficas:', err);
+            console.warn('No se pudieron capturar las gráficas por vendedor:', err);
             doc.setFont('helvetica', 'italic');
             doc.setFontSize(10);
             doc.setTextColor(140, 140, 140);
             doc.text('Las gráficas no pudieron ser generadas.', pageW / 2, 50, { align: 'center' });
+        }
+    }
+
+    // ── Página 4: Gráficas por Cliente ──
+    if (chartsByClientRef?.current) {
+        doc.addPage();
+        addPageHeader(doc, logoData, companyName, `Gráficas por Cliente — ${monthLabel}`, rgb, pageW);
+        try {
+            const canvas = await html2canvas(chartsByClientRef.current, {
+                scale: 1.5,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false
+            });
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+            const imgW = pageW - 24;
+            const imgH = (canvas.height / canvas.width) * imgW;
+            doc.addImage(imgData, 'JPEG', 12, 32, imgW, Math.min(imgH, pageH - 48));
+        } catch (err) {
+            console.warn('No se pudieron capturar las gráficas por cliente:', err);
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(10);
+            doc.setTextColor(140, 140, 140);
+            doc.text('Las gráficas por cliente no pudieron ser generadas.', pageW / 2, 50, { align: 'center' });
         }
     }
 

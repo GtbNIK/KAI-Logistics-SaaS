@@ -196,6 +196,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
     const [generating, setGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState('d2d');
     const chartsRef = useRef(null);
+    const chartsByClientRef = useRef(null);
 
     const years = useMemo(
         () => Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i),
@@ -224,7 +225,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
         if (!data || generating) return;
         setGenerating(true);
         try {
-            await generateMonthlyClosePDF({ data, settings, chartsRef });
+            await generateMonthlyClosePDF({ data, settings, chartsRef, chartsByClientRef });
         } catch (e) {
             console.error('Error generating PDF:', e);
         } finally {
@@ -466,7 +467,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                 </div>
                             </div>
                             {/* Segunda fila: gráficas por cliente */}
-                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-stretch justify-center mt-6">
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start justify-center mt-6">
                                 {/* CBM total por cliente — D2D */}
                                 <div className="flex-1 border border-slate-200 rounded-xl p-4 flex flex-col">
                                     <p className="text-center mb-3 text-slate-600 text-sm font-semibold">
@@ -546,9 +547,9 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                             <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
                                                 {containersByClientChartData.filter(d => d.total > 0).map((item, idx) => {
                                                     const parts = [];
-                                                    if (item['20ft']) parts.push(`${item['20ft']} 20ft`);
-                                                    if (item['40ft']) parts.push(`${item['40ft']} 40ft`);
-                                                    if (item['40HC']) parts.push(`${item['40HC']} 40HC`);
+                                                    if (item['20ft']) parts.push(`${item['20ft']} - 20ft`);
+                                                    if (item['40ft']) parts.push(`${item['40ft']} - 40ft`);
+                                                    if (item['40HC']) parts.push(`${item['40HC']} - 40HC`);
                                                     return (
                                                         <li key={idx} className="flex items-center gap-1.5 text-[11.5px] text-slate-600">
                                                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
@@ -574,7 +575,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                 {/* Footer */}
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
                     <p className="text-xs text-slate-400">
-                        El PDF generará: Pág. 1 — D2D · Pág. 2 — FCL · Pág. 3 — Gráficas
+                        El PDF generará: Pág. 1 — D2D · Pág. 2 — FCL · Pág. 3 — Gráficas por Vendedor · Pág. 4 — Gráficas por Cliente
                     </p>
                     <div className="flex gap-3">
                         <button
@@ -628,7 +629,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                     }}>
                         Gráficas de Cierre — {monthLabel}
                     </h2>
-                    <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', minHeight: '380px' }}>
+                    <div style={{ display: 'flex', gap: '24px', justifyContent: 'center' }}>
                         {/* D2D CBM por vendedor */}
                         <div style={{ flex: 1 }}>
                             <p style={{
@@ -707,24 +708,50 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                             </BarChart>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Div oculto para captura de gráficas por cliente */}
+            {data && (
+                <div
+                    ref={chartsByClientRef}
+                    style={{
+                        position: 'fixed',
+                        top: '-10000px',
+                        left: '-10000px',
+                        width: '660px',
+                        padding: '24px',
+                        backgroundColor: '#ffffff',
+                        fontFamily: 'Helvetica, Arial, sans-serif'
+                    }}
+                >
+                    <h2 style={{
+                        textAlign: 'center',
+                        marginBottom: '16px',
+                        color: '#1e293b',
+                        fontSize: '15px',
+                        fontWeight: 'bold'
+                    }}>
+                        Gráficas por Cliente — {monthLabel}
+                    </h2>
 
                     {/* Segunda fila PDF: gráficas por cliente */}
-                    <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginTop: '28px', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'flex-start' }}>
                         {/* CBM total por cliente — D2D */}
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <p style={{ textAlign: 'center', marginBottom: '12px', color: '#475569', fontSize: '12px', fontWeight: '600' }}>
+                            <p style={{ textAlign: 'center', marginBottom: '10px', color: '#475569', fontSize: '12px', fontWeight: '600' }}>
                                 CBM Total por Cliente — D2D
                             </p>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                <PieChart width={280} height={220}>
+                                <PieChart width={240} height={180}>
                                     <Pie
                                         data={d2dByClientChartData.filter(d => d.CBM > 0)}
                                         dataKey="CBM"
                                         nameKey="name"
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={55}
-                                        outerRadius={85}
+                                        innerRadius={40}
+                                        outerRadius={70}
                                         startAngle={90}
                                         endAngle={-270}
                                         paddingAngle={d2dByClientChartData.filter(d => d.CBM > 0).length > 1 ? 3 : 0}
@@ -737,15 +764,15 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                 </PieChart>
                             </div>
                             {d2dByClientChartData.filter(d => d.CBM > 0).length > 0 && (
-                                <div style={{ marginTop: '16px', maxHeight: '160px', overflowY: 'auto' }}>
-                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 14px' }}>
+                                <div style={{ marginTop: '10px' }}>
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px 12px' }}>
                                         {(() => {
                                             const total = d2dByClientChartData.reduce((s, d) => s + d.CBM, 0);
                                             return d2dByClientChartData.filter(d => d.CBM > 0).map((item, idx) => {
                                                 const pct = total > 0 ? ((item.CBM || 0) / total * 100).toFixed(1) : '0.0';
                                                 return (
-                                                    <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#334155' }}>
-                                                        <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: CHART_COLORS[idx % CHART_COLORS.length], flexShrink: 0 }} />
+                                                    <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#334155' }}>
+                                                        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: CHART_COLORS[idx % CHART_COLORS.length], flexShrink: 0 }} />
                                                         <span><strong>{item.name}</strong>: {pct}% <span style={{ color: '#64748b' }}>({item.CBM.toFixed(2)} CBM)</span></span>
                                                     </li>
                                                 );
@@ -758,19 +785,19 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
 
                         {/* Contenedores por cliente */}
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <p style={{ textAlign: 'center', marginBottom: '12px', color: '#475569', fontSize: '12px', fontWeight: '600' }}>
+                            <p style={{ textAlign: 'center', marginBottom: '10px', color: '#475569', fontSize: '12px', fontWeight: '600' }}>
                                 Contenedores por Cliente
                             </p>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                <PieChart width={280} height={220}>
+                                <PieChart width={240} height={180}>
                                     <Pie
                                         data={containersByClientChartData.filter(d => d.total > 0)}
                                         dataKey="total"
                                         nameKey="name"
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={55}
-                                        outerRadius={85}
+                                        innerRadius={40}
+                                        outerRadius={70}
                                         startAngle={90}
                                         endAngle={-270}
                                         paddingAngle={containersByClientChartData.filter(d => d.total > 0).length > 1 ? 3 : 0}
@@ -783,16 +810,16 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                 </PieChart>
                             </div>
                             {containersByClientChartData.filter(d => d.total > 0).length > 0 && (
-                                <div style={{ marginTop: '16px', maxHeight: '160px', overflowY: 'auto' }}>
-                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 14px' }}>
+                                <div style={{ marginTop: '10px' }}>
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px 12px' }}>
                                         {containersByClientChartData.filter(d => d.total > 0).map((item, idx) => {
                                             const parts = [];
-                                            if (item['20ft']) parts.push(`${item['20ft']} 20ft`);
-                                            if (item['40ft']) parts.push(`${item['40ft']} 40ft`);
-                                            if (item['40HC']) parts.push(`${item['40HC']} 40HC`);
+                                            if (item['20ft']) parts.push(`${item['20ft']} - 20ft`);
+                                            if (item['40ft']) parts.push(`${item['40ft']} - 40ft`);
+                                            if (item['40HC']) parts.push(`${item['40HC']} - 40HC`);
                                             return (
-                                                <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#334155' }}>
-                                                    <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: CHART_COLORS[idx % CHART_COLORS.length], flexShrink: 0 }} />
+                                                <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#334155' }}>
+                                                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: CHART_COLORS[idx % CHART_COLORS.length], flexShrink: 0 }} />
                                                     <span><strong>{item.name}</strong> / {item.total} contenedores / {parts.join(', ')}</span>
                                                 </li>
                                             );
