@@ -17,7 +17,7 @@ const selectStyles = {
     menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden' }),
 };
 
-const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) => {
+const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, defaultEmployeeId }) => {
     const { user } = useAuth();
     const [allies, setAllies] = useState([]);
     const [svcProviders, setSvcProviders] = useState([]);
@@ -35,6 +35,13 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
     const { showSuccess, showError } = useToast();
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const isEdit = Boolean(payable);
+    const lockedEmployee = Boolean(defaultEmployeeId) && !isEdit;
+
+    // Estado para pago a empleados: modo "sueldo ya pagado" vs "cuenta pendiente"
+    const [paymentMode, setPaymentMode] = useState('paid'); // 'paid' | 'pending'
+    const [paymentMethod, setPaymentMethod] = useState('TRANSFER');
+    const [paymentReference, setPaymentReference] = useState('');
+    const [paymentDate, setPaymentDate] = useState(getTodayLocal());
 
     const allyOptions = useMemo(() =>
         (allies || []).filter(a => a.isActive !== false).map(a => ({ value: a.id, label: a.name })),
@@ -90,6 +97,10 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
         setAmount('');
         setDueDate('');
         setInvoiceNr('');
+        setPaymentMode('paid');
+        setPaymentMethod('TRANSFER');
+        setPaymentReference('');
+        setPaymentDate(getTodayLocal());
     };
 
     useEffect(() => {
@@ -125,8 +136,12 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
             setInvoiceNr(payable.invoiceNr || '');
         } else {
             resetForm();
+            if (defaultEmployeeId) {
+                setBeneficiaryType('employee');
+                setEmployeeUserId(defaultEmployeeId);
+            }
         }
-    }, [isOpen, payable, defaultType]);
+    }, [isOpen, payable, defaultType, defaultEmployeeId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -151,7 +166,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
             const todayDate = new Date(today);
             selectedDate.setHours(0, 0, 0, 0);
             todayDate.setHours(0, 0, 0, 0);
-            if (selectedDate < todayDate) {
+            if (selectedDate < todayDate && paymentMode !== 'paid') {
                 return showError('Validación', 'La fecha límite no puede ser anterior a la fecha actual');
             }
         }
@@ -171,11 +186,29 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
             if (isEdit) {
                 await axios.put(`${API_URL}/payables/${payable.id}`, payload, { withCredentials: true });
                 showSuccess('Cuenta actualizada', 'La cuenta por pagar se actualizó correctamente');
-            } else {
-                await axios.post(`${API_URL}/payables`, payload);
-                showSuccess('¡Cuenta creada!', 'La cuenta por pagar se registró correctamente');
-                resetForm();
+                onSuccess?.();
+                onClose?.();
+                return;
             }
+
+            // Crear la cuenta por pagar
+            const res = await axios.post(`${API_URL}/payables`, payload);
+            const newPayable = res.data.data || res.data;
+
+            // Si es pago a empleado y modo "Ya pagado", crear el abono inmediatamente
+            if (beneficiaryType === 'employee' && paymentMode === 'paid' && newPayable?.id) {
+                await axios.post(`${API_URL}/payables/${newPayable.id}/payments`, {
+                    amount: parseFloat(amount),
+                    method: paymentMethod,
+                    reference: paymentReference.trim() || undefined,
+                    date: paymentDate,
+                });
+                showSuccess('¡Sueldo registrado!', `Se registró el pago de $${parseFloat(amount).toFixed(2)} a ${userOptions.find(o => o.value === employeeUserId)?.label || 'empleado'}`);
+            } else {
+                showSuccess('¡Cuenta creada!', 'La cuenta por pagar se registró correctamente');
+            }
+
+            resetForm();
             onSuccess?.();
             onClose?.();
         } catch (err) {
@@ -189,13 +222,13 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
                 onClick={e => e.stopPropagation()}>
 
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl ${beneficiaryType === 'employee' ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                            {beneficiaryType === 'employee' ? <Wallet className="text-emerald-500" size={22} /> : <Receipt className="text-red-500" size={22} />}
+                        <div className={`p-2 rounded-xl ${beneficiaryType === 'employee' ? 'bg-blue-50' : 'bg-red-50'}`}>
+                            {beneficiaryType === 'employee' ? <Wallet className="text-blue-600" size={22} /> : <Receipt className="text-red-500" size={22} />}
                         </div>
                         <div>
                             <h2 className="font-bold text-slate-800 text-lg">
@@ -213,41 +246,43 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
 
                 <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-4">
 
-                    <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-700">Tipo de Beneficiario</label>
-                        <div className="flex gap-2">
-                            <button type="button"
-                                className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
-                                    beneficiaryType === 'ally'
-                                        ? 'border-sky-500 bg-sky-50 text-sky-700'
-                                        : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
-                                }`}
-                                onClick={() => { setBeneficiaryType('ally'); setSvcProviderId(''); setEmployeeUserId(''); }}
-                            >
-                                Aliado
-                            </button>
-                            <button type="button"
-                                className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
-                                    beneficiaryType === 'provider'
-                                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                                        : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
-                                }`}
-                                onClick={() => { setBeneficiaryType('provider'); setAllyId(''); setEmployeeUserId(''); }}
-                            >
-                                Proveedor
-                            </button>
-                            <button type="button"
-                                className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
-                                    beneficiaryType === 'employee'
-                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                                        : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
-                                }`}
-                                onClick={() => { setBeneficiaryType('employee'); setAllyId(''); setSvcProviderId(''); }}
-                            >
-                                Empleado
-                            </button>
+                    {!lockedEmployee && (
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-slate-700">Tipo de Beneficiario</label>
+                            <div className="flex gap-2">
+                                <button type="button"
+                                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                                        beneficiaryType === 'ally'
+                                            ? 'border-sky-500 bg-sky-50 text-sky-700'
+                                            : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
+                                    }`}
+                                    onClick={() => { setBeneficiaryType('ally'); setSvcProviderId(''); setEmployeeUserId(''); }}
+                                >
+                                    Aliado
+                                </button>
+                                <button type="button"
+                                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                                        beneficiaryType === 'provider'
+                                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                            : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
+                                    }`}
+                                    onClick={() => { setBeneficiaryType('provider'); setAllyId(''); setEmployeeUserId(''); }}
+                                >
+                                    Proveedor
+                                </button>
+                                <button type="button"
+                                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                                        beneficiaryType === 'employee'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                            : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
+                                    }`}
+                                    onClick={() => { setBeneficiaryType('employee'); setAllyId(''); setSvcProviderId(''); }}
+                                >
+                                    Empleado
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {beneficiaryType === 'ally' ? (
                         <div className="space-y-1">
@@ -294,16 +329,98 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
                     ) : (
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-slate-700">Empleado</label>
-                            <Select
-                                options={userOptions}
-                                value={userOptions.find(o => o.value === employeeUserId) || null}
-                                onChange={(opt) => setEmployeeUserId(opt?.value || '')}
-                                placeholder="Seleccionar empleado..."
-                                isClearable
-                                styles={selectStyles}
-                                menuPortalTarget={document.body}
-                                noOptionsMessage={() => 'Sin resultados'}
-                            />
+                            {lockedEmployee ? (
+                                <div className="w-full p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 font-medium flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    {userOptions.find(o => o.value === employeeUserId)?.label || 'Empleado seleccionado'}
+                                </div>
+                            ) : (
+                                <Select
+                                    options={userOptions}
+                                    value={userOptions.find(o => o.value === employeeUserId) || null}
+                                    onChange={(opt) => setEmployeeUserId(opt?.value || '')}
+                                    placeholder="Seleccionar empleado..."
+                                    isClearable
+                                    styles={selectStyles}
+                                    menuPortalTarget={document.body}
+                                    noOptionsMessage={() => 'Sin resultados'}
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {beneficiaryType === 'employee' && !isEdit && (
+                        <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo de Pago</p>
+                            <div className="flex gap-2">
+                                <button type="button"
+                                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                                        paymentMode === 'paid'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                    }`}
+                                    onClick={() => setPaymentMode('paid')}
+                                >
+                                    <span className="block font-semibold">💰 Sueldo</span>
+                                    <span className="text-[10px] opacity-80">Ya pagado</span>
+                                </button>
+                                <button type="button"
+                                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                                        paymentMode === 'pending'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                    }`}
+                                    onClick={() => setPaymentMode('pending')}
+                                >
+                                    <span className="block font-semibold">📌 Préstamo</span>
+                                    <span className="text-[10px] opacity-80">Pendiente</span>
+                                </button>
+                            </div>
+                            {paymentMode === 'paid' && (
+                                <p className="text-[11px] text-slate-400 italic">
+                                    Se creará la cuenta y se registrará el pago de una vez.
+                                </p>
+                            )}
+                            {paymentMode === 'pending' && (
+                                <p className="text-[11px] text-slate-400 italic">
+                                    Se creará como cuenta pendiente. Podrás registrar abonos después.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {beneficiaryType === 'employee' && paymentMode === 'paid' && !isEdit && (
+                        <div className="space-y-3 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                Datos del Pago
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-slate-700">Método</label>
+                                    <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
+                                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 text-sm">
+                                        <option value="TRANSFER">Transferencia</option>
+                                        <option value="INTL_TRANSFER">Transf. Internacional</option>
+                                        <option value="P_MOBILE">Pago Móvil</option>
+                                        <option value="BINANCE_USDT">Binance USDT</option>
+                                        <option value="ZELLE">Zelle</option>
+                                        <option value="CASH_USD">Efectivo USD</option>
+                                        <option value="OTHER">Otro</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-slate-700">Fecha</label>
+                                    <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
+                                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 text-sm" />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-slate-700">Referencia <span className="text-slate-400">(opcional)</span></label>
+                                <input type="text" value={paymentReference} onChange={e => setPaymentReference(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 text-sm"
+                                    placeholder="Ej: #00123456" />
+                            </div>
                         </div>
                     )}
 
@@ -366,11 +483,15 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) 
                         <button type="submit" disabled={saving}
                             className={`px-5 py-2.5 rounded-xl font-medium shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 text-sm ${
                                 beneficiaryType === 'employee'
-                                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'
                                     : 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
                             }`}>
                             {saving ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
-                            {isEdit ? 'Guardar cambios' : beneficiaryType === 'employee' ? 'Registrar Pago' : 'Crear Cuenta'}
+                            {isEdit
+                                ? 'Guardar cambios'
+                                : beneficiaryType === 'employee'
+                                    ? paymentMode === 'paid' ? 'Registrar Sueldo' : 'Crear Cuenta Pendiente'
+                                    : 'Crear Cuenta'}
                         </button>
                     </div>
                 </form>

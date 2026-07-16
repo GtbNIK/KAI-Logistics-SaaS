@@ -12,6 +12,7 @@ import { payableConfig } from '../../config/payableConfig';
 import PayableDetailModal from '../../components/finance/PayableDetailModal';
 import PayableFormModal from '../../components/finance/PayableFormModal';
 import RegisterPayablePaymentModal from '../../components/finance/RegisterPayablePaymentModal';
+import EmployeePayrollGrid from '../../components/finance/EmployeePayrollGrid';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -76,6 +77,7 @@ const Payables = () => {
     const [viewingPayable, setViewingPayable] = useState(null);
     const [registeringPayment, setRegisteringPayment] = useState(null);
     const [creatingPayable, setCreatingPayable] = useState(false);
+    const [selectedEmployeeForPayment, setSelectedEmployeeForPayment] = useState(null);
     const [toDelete, setToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [editingPayable, setEditingPayable] = useState(null);
@@ -100,6 +102,16 @@ const Payables = () => {
     const handleRegisterPayment = (p) => {
         setViewingPayable(null);
         setRegisteringPayment(p);
+    };
+
+    const handleGridPayment = (employeeUser) => {
+        setSelectedEmployeeForPayment(employeeUser);
+        setCreatingPayable(true);
+    };
+
+    const closeCreateModal = () => {
+        setCreatingPayable(false);
+        setSelectedEmployeeForPayment(null);
     };
 
     const statusSelect = (
@@ -130,7 +142,7 @@ const Payables = () => {
                     </h1>
                     <p className="text-slate-500 mt-1">Deudas pendientes con aliados, proveedores y empleados</p>
                 </div>
-                {totalPending > 0 && (
+                {activeTab !== 'employees' && totalPending > 0 && (
                     <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-right shrink-0">
                         <p className="text-xs text-red-500 font-medium">Saldo pendiente en vista</p>
                         <p className="text-xl font-bold text-red-700">
@@ -168,7 +180,7 @@ const Payables = () => {
                     onClick={() => setActiveTab('employees')}
                     className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
                         activeTab === 'employees'
-                            ? 'border-emerald-500 text-emerald-600'
+                            ? 'border-blue-500 text-blue-600'
                             : 'border-transparent text-slate-500 hover:text-slate-700'
                     }`}
                 >
@@ -177,7 +189,7 @@ const Payables = () => {
                 </button>
             </div>
 
-            {isAdmin && (
+            {isAdmin && activeTab !== 'employees' && (
                 <div className="flex justify-end">
                     <button
                         onClick={() => setCreatingPayable(true)}
@@ -197,6 +209,9 @@ const Payables = () => {
                 </div>
             )}
 
+            {activeTab === 'employees' ? (
+                <EmployeePayrollGrid onRegisterPayment={handleGridPayment} />
+            ) : (
             <EntityTable
                 entityName={payableConfig.entityName}
                 entityNamePlural={payableConfig.entityNamePlural}
@@ -249,6 +264,7 @@ const Payables = () => {
                     </div>
                 )}
             />
+            )}
 
             {viewingPayable && (
                 <PayableDetailModal
@@ -269,9 +285,10 @@ const Payables = () => {
             {creatingPayable && (
                 <PayableFormModal
                     isOpen={creatingPayable}
-                    onClose={() => setCreatingPayable(false)}
-                    onSuccess={refresh}
+                    onClose={closeCreateModal}
+                    onSuccess={() => { refresh(); closeCreateModal(); }}
                     defaultType={activeTab === 'allies' ? 'ally' : activeTab === 'services' ? 'provider' : 'employee'}
+                    defaultEmployeeId={selectedEmployeeForPayment?.id || null}
                 />
             )}
 
