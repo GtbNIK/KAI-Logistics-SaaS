@@ -14,17 +14,19 @@ export const getPayables = async (req, res) => {
         if (status) where.status = status;
         if (beneficiaryId) {
             where.OR = [
-                { allyId: beneficiaryId },
-                { svcProviderId: beneficiaryId }
+{ allyId: beneficiaryId },
+                { svcProviderId: beneficiaryId },
+                { employeeUserId: beneficiaryId }
             ];
         }
         if (search) {
             const num = parseInt(search);
             const searchConditions = {
-                OR: [
+OR: [
                     { description: { contains: search, mode: 'insensitive' } },
                     { ally: { name: { contains: search, mode: 'insensitive' } } },
                     { svcProvider: { name: { contains: search, mode: 'insensitive' } } },
+                    { employeeUser: { name: { contains: search, mode: 'insensitive' } } },
                     { invoiceNr: { contains: search, mode: 'insensitive' } },
                     ...(Number.isNaN(num) ? [] : [{ number: { equals: num } }])
                 ]
@@ -47,6 +49,7 @@ export const getPayables = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
+                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
                     payments: { orderBy: { date: 'desc' } }
                 },
                 orderBy: { createdAt: 'desc' },
@@ -83,6 +86,7 @@ export const getPayableById = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
+                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -104,13 +108,13 @@ export const getPayableById = async (req, res) => {
  */
 export const createPayable = async (req, res) => {
     try {
-        const { allyId, svcProviderId, description, amount, dueDate, relatedOperationId, invoiceNr } = req.body;
+        const { allyId, svcProviderId, employeeUserId, description, amount, dueDate, relatedOperationId, invoiceNr } = req.body;
 
-        if (!allyId && !svcProviderId) {
-            return res.status(400).json({ message: 'Debe seleccionar un aliado o un proveedor de servicios' });
+        if (!allyId && !svcProviderId && !employeeUserId) {
+            return res.status(400).json({ message: 'Debe seleccionar un aliado, proveedor o empleado' });
         }
-        if (allyId && svcProviderId) {
-            return res.status(400).json({ message: 'Solo puede seleccionar un aliado o un proveedor, no ambos' });
+        if ((allyId ? 1 : 0) + (svcProviderId ? 1 : 0) + (employeeUserId ? 1 : 0) !== 1) {
+            return res.status(400).json({ message: 'Solo puede seleccionar un tipo de beneficiario, no varios' });
         }
         if (!description?.trim()) {
             return res.status(400).json({ message: 'La descripción es requerida' });
@@ -125,6 +129,7 @@ export const createPayable = async (req, res) => {
             data: {
                 allyId: allyId || null,
                 svcProviderId: svcProviderId || null,
+                employeeUserId: employeeUserId || null,
                 description: description.trim(),
                 amount: parsedAmount,
                 paidAmount: 0,
@@ -137,6 +142,7 @@ export const createPayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
+                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
                 payments: true
             }
         });
@@ -167,6 +173,7 @@ export const updatePayable = async (req, res) => {
         const {
             allyId,
             svcProviderId,
+            employeeUserId,
             description,
             amount,
             dueDate,
@@ -176,12 +183,13 @@ export const updatePayable = async (req, res) => {
 
         const nextAllyId = allyId !== undefined ? allyId : existing.allyId;
         const nextProviderId = svcProviderId !== undefined ? svcProviderId : existing.svcProviderId;
+        const nextEmployeeId = employeeUserId !== undefined ? employeeUserId : existing.employeeUserId;
 
-        if (!nextAllyId && !nextProviderId) {
-            return res.status(400).json({ message: 'Debe seleccionar un aliado o un proveedor de servicios' });
+        if (!nextAllyId && !nextProviderId && !nextEmployeeId) {
+            return res.status(400).json({ message: 'Debe seleccionar un aliado, proveedor o empleado' });
         }
-        if (nextAllyId && nextProviderId) {
-            return res.status(400).json({ message: 'Solo puede seleccionar un aliado o un proveedor, no ambos' });
+        if ((nextAllyId ? 1 : 0) + (nextProviderId ? 1 : 0) + (nextEmployeeId ? 1 : 0) !== 1) {
+            return res.status(400).json({ message: 'Solo puede seleccionar un tipo de beneficiario, no varios' });
         }
 
         const newDescription = description !== undefined ? description.trim() : existing.description;
@@ -212,6 +220,7 @@ export const updatePayable = async (req, res) => {
             data: {
                 allyId: nextAllyId || null,
                 svcProviderId: nextProviderId || null,
+                employeeUserId: nextEmployeeId || null,
                 description: newDescription,
                 amount: parsedAmount,
                 balance: newBalance,
@@ -223,6 +232,7 @@ export const updatePayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
+                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -299,6 +309,7 @@ export const registerPayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
+                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });
@@ -308,7 +319,7 @@ export const registerPayablePayment = async (req, res) => {
 
         // Generar notificación si la CXP ha sido pagada en su totalidad
         if (newStatus === 'PAID') {
-            const beneficiary = result.updatedPayable.ally?.name || result.updatedPayable.svcProvider?.name || 'Desconocido';
+            const beneficiary = result.updatedPayable.ally?.name || result.updatedPayable.svcProvider?.name || result.updatedPayable.employeeUser?.name || 'Desconocido';
             await createNotification({
                 title: 'Cuenta por Pagar Pagada',
                 message: `La cuenta CXP-${String(payable.number).padStart(5, '0')} por $${parseFloat(payable.amount).toFixed(2)} a favor de ${beneficiary} ha sido pagada en su totalidad.`,
@@ -395,6 +406,7 @@ export const deletePayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
+                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });
@@ -411,3 +423,9 @@ export const deletePayablePayment = async (req, res) => {
         res.status(500).json({ message: 'Error al eliminar el abono', error: error.message });
     }
 };
+
+
+
+
+
+

@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Receipt, X, Loader2 } from 'lucide-react';
+import { Receipt, X, Loader2, Wallet } from 'lucide-react';
 import axios from 'axios';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTodayLocal } from '../../utils/dateHelpers';
+import authService from '../../services/auth.service';
 import QuickCreateSvcProviderModal from '../shared/QuickCreateSvcProviderModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -16,14 +17,16 @@ const selectStyles = {
     menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden' }),
 };
 
-const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
+const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType }) => {
     const { user } = useAuth();
     const [allies, setAllies] = useState([]);
     const [svcProviders, setSvcProviders] = useState([]);
+    const [users, setUsers] = useState([]);
 
-    const [beneficiaryType, setBeneficiaryType] = useState('ally'); // 'ally' | 'provider'
+    const [beneficiaryType, setBeneficiaryType] = useState('ally'); // 'ally' | 'provider' | 'employee'
     const [allyId, setAllyId] = useState('');
     const [svcProviderId, setSvcProviderId] = useState('');
+    const [employeeUserId, setEmployeeUserId] = useState('');
     const [description, setDescription] = useState('');
     const [invoiceNr, setInvoiceNr] = useState('');
     const [amount, setAmount] = useState('');
@@ -49,17 +52,28 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
         [baseProviderOptions, user]
     );
 
+    const userOptions = useMemo(() =>
+        (users || []).filter(u => u.isActive !== false).map(u => ({
+            value: u.id,
+            label: `${u.name}${u.position ? ' — ' + u.position : ''}`,
+            subLabel: u.position || (u.role === 'ADMIN' ? 'Administrador' : 'Ventas')
+        })),
+        [users]
+    );
+
     useEffect(() => {
         if (!isOpen) return;
 
         const fetchAll = async () => {
             try {
-                const [aRes, pRes] = await Promise.all([
+                const [aRes, pRes, uRes] = await Promise.all([
                     axios.get(`${API_URL}/allies?all=true`, { withCredentials: true }),
                     axios.get(`${API_URL}/svc-providers?all=true`, { withCredentials: true }),
+                    authService.getUsers(),
                 ]);
                 setAllies(aRes.data.data || []);
                 setSvcProviders(pRes.data.data || pRes.data || []);
+                setUsers(uRes.users || []);
             } catch (err) {
                 console.error('Error cargando catálogos:', err);
             }
@@ -67,11 +81,11 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
         fetchAll();
     }, [isOpen]);
 
-
     const resetForm = () => {
-        setBeneficiaryType('ally');
+        setBeneficiaryType(defaultType || 'ally');
         setAllyId('');
         setSvcProviderId('');
+        setEmployeeUserId('');
         setDescription('');
         setAmount('');
         setDueDate('');
@@ -80,19 +94,30 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
 
     useEffect(() => {
         if (!isOpen) return;
+        if (defaultType && !payable) {
+            setBeneficiaryType(defaultType);
+        }
         if (payable) {
-            if (payable.allyId || payable.ally) {
+            if (payable.employeeUserId || payable.employeeUser) {
+                setBeneficiaryType('employee');
+                setEmployeeUserId(payable.employeeUserId || payable.employeeUser?.id || '');
+                setAllyId('');
+                setSvcProviderId('');
+            } else if (payable.allyId || payable.ally) {
                 setBeneficiaryType('ally');
                 setAllyId(payable.allyId || payable.ally?.id || '');
                 setSvcProviderId('');
+                setEmployeeUserId('');
             } else if (payable.svcProviderId || payable.svcProvider) {
                 setBeneficiaryType('provider');
                 setSvcProviderId(payable.svcProviderId || payable.svcProvider?.id || '');
                 setAllyId('');
+                setEmployeeUserId('');
             } else {
                 setBeneficiaryType('ally');
                 setAllyId('');
                 setSvcProviderId('');
+                setEmployeeUserId('');
             }
             setDescription(payable.description || '');
             setAmount(payable.amount ? Number(payable.amount).toString() : '');
@@ -101,16 +126,17 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
         } else {
             resetForm();
         }
-    }, [isOpen, payable]);
+    }, [isOpen, payable, defaultType]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         const selectedAlly = beneficiaryType === 'ally' ? allyId : null;
         const selectedProvider = beneficiaryType === 'provider' ? svcProviderId : null;
+        const selectedEmployee = beneficiaryType === 'employee' ? employeeUserId : null;
 
-        if (!selectedAlly && !selectedProvider) {
-            return showError('Validación', 'Debe seleccionar un aliado o un proveedor');
+        if (!selectedAlly && !selectedProvider && !selectedEmployee) {
+            return showError('Validación', 'Debe seleccionar un aliado, proveedor o empleado');
         }
         if (!description.trim()) {
             return showError('Validación', 'La descripción es requerida');
@@ -119,16 +145,12 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
             return showError('Validación', 'El monto debe ser mayor a 0');
         }
 
-        // Validar fecha límite no sea menor a fecha actual
         if (dueDate) {
             const today = getTodayLocal();
             const selectedDate = new Date(dueDate);
             const todayDate = new Date(today);
-            
-            // Comparar solo fechas (ignorar horas)
             selectedDate.setHours(0, 0, 0, 0);
             todayDate.setHours(0, 0, 0, 0);
-            
             if (selectedDate < todayDate) {
                 return showError('Validación', 'La fecha límite no puede ser anterior a la fecha actual');
             }
@@ -139,6 +161,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
             const payload = {
                 allyId: selectedAlly || null,
                 svcProviderId: selectedProvider || null,
+                employeeUserId: selectedEmployee || null,
                 description: description.trim(),
                 amount: parseFloat(amount),
                 dueDate: dueDate || null,
@@ -169,15 +192,18 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
                 onClick={e => e.stopPropagation()}>
 
-                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-50 rounded-xl">
-                            <Receipt className="text-red-500" size={22} />
+                        <div className={`p-2 rounded-xl ${beneficiaryType === 'employee' ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                            {beneficiaryType === 'employee' ? <Wallet className="text-emerald-500" size={22} /> : <Receipt className="text-red-500" size={22} />}
                         </div>
                         <div>
-                            <h2 className="font-bold text-slate-800 text-lg">{isEdit ? 'Editar Cuenta por Pagar' : 'Nueva Cuenta por Pagar'}</h2>
-                            <p className="text-xs text-slate-500">{isEdit ? 'Actualiza la información general' : 'Registra una deuda con un aliado o proveedor'}</p>
+                            <h2 className="font-bold text-slate-800 text-lg">
+                                {isEdit ? 'Editar Cuenta por Pagar' : beneficiaryType === 'employee' ? 'Registrar Pago a Empleado' : 'Nueva Cuenta por Pagar'}
+                            </h2>
+                            <p className="text-xs text-slate-500">
+                                {isEdit ? 'Actualiza la información general' : beneficiaryType === 'employee' ? 'Registra un pago a un empleado' : 'Registra una deuda con un aliado o proveedor'}
+                            </p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
@@ -185,10 +211,8 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
                     </button>
                 </div>
 
-                {/* Form */}
                 <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-4">
 
-                    {/* Tipo de beneficiario */}
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-700">Tipo de Beneficiario</label>
                         <div className="flex gap-2">
@@ -198,7 +222,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
                                         ? 'border-sky-500 bg-sky-50 text-sky-700'
                                         : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
                                 }`}
-                                onClick={() => { setBeneficiaryType('ally'); setSvcProviderId(''); }}
+                                onClick={() => { setBeneficiaryType('ally'); setSvcProviderId(''); setEmployeeUserId(''); }}
                             >
                                 Aliado
                             </button>
@@ -208,14 +232,23 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
                                         ? 'border-purple-500 bg-purple-50 text-purple-700'
                                         : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
                                 }`}
-                                onClick={() => { setBeneficiaryType('provider'); setAllyId(''); }}
+                                onClick={() => { setBeneficiaryType('provider'); setAllyId(''); setEmployeeUserId(''); }}
                             >
-                                Proveedor de Servicios
+                                Proveedor
+                            </button>
+                            <button type="button"
+                                className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                                    beneficiaryType === 'employee'
+                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                        : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
+                                }`}
+                                onClick={() => { setBeneficiaryType('employee'); setAllyId(''); setSvcProviderId(''); }}
+                            >
+                                Empleado
                             </button>
                         </div>
                     </div>
 
-                    {/* Select de Aliado o CreatableSelect de Proveedor */}
                     {beneficiaryType === 'ally' ? (
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-slate-700">Aliado</label>
@@ -230,7 +263,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
                                 noOptionsMessage={() => 'Sin resultados'}
                             />
                         </div>
-                    ) : (
+                    ) : beneficiaryType === 'provider' ? (
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-slate-700">Proveedor de Servicios</label>
                             <Select
@@ -258,22 +291,33 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
                                 noOptionsMessage={() => 'Sin resultados'}
                             />
                         </div>
+                    ) : (
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-slate-700">Empleado</label>
+                            <Select
+                                options={userOptions}
+                                value={userOptions.find(o => o.value === employeeUserId) || null}
+                                onChange={(opt) => setEmployeeUserId(opt?.value || '')}
+                                placeholder="Seleccionar empleado..."
+                                isClearable
+                                styles={selectStyles}
+                                menuPortalTarget={document.body}
+                                noOptionsMessage={() => 'Sin resultados'}
+                            />
+                        </div>
                     )}
 
-                    {/* Número de factura */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-700">Número de Factura (Invoice)</label>
-                        <span className="text-xs text-slate-400"> Opcional</span>
+                        <label className="text-xs font-medium text-slate-700">Número de Factura <span className="text-slate-400">(opcional)</span></label>
                         <input
                             type="text"
                             value={invoiceNr}
                             onChange={e => setInvoiceNr(e.target.value)}
                             className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50"
-                            placeholder="Ej: FAC-00123"
+                            placeholder={beneficiaryType === 'employee' ? 'Ej: Q-001, Quincena Junio' : 'Ej: FAC-00123'}
                         />
                     </div>
 
-                    {/* Descripción */}
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-700">Descripción</label>
                         <textarea
@@ -281,12 +325,11 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
                             onChange={e => setDescription(e.target.value)}
                             className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50"
                             rows={2}
-                            placeholder="Ej: Pago por transporte de carga..."
+                            placeholder={beneficiaryType === 'employee' ? 'Ej: Sueldo correspondiente a quincena...' : 'Ej: Pago por transporte de carga...'}
                             required
                         />
                     </div>
 
-                    {/* Monto y Fecha */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-slate-700">Monto (USD)</label>
@@ -315,21 +358,23 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable }) => {
                         </div>
                     </div>
 
-                    {/* Footer */}
                     <div className="pt-2 flex justify-end gap-3 border-t border-slate-100">
                         <button type="button" onClick={onClose}
                             className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm">
                             Cancelar
                         </button>
                         <button type="submit" disabled={saving}
-                            className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-red-500/20 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 text-sm">
+                            className={`px-5 py-2.5 rounded-xl font-medium shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 text-sm ${
+                                beneficiaryType === 'employee'
+                                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                                    : 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
+                            }`}>
                             {saving ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
-                            {isEdit ? 'Guardar cambios' : 'Crear Cuenta'}
+                            {isEdit ? 'Guardar cambios' : beneficiaryType === 'employee' ? 'Registrar Pago' : 'Crear Cuenta'}
                         </button>
                     </div>
                 </form>
 
-                {/* Quick Create SvcProvider Modal */}
                 <QuickCreateSvcProviderModal
                     isOpen={quickCreateOpen}
                     onClose={() => setQuickCreateOpen(false)}

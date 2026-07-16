@@ -1,6 +1,3 @@
-// Configuración de columnas para la tabla de Cuentas por Pagar
-
-// Status map reutilizable para evitar duplicación (DRY principle)
 const PAYABLE_STATUS_MAP = {
     PENDING:        { label: 'Pendiente',  color: 'bg-amber-50 text-amber-600 border-amber-200' },
     PARTIALLY_PAID: { label: 'Abonada',   color: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -33,16 +30,23 @@ export const payableConfig = {
         {
             header: 'Beneficiario',
             accessor: 'ally',
-            render: (item) => (
-                <div className="flex flex-col">
-                    <span className="font-medium text-slate-800">
-                        {item.ally?.name || item.svcProvider?.name || 'N/A'}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                        {item.ally ? 'Aliado' : item.svcProvider ? 'Servicio' : ''}
-                    </span>
-                </div>
-            )
+            render: (item) => {
+                const name = item.ally?.name || item.svcProvider?.name || item.employeeUser?.name || 'N/A';
+                let subLabel = '';
+                if (item.ally) subLabel = 'Aliado';
+                else if (item.svcProvider) subLabel = 'Proveedor';
+                else if (item.employeeUser) {
+                    subLabel = item.employeeUser.position
+                        ? `Empleado · ${item.employeeUser.position}`
+                        : `Empleado · ${item.employeeUser.role === 'ADMIN' ? 'Administrador' : 'Ventas'}`;
+                }
+                return (
+                    <div className="flex flex-col">
+                        <span className="font-medium text-slate-800">{name}</span>
+                        {subLabel && <span className="text-xs text-slate-400">{subLabel}</span>}
+                    </div>
+                );
+            }
         },
         {
             header: 'Descripción',

@@ -46,7 +46,8 @@ export const getCashFlow = async (req, res) => {
                         number: true,
                         description: true,
                         ally: { select: { name: true } },
-                        svcProvider: { select: { name: true } }
+                        svcProvider: { select: { name: true } },
+                employeeUser: { select: { name: true, position: true } }
                     }
                 }
             },
@@ -72,3 +73,4 @@ export const getCashFlow = async (req, res) => {
         res.status(500).json({ message: 'Error al obtener el balance' });
     }
 };
+

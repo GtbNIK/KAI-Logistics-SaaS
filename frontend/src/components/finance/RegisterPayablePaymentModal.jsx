@@ -29,7 +29,7 @@ const RegisterPayablePaymentModal = ({ payable, onClose, onSuccess }) => {
     if (!payable) return null;
     const pendingRaw = parseFloat(payable.amount) - parseFloat(payable.paidAmount || 0);
     const pendingBalance = Math.max(0, Number(pendingRaw.toFixed(2)));
-    const beneficiary = payable.ally?.name || payable.svcProvider?.name || 'N/A';
+    const beneficiary = payable.ally?.name || `Servicio: ${payable.svcProvider?.name}` || `${payable.employeeUser ? `Empleado: ${payable.employeeUser.name}` : ''} N/A`;
 
     const handleSubmit = async (e) => {
         e.preventDefault();

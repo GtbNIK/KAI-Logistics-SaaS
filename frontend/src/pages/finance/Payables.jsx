@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TrendingDown, Plus, Trash2, Edit } from 'lucide-react';
+import { TrendingDown, Plus, Trash2, Edit, Wallet } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,8 +15,7 @@ import RegisterPayablePaymentModal from '../../components/finance/RegisterPayabl
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// ─── Hook de datos ────────────────────────────────────────────────────────────
-const usePayables = () => {
+const usePayables = (beneficiaryType) => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
@@ -25,7 +24,6 @@ const usePayables = () => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
-    const [beneficiaryTypeFilter, setBeneficiaryTypeFilter] = useState('');
     const { showError } = useToast();
 
     useEffect(() => {
@@ -33,7 +31,7 @@ const usePayables = () => {
         return () => clearTimeout(t);
     }, [search]);
 
-    useEffect(() => { setPage(1); }, [statusFilter, beneficiaryTypeFilter]);
+    useEffect(() => { setPage(1); }, [statusFilter, beneficiaryType]);
 
     const fetchPayables = useCallback(async () => {
         setLoading(true);
@@ -42,16 +40,15 @@ const usePayables = () => {
             if (statusFilter) params.append('status', statusFilter);
             const res = await axios.get(`${API_URL}/payables?${params}`);
             let filteredItems = res.data.data || [];
-            
-            // Filtrar por tipo de beneficiario en el frontend
-            if (beneficiaryTypeFilter) {
-                filteredItems = filteredItems.filter(item => {
-                    if (beneficiaryTypeFilter === 'ally') return item.allyId !== null;
-                    if (beneficiaryTypeFilter === 'provider') return item.svcProviderId !== null;
-                    return true;
-                });
+
+            if (beneficiaryType === 'employees') {
+                filteredItems = filteredItems.filter(item => item.employeeUserId !== null);
+            } else if (beneficiaryType === 'services') {
+                filteredItems = filteredItems.filter(item => item.svcProviderId !== null);
+            } else {
+                filteredItems = filteredItems.filter(item => item.allyId !== null);
             }
-            
+
             setItems(filteredItems);
             setTotalItems(res.data.meta?.total || 0);
             setTotalPages(res.data.meta?.totalPages || 1);
@@ -60,40 +57,44 @@ const usePayables = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter, beneficiaryTypeFilter]);
+    }, [page, debouncedSearch, statusFilter, beneficiaryType]);
 
     useEffect(() => { fetchPayables(); }, [fetchPayables]);
 
     return {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter,
-        beneficiaryTypeFilter, setBeneficiaryTypeFilter,
         refresh: fetchPayables
     };
 };
 
-// ─── Página principal ─────────────────────────────────────────────────────────
 const Payables = () => {
+    const [activeTab, setActiveTab] = useState('allies');
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'ADMIN';
+
     const [viewingPayable, setViewingPayable] = useState(null);
     const [registeringPayment, setRegisteringPayment] = useState(null);
     const [creatingPayable, setCreatingPayable] = useState(false);
     const [toDelete, setToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [editingPayable, setEditingPayable] = useState(null);
-    const { user } = useAuth();
     const { showSuccess, showError } = useToast();
+
+    let beneficiaryType;
+    if (activeTab === 'employees') beneficiaryType = 'employees';
+    else if (activeTab === 'services') beneficiaryType = 'services';
+    else beneficiaryType = 'allies';
     const {
         items, loading, page, setPage, totalPages, totalItems,
-        search, setSearch, statusFilter, setStatusFilter,
-        beneficiaryTypeFilter, setBeneficiaryTypeFilter, refresh
-    } = usePayables();
+        search, setSearch, statusFilter, setStatusFilter, refresh
+    } = usePayables(beneficiaryType);
 
     const totalPending = items.reduce((acc, p) => {
         if (p.status !== 'PAID') acc += parseFloat(p.amount) - parseFloat(p.paidAmount || 0);
         return acc;
     }, 0);
 
-    // Auto-open modal if URL contains ?id=
     useAutoOpenModal(setViewingPayable, id => axios.get(`${API_URL}/payables/${id}`));
 
     const handleRegisterPayment = (p) => {
@@ -117,31 +118,17 @@ const Payables = () => {
         </div>
     );
 
-    const beneficiaryTypeSelect = (
-        <div className="flex flex-col">
-            <span className="text-xs font-bold text-slate-500 mb-1">Por tipo de beneficiario:</span>
-            <select
-                value={beneficiaryTypeFilter}
-                onChange={e => setBeneficiaryTypeFilter(e.target.value)}
-                className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-700"
-            >
-                <option value="">Todos los tipos</option>
-                <option value="ally">Aliados</option>
-                <option value="provider">Proveedores de Servicio</option>
-            </select>
-        </div>
-    );
-
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                         <TrendingDown className="text-red-500" />
-                        Cuentas por Pagar
+                        {activeTab === 'allies' && 'Pago a Aliados'}
+                        {activeTab === 'services' && 'Pago de Servicios'}
+                        {activeTab === 'employees' && 'Pagos a Empleados'}
                     </h1>
-                    <p className="text-slate-500 mt-1">Deudas pendientes con aliados y proveedores</p>
+                    <p className="text-slate-500 mt-1">Deudas pendientes con aliados, proveedores y empleados</p>
                 </div>
                 {totalPending > 0 && (
                     <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-right shrink-0">
@@ -153,14 +140,59 @@ const Payables = () => {
                 )}
             </div>
 
-            {user?.role === 'ADMIN' && (
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-slate-200">
+                <button
+                    onClick={() => setActiveTab('allies')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        activeTab === 'allies'
+                            ? 'border-red-500 text-red-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <TrendingDown size={16} />
+                    Pago a Aliados
+                </button>
+                <button
+                    onClick={() => setActiveTab('services')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        activeTab === 'services'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <TrendingDown size={16} />
+                    Pago de Servicios
+                </button>
+                <button
+                    onClick={() => setActiveTab('employees')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        activeTab === 'employees'
+                            ? 'border-emerald-500 text-emerald-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Wallet size={16} />
+                    Pagos a Empleados
+                </button>
+            </div>
+
+            {isAdmin && (
                 <div className="flex justify-end">
                     <button
                         onClick={() => setCreatingPayable(true)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-red-500/20 flex items-center gap-2 transition-all active:scale-95"
+                        className={`px-5 py-2.5 rounded-xl font-medium shadow-lg flex items-center gap-2 transition-all active:scale-95 ${
+                            activeTab === 'employees'
+                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                                : activeTab === 'services'
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-blue-500/20'
+                                : 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
+                        }`}
                     >
                         <Plus size={20} />
-                        Nueva Cuenta por Pagar
+                        {activeTab === 'allies' && 'Nueva Cuenta (Aliado)'}
+                        {activeTab === 'services' && 'Nueva Cuenta (Servicio)'}
+                        {activeTab === 'employees' && 'Registrar Pago a Empleado'}
                     </button>
                 </div>
             )}
@@ -173,7 +205,7 @@ const Payables = () => {
                 loading={loading}
                 search={search}
                 onSearchChange={setSearch}
-                searchPlaceholder="Buscar CxP por número, beneficiario..."
+                searchPlaceholder="Buscar por número, beneficiario..."
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalItems}
@@ -186,7 +218,6 @@ const Payables = () => {
                 extraFilters={
                     <div className="flex gap-2">
                         {statusSelect}
-                        {beneficiaryTypeSelect}
                     </div>
                 }
                 onView={(item) => setViewingPayable(item)}
@@ -240,6 +271,7 @@ const Payables = () => {
                     isOpen={creatingPayable}
                     onClose={() => setCreatingPayable(false)}
                     onSuccess={refresh}
+                    defaultType={activeTab === 'allies' ? 'ally' : activeTab === 'services' ? 'provider' : 'employee'}
                 />
             )}
 
@@ -262,7 +294,7 @@ const Payables = () => {
                         await payableService.deletePayable(toDelete.id);
                         setToDelete(null);
                         refresh();
-                        showSuccess('Cuenta eliminada', 'La cuenta por pagar y sus abonos fueron eliminados correctamente');
+                        showSuccess('Cuenta eliminada', 'La cuenta por pagar fue eliminada correctamente');
                     } catch (error) {
                         showError('Error', error.response?.data?.message || 'No se pudo eliminar la cuenta por pagar');
                     } finally {

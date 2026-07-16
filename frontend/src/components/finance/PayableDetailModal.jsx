@@ -29,8 +29,13 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
     if (!data) return null;
     const p = data;
     const pendingBalance = parseFloat(p.amount) - parseFloat(p.paidAmount || 0);
-    const beneficiary = p.ally?.name || p.svcProvider?.name || 'N/A';
-    const beneficiaryType = p.ally ? 'Aliado' : p.svcProvider ? 'Servicio' : '';
+    const beneficiary = p.ally?.name || p.svcProvider?.name || p.employeeUser?.name || 'N/A';
+    let beneficiaryType = p.ally ? 'Aliado' : p.svcProvider ? 'Proveedor' : '';
+    if (p.employeeUser) {
+        beneficiaryType = p.employeeUser.position
+            ? `Empleado · ${p.employeeUser.position}`
+            : `Empleado · ${p.employeeUser.role === 'ADMIN' ? 'Administrador' : 'Ventas'}`;
+    }
 
     // Verificar si la fecha límite pasó
     const isOverdue = p.dueDate ? (() => {

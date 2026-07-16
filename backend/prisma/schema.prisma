@@ -80,6 +80,7 @@ model User {
   name      String
   phoneNumber String?  
   role      UserRole
+  position  String?  // Cargo del empleado (ej: Gerente de Operaciones)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -91,6 +92,7 @@ model User {
   shipments        Shipment[]    @relation("ShipmentHandler") // Internal user tracking
   shipmentsAsVendedor Shipment[] @relation("ShipmentVendedor")
   notifications    Notification[]
+  payables         Payable[]     @relation("EmployeePayables") // Pagos a empleados (CxP)
 }
 
 // -----------------------------------------------------------------------------
@@ -652,6 +654,9 @@ model Payable {
 
   svcProviderId   String?
   svcProvider     SvcProvider?  @relation(fields: [svcProviderId], references: [id])
+
+  employeeUserId  String?
+  employeeUser    User?         @relation("EmployeePayables", fields: [employeeUserId], references: [id])
   
   description     String
   amount          Decimal       @db.Decimal(10, 2)

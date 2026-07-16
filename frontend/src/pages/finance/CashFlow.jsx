@@ -395,8 +395,8 @@ const CashFlow = () => {
                                 ) : egresos.length === 0 ? (
                                     <TrEmpty colSpan={5} message="Sin egresos en este período" />
                                 ) : pagedEgresos.map(t => {
-                                    // ally o svcProvider, no ambos
-                                    const parte = t.payable?.ally?.name || t.payable?.svcProvider?.name || '—';
+                                    const emp = t.payable?.employeeUser;
+                                    const parte = t.payable?.ally?.name || t.payable?.svcProvider?.name || (emp ? `${emp.name}${emp.position ? ' — ' + emp.position : ''}` : '—');
                                     return (
                                         <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
                                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(t.date || t.createdAt)}</td>

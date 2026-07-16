@@ -70,9 +70,15 @@ const EntityFormModal = ({
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        let newValue = type === 'checkbox' ? checked : value;
+        // Aplicar filtro por campo si está definido (ej. solo letras para "Cargo")
+        const fieldConfig = sections.flatMap(s => s.fields).find(f => f.name === name);
+        if (fieldConfig?.stripPattern && typeof newValue === 'string') {
+            newValue = newValue.replace(fieldConfig.stripPattern, '');
+        }
         setFormData(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: newValue
         }));
     };
 
