@@ -253,6 +253,48 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
         });
     }, [data]);
 
+    const d2dByClientChartData = useMemo(() => {
+        if (!data) return [];
+        const clientMap = {};
+        for (const row of data.d2d) {
+            const total = data.users.reduce((s, u) => s + parseFloat(row.cbmByUser[u.id] || 0), 0);
+            if (total > 0) {
+                clientMap[row.clientName] = (clientMap[row.clientName] || 0) + total;
+            }
+        }
+        return Object.entries(clientMap).map(([name, CBM]) => ({ name, CBM: parseFloat(CBM.toFixed(2)) }));
+    }, [data]);
+
+    const containersByClientChartData = useMemo(() => {
+        if (!data) return [];
+        const clientMap = {};
+        for (const row of data.fcl) {
+            const containers = { '20ft': 0, '40ft': 0, '40HC': 0 };
+            for (const u of data.users) {
+                const c = row.containersByUser[u.id] || {};
+                containers['20ft'] += c['20ft'] || 0;
+                containers['40ft'] += c['40ft'] || 0;
+                containers['40HC'] += c['40HC'] || 0;
+            }
+            const total = containers['20ft'] + containers['40ft'] + containers['40HC'];
+            if (total > 0) {
+                if (!clientMap[row.clientName]) {
+                    clientMap[row.clientName] = { '20ft': 0, '40ft': 0, '40HC': 0 };
+                }
+                clientMap[row.clientName]['20ft'] += containers['20ft'];
+                clientMap[row.clientName]['40ft'] += containers['40ft'];
+                clientMap[row.clientName]['40HC'] += containers['40HC'];
+            }
+        }
+        return Object.entries(clientMap).map(([name, c]) => ({
+            name,
+            total: c['20ft'] + c['40ft'] + c['40HC'],
+            '20ft': c['20ft'],
+            '40ft': c['40ft'],
+            '40HC': c['40HC']
+        }));
+    }, [data]);
+
     const monthLabel = data ? getMonthLabel(data.month) : '';
 
     if (!isOpen || typeof document === 'undefined') return null;
@@ -379,7 +421,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                                     <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} CBM`, 'CBM']} />
+                                            <Tooltip formatter={(value, name, props) => [`${Number(value).toFixed(2)} CBM`, props.name]} />
                                             <Legend
                                                 content={(props) => {
                                                     const { payload } = props;
@@ -421,6 +463,102 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                             <Bar dataKey="40HC" fill="#10b981" radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     </div>
+                                </div>
+                            </div>
+                            {/* Segunda fila: gráficas por cliente */}
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-stretch justify-center mt-6">
+                                {/* CBM total por cliente — D2D */}
+                                <div className="flex-1 border border-slate-200 rounded-xl p-4 flex flex-col">
+                                    <p className="text-center mb-3 text-slate-600 text-sm font-semibold">
+                                        CBM Total por Cliente — D2D
+                                    </p>
+                                    <div className="flex items-center justify-center">
+                                        <PieChart width={360} height={280}>
+                                            <Pie
+                                                data={d2dByClientChartData.filter(d => d.CBM > 0)}
+                                                dataKey="CBM"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={65}
+                                                outerRadius={110}
+                                                startAngle={90}
+                                                endAngle={-270}
+                                                paddingAngle={d2dByClientChartData.filter(d => d.CBM > 0).length > 1 ? 3 : 0}
+                                            >
+                                                {d2dByClientChartData.map((_, idx) => (
+                                                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value, name, props) => [`${Number(value).toFixed(2)} CBM`, props.name]} />
+                                        </PieChart>
+                                    </div>
+                                    {/* Leyenda fuera del SVG */}
+                                    {d2dByClientChartData.filter(d => d.CBM > 0).length > 0 && (
+                                        <div className="mt-auto pt-4 max-h-[200px] overflow-y-auto">
+                                            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+                                                {(() => {
+                                                    const total = d2dByClientChartData.reduce((s, d) => s + d.CBM, 0);
+                                                    return d2dByClientChartData.filter(d => d.CBM > 0).map((item, idx) => {
+                                                        const pct = total > 0 ? ((item.CBM || 0) / total * 100).toFixed(1) : '0.0';
+                                                        return (
+                                                            <li key={idx} className="flex items-center gap-1.5 text-[11.5px] text-slate-600">
+                                                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
+                                                                <span><strong>{item.name}</strong>: {pct}% <span className="text-slate-400">({item.CBM.toFixed(2)} CBM)</span></span>
+                                                            </li>
+                                                        );
+                                                    });
+                                                })()}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Contenedores por cliente — todos los tipos */}
+                                <div className="flex-1 border border-slate-200 rounded-xl p-4 flex flex-col">
+                                    <p className="text-center mb-3 text-slate-600 text-sm font-semibold">
+                                        Contenedores por Cliente
+                                    </p>
+                                    <div className="flex items-center justify-center">
+                                        <PieChart width={360} height={280}>
+                                            <Pie
+                                                data={containersByClientChartData.filter(d => d.total > 0)}
+                                                dataKey="total"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={65}
+                                                outerRadius={110}
+                                                startAngle={90}
+                                                endAngle={-270}
+                                                paddingAngle={containersByClientChartData.filter(d => d.total > 0).length > 1 ? 3 : 0}
+                                            >
+                                                {containersByClientChartData.map((_, idx) => (
+                                                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value, name, props) => [`${value} contenedores`, props.name]} />
+                                        </PieChart>
+                                    </div>
+                                    {/* Leyenda fuera del SVG */}
+                                    {containersByClientChartData.filter(d => d.total > 0).length > 0 && (
+                                        <div className="mt-auto pt-4 max-h-[200px] overflow-y-auto">
+                                            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+                                                {containersByClientChartData.filter(d => d.total > 0).map((item, idx) => {
+                                                    const parts = [];
+                                                    if (item['20ft']) parts.push(`${item['20ft']} 20ft`);
+                                                    if (item['40ft']) parts.push(`${item['40ft']} 40ft`);
+                                                    if (item['40HC']) parts.push(`${item['40HC']} 40HC`);
+                                                    return (
+                                                        <li key={idx} className="flex items-center gap-1.5 text-[11.5px] text-slate-600">
+                                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
+                                                            <span><strong>{item.name}</strong> / {item.total} contenedores / {parts.join(', ')}</span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -521,7 +659,7 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                         <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} CBM`, 'CBM']} />
+                                <Tooltip formatter={(value, name, props) => [`${Number(value).toFixed(2)} CBM`, props.name]} />
                                 <Legend
                                     content={(props) => {
                                         const { payload } = props;
@@ -567,6 +705,101 @@ const TrackingMonthlyCloseModal = ({ isOpen, onClose }) => {
                                 <Bar dataKey="40ft" fill="#f97316" radius={[4, 4, 0, 0]} />
                                 <Bar dataKey="40HC" fill="#10b981" radius={[4, 4, 0, 0]} />
                             </BarChart>
+                        </div>
+                    </div>
+
+                    {/* Segunda fila PDF: gráficas por cliente */}
+                    <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginTop: '28px', alignItems: 'flex-start' }}>
+                        {/* CBM total por cliente — D2D */}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <p style={{ textAlign: 'center', marginBottom: '12px', color: '#475569', fontSize: '12px', fontWeight: '600' }}>
+                                CBM Total por Cliente — D2D
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                <PieChart width={280} height={220}>
+                                    <Pie
+                                        data={d2dByClientChartData.filter(d => d.CBM > 0)}
+                                        dataKey="CBM"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={85}
+                                        startAngle={90}
+                                        endAngle={-270}
+                                        paddingAngle={d2dByClientChartData.filter(d => d.CBM > 0).length > 1 ? 3 : 0}
+                                    >
+                                        {d2dByClientChartData.map((_, idx) => (
+                                            <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value, name, props) => [`${Number(value).toFixed(2)} CBM`, props.name]} />
+                                </PieChart>
+                            </div>
+                            {d2dByClientChartData.filter(d => d.CBM > 0).length > 0 && (
+                                <div style={{ marginTop: '16px', maxHeight: '160px', overflowY: 'auto' }}>
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 14px' }}>
+                                        {(() => {
+                                            const total = d2dByClientChartData.reduce((s, d) => s + d.CBM, 0);
+                                            return d2dByClientChartData.filter(d => d.CBM > 0).map((item, idx) => {
+                                                const pct = total > 0 ? ((item.CBM || 0) / total * 100).toFixed(1) : '0.0';
+                                                return (
+                                                    <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#334155' }}>
+                                                        <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: CHART_COLORS[idx % CHART_COLORS.length], flexShrink: 0 }} />
+                                                        <span><strong>{item.name}</strong>: {pct}% <span style={{ color: '#64748b' }}>({item.CBM.toFixed(2)} CBM)</span></span>
+                                                    </li>
+                                                );
+                                            });
+                                        })()}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Contenedores por cliente */}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <p style={{ textAlign: 'center', marginBottom: '12px', color: '#475569', fontSize: '12px', fontWeight: '600' }}>
+                                Contenedores por Cliente
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                <PieChart width={280} height={220}>
+                                    <Pie
+                                        data={containersByClientChartData.filter(d => d.total > 0)}
+                                        dataKey="total"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={85}
+                                        startAngle={90}
+                                        endAngle={-270}
+                                        paddingAngle={containersByClientChartData.filter(d => d.total > 0).length > 1 ? 3 : 0}
+                                    >
+                                        {containersByClientChartData.map((_, idx) => (
+                                            <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value, name, props) => [`${value} contenedores`, props.name]} />
+                                </PieChart>
+                            </div>
+                            {containersByClientChartData.filter(d => d.total > 0).length > 0 && (
+                                <div style={{ marginTop: '16px', maxHeight: '160px', overflowY: 'auto' }}>
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 14px' }}>
+                                        {containersByClientChartData.filter(d => d.total > 0).map((item, idx) => {
+                                            const parts = [];
+                                            if (item['20ft']) parts.push(`${item['20ft']} 20ft`);
+                                            if (item['40ft']) parts.push(`${item['40ft']} 40ft`);
+                                            if (item['40HC']) parts.push(`${item['40HC']} 40HC`);
+                                            return (
+                                                <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#334155' }}>
+                                                    <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: CHART_COLORS[idx % CHART_COLORS.length], flexShrink: 0 }} />
+                                                    <span><strong>{item.name}</strong> / {item.total} contenedores / {parts.join(', ')}</span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
