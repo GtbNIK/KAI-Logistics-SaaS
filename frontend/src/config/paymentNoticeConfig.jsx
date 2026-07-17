@@ -1,3 +1,5 @@
+import { formatCurrency } from '../utils/currency';
+
 // Configuración de columnas para la tabla de Avisos de Cobro
 
 // Status map reutilizable para evitar duplicación (DRY principle)
@@ -58,7 +60,7 @@ const getColumns = (user) => {
             accessor: 'totalAmount',
             render: (item) => (
                 <span className="font-bold text-slate-700">
-                    ${parseFloat(item.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(parseFloat(item.totalAmount || 0), item.currency || 'USD')}
                 </span>
             )
         },

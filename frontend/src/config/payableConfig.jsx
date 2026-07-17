@@ -1,8 +1,12 @@
+import { formatCurrency } from '../utils/currency';
+
 const PAYABLE_STATUS_MAP = {
     PENDING:        { label: 'Pendiente',  color: 'bg-amber-50 text-amber-600 border-amber-200' },
     PARTIALLY_PAID: { label: 'Abonada',   color: 'bg-blue-50 text-blue-600 border-blue-200' },
     PAID:           { label: 'Pagada',    color: 'bg-green-50 text-green-600 border-green-200' },
 };
+
+const getCurrency = (item) => item.currency || 'USD';
 
 export const payableConfig = {
     entityName: 'cuenta por pagar',
@@ -62,7 +66,7 @@ export const payableConfig = {
             accessor: 'amount',
             render: (item) => (
                 <span className="text-slate-700">
-                    ${parseFloat(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(item.amount, getCurrency(item))}
                 </span>
             )
         },
@@ -71,7 +75,7 @@ export const payableConfig = {
             accessor: 'paidAmount',
             render: (item) => (
                 <span className="font-medium text-green-600">
-                    ${parseFloat(item.paidAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(item.paidAmount, getCurrency(item))}
                 </span>
             )
         },
@@ -82,7 +86,7 @@ export const payableConfig = {
                 const pending = parseFloat(item.amount) - parseFloat(item.paidAmount || 0);
                 return (
                     <span className="font-bold text-amber-600">
-                        ${pending.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {formatCurrency(pending, getCurrency(item))}
                     </span>
                 );
             }

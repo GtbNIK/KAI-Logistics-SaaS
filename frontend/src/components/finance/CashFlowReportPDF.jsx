@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { dateToStringHelper } from '../../utils/dateHelpers';
+import { formatCurrency } from '../../utils/currency';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
@@ -19,7 +20,7 @@ const hexToRgb = (hex) => {
 };
 
 const formatMoney = (val = 0) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val ?? 0);
+    formatCurrency(val ?? 0, 'USD');
 
 const formatDate = (date) =>
     date ? dateToStringHelper(date, { style: 'slash', shortYear: true }) : '—';
@@ -214,7 +215,7 @@ const CashFlowReportPDF = ({
                             tx.receivable?.paymentNotice?.number
                                 ? `AVC-${tx.receivable.paymentNotice.number}`
                                 : '—',
-                            formatMoney(tx.amount),
+                            formatCurrency(tx.amount, tx.receivable?.currency || 'USD'),
                             paymentMethodsMap?.[tx.method] || tx.method || '—',
                             tx.reference || '—'
                         ]),
@@ -281,7 +282,7 @@ const CashFlowReportPDF = ({
                             return [
                                 formatDate(tx.date),
                                 `${description}${parte && parte !== '—' ? `\n${parte}` : ''}`,
-                                formatMoney(tx.amount),
+                            formatCurrency(tx.amount, tx.payable?.currency || 'USD'),
                                 paymentMethodsMap?.[tx.method] || tx.method || '—',
                                 tx.reference || '—'
                             ];

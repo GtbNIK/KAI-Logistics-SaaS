@@ -7,6 +7,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
 import axios from 'axios';
 import { buildPortLookup, formatRouteDisplay, replaceRouteCodesWithNames } from '../../utils/locationFormatters';
+import { getCurrencySymbol } from '../../utils/currency';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
@@ -148,6 +149,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const issueDate = new Date(notice.issueDate || notice.createdAt).toLocaleDateString('es-VE');
     const items = parseItems();
     const total = Number(notice.totalAmount) || 0;
+    const currencySymbol = getCurrencySymbol(notice.currency || 'USD');
 
     const generatePDF = async () => {
         setGenerating(true);
@@ -287,8 +289,8 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                 item.destination,
                 item.carrierCode,
                 `${item.quantity}${item.isDoorToDoor ? ' CBM' : ''}`,
-                `$${item.unitPrice.toFixed(2)}`,
-                `$${item.subtotal.toFixed(2)}`
+                `${currencySymbol}${item.unitPrice.toFixed(2)}`,
+                `${currencySymbol}${item.subtotal.toFixed(2)}`
             ]);
 
             autoTable(doc, {
@@ -325,7 +327,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
             doc.text('TOTAL', pageWidth - margin - 55, yPos + 8);
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
-            doc.text(`$${total.toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
+            doc.text(`${currencySymbol}${total.toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
 
             yPos += 35;
 
@@ -530,8 +532,8 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                                 <td className="py-2 px-3">{item.destination}</td>
                                                 <td className="py-2 px-3 text-center">{item.carrierCode}</td>
                                                 <td className="py-2 px-3 text-center">{item.quantity}{item.isDoorToDoor ? ' CBM' : ''}</td>
-                                                <td className="py-2 px-3 text-right">${item.unitPrice.toFixed(2)}</td>
-                                                <td className="py-2 px-3 text-right font-semibold">${item.subtotal.toFixed(2)}</td>
+                                                <td className="py-2 px-3 text-right">{currencySymbol}{item.unitPrice.toFixed(2)}</td>
+                                                <td className="py-2 px-3 text-right font-semibold">{currencySymbol}{item.subtotal.toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -541,7 +543,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
                                 <div className="flex justify-end mb-6">
                                     <div className="bg-slate-800 text-white px-6 py-3 rounded-lg">
                                         <span className="text-slate-300 text-sm mr-4">TOTAL</span>
-                                        <span className="text-xl font-bold">${total.toFixed(2)}</span>
+                                        <span className="text-xl font-bold">{currencySymbol}{total.toFixed(2)}</span>
                                     </div>
                                 </div>
 

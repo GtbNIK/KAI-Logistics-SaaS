@@ -44,8 +44,8 @@ router.post('/users/:id/reset-password', verifyToken, authorize('ADMIN'), resetP
 /**
  * @route   GET /api/auth/users
  * @desc    Obtener lista de usuarios
- * @access  Private (Admin, Sales)
+ * @access  Private (Admin)
  */
-router.get('/users', verifyToken, authorize('ADMIN', 'SALES'), getUsers);
+router.get('/users', verifyToken, authorize('ADMIN'), getUsers);
 
 export default router;

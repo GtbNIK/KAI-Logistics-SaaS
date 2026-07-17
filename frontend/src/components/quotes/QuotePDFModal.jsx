@@ -7,6 +7,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
 import { toVenezuelanFormat } from '../../utils/dateHelpers';
 import { buildPortLookup, formatRouteDisplay, formatZoneLabel } from '../../utils/locationFormatters';
+import { getCurrencySymbol, DEFAULT_CURRENCY } from '../../utils/currency';
 
 // Valores por defecto si no hay configuración
 const DEFAULT_LOGO = '/1.png';
@@ -90,7 +91,7 @@ const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
 const QuotePDFModal = ({ 
     isOpen, 
     onClose, 
-    quote,      // Datos de la cotización { clientName, items, total, notes, number, date, validUntil }
+    quote,      // Datos de la cotización { clientName, items, total, currency, notes, number, date, validUntil }
     services,   // Lista de servicios para obtener nombres
     allies,     // Lista de aliados
     zones,      // Lista de zonas
@@ -113,6 +114,7 @@ const QuotePDFModal = ({
     const quoteBgUrl = companySettings?.quoteBgUrl || null;
     const companyRif = companySettings?.rif || '';
     const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+    const currencySymbol = getCurrencySymbol(quote?.currency || DEFAULT_CURRENCY);
 
     const resolveClientName = () => {
         const c = quote?.client;
@@ -176,7 +178,6 @@ const QuotePDFModal = ({
             // Fondo personalizado (si existe)
             if (quoteBgUrl) {
                 try {
-                    const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
                     const bgImg = new window.Image();
                     bgImg.crossOrigin = 'anonymous';
                     await new Promise((resolve, reject) => {
@@ -341,8 +342,8 @@ const QuotePDFModal = ({
                 item.destination,
                 item.carrierCode,
                 `${item.quantity}${item.isDoorToDoor ? ' CBM' : ''}`,
-                `$${item.unitPrice.toFixed(2)}`,
-                `$${item.subtotal.toFixed(2)}`
+                `${currencySymbol}${item.unitPrice.toFixed(2)}`,
+                `${currencySymbol}${item.subtotal.toFixed(2)}`
             ]);
 
             autoTable(doc, {
@@ -383,7 +384,7 @@ const QuotePDFModal = ({
             doc.text('TOTAL', pageWidth - margin - 55, yPos + 8);
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
-            doc.text(`$${(Number(quote.total) || 0).toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
+            doc.text(`${currencySymbol}${(Number(quote.total) || 0).toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
 
             yPos += 35;
 
@@ -565,8 +566,8 @@ const QuotePDFModal = ({
                                             <td className="py-2 px-3">{item.destination}</td>
                                             <td className="py-2 px-3 text-center">{item.carrierCode}</td>
                                             <td className="py-2 px-3 text-center">{item.quantity} {item.isDoorToDoor ? ' CBM' : ''}</td>
-                                            <td className="py-2 px-3 text-right">${(Number(item.unitPrice) || 0).toFixed(2)}</td>
-                                            <td className="py-2 px-3 text-right font-semibold">${(Number(item.subtotal) || 0).toFixed(2)}</td>
+                                            <td className="py-2 px-3 text-right">{currencySymbol}{(Number(item.unitPrice) || 0).toFixed(2)}</td>
+                                            <td className="py-2 px-3 text-right font-semibold">{currencySymbol}{(Number(item.subtotal) || 0).toFixed(2)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -576,7 +577,7 @@ const QuotePDFModal = ({
                             <div className="flex justify-end mb-6">
                                 <div className="bg-slate-800 text-white px-6 py-3 rounded-lg">
                                     <span className="text-slate-300 text-sm mr-4">TOTAL</span>
-                                    <span className="text-xl font-bold">${(Number(quote.total) || 0).toFixed(2)}</span>
+                                    <span className="text-xl font-bold">{currencySymbol}{(Number(quote.total) || 0).toFixed(2)}</span>
                                 </div>
                             </div>
 

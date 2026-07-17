@@ -4,12 +4,10 @@ import { useSettings } from '../../context/SettingsContext';
 import { dateToStringHelper } from '../../utils/dateHelpers';
 import cashFlowService from '../../services/cash-flow.service';
 import { useToast } from '../../context/ToastContext';
+import { formatCurrency } from '../../utils/currency';
 import CashFlowReportPDF from '../../components/finance/CashFlowReportPDF';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-const formatMoney = (val) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val ?? 0);
-
 const formatDate = (d) =>
     d ? dateToStringHelper(d, { style: 'slash', shortYear: true }) : '—';
 
@@ -285,21 +283,21 @@ const CashFlow = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <KpiCard
                     title="Total Ingresos"
-                    value={formatMoney(summary.totalIngresos)}
+                    value={formatCurrency(summary.totalIngresos, 'USD')}
                     icon={TrendingUp}
                     colorClass="text-emerald-600"
                     bgClass="bg-emerald-50"
                 />
                 <KpiCard
                     title="Total Egresos"
-                    value={formatMoney(summary.totalEgresos)}
+                    value={formatCurrency(summary.totalEgresos, 'USD')}
                     icon={TrendingDown}
                     colorClass="text-rose-600"
                     bgClass="bg-rose-50"
                 />
                 <KpiCard
                     title="Balance Neto"
-                    value={formatMoney(summary.balance)}
+                    value={formatCurrency(summary.balance, 'USD')}
                     icon={Wallet}
                     colorClass={balancePositive ? 'text-blue-700' : 'text-rose-700'}
                     bgClass={balancePositive ? 'bg-blue-50' : 'bg-rose-50'}
@@ -342,7 +340,7 @@ const CashFlow = () => {
                                             {t.receivable?.paymentNotice?.number ? `AVC-${t.receivable.paymentNotice.number}` : '—'}
                                         </td>
                                         <td className="px-4 py-3 text-right font-semibold text-emerald-700 whitespace-nowrap">
-                                            {formatMoney(t.amount)}
+                                            {formatCurrency(t.amount, t.receivable?.currency || 'USD')}
                                         </td>
                                         <td className="px-4 py-3 text-slate-500 text-xs">{getMethodLabel(t.method)}</td>
                                         <td className="px-4 py-3 text-slate-400 text-xs">{t.reference || '---'}</td>
@@ -405,7 +403,7 @@ const CashFlow = () => {
                                                 <p className="text-xs text-slate-400 truncate">{parte}</p>
                                             </td>
                                             <td className="px-4 py-3 text-right font-semibold text-rose-700 whitespace-nowrap">
-                                                {formatMoney(t.amount)}
+                                            {formatCurrency(t.amount, t.payable?.currency || 'USD')}
                                             </td>
                                             <td className="px-4 py-3 text-slate-500 text-xs">{getMethodLabel(t.method)}</td>
                                             <td className="px-4 py-3 text-slate-400 text-xs">{t.reference || '---'}</td>

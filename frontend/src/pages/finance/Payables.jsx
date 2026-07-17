@@ -209,7 +209,7 @@ const Payables = () => {
                 </div>
             )}
 
-            {activeTab === 'employees' ? (
+            {isAdmin && activeTab === 'employees' ? (
                 <EmployeePayrollGrid onRegisterPayment={handleGridPayment} />
             ) : (
             <EntityTable

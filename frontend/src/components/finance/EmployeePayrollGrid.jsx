@@ -56,14 +56,16 @@ const EmployeePayrollGrid = ({ onRegisterPayment }) => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [uRes, pRes] = await Promise.all([
+            const [uResult, pResult] = await Promise.allSettled([
                 authService.getUsers(),
-                axios.get(`${API_URL}/payables?limit=500`, { withCredentials: true }),
+                axios.get(`${API_URL}/payables?employeeOnly=true&all=true`, { withCredentials: true }),
             ]);
-            const allUsers = uRes.users || [];
-            const allPayables = pRes.data.data || [];
+            const allUsers = uResult.status === 'fulfilled' ? (uResult.value.users || []) : [];
+            const allPayables = pResult.status === 'fulfilled' ? (pResult.value.data.data || []) : [];
             setUsers(allUsers.filter(u => u.isActive !== false));
             setPayables(allPayables.filter(p => p.employeeUserId !== null));
+            if (uResult.status === 'rejected') showError('Error', 'No se pudieron cargar los empleados');
+            if (pResult.status === 'rejected') showError('Error', 'No se pudieron cargar los pagos');
         } catch {
             showError('Error', 'No se pudieron cargar los datos de empleados');
         } finally {

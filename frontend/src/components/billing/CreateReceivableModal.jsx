@@ -4,6 +4,8 @@ import { TrendingUp, X, Plus, Wallet } from 'lucide-react';
 import axios from 'axios';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
+import CurrencySelect from '../shared/CurrencySelect';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -13,6 +15,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
     const [clientInputValue, setClientInputValue] = useState('');
     const [totalAmount, setTotalAmount] = useState('');
     const [manualNotes, setManualNotes] = useState('');
+    const [currency, setCurrency] = useState('USD');
     const [saving, setSaving] = useState(false);
     const [creditBalance, setCreditBalance] = useState(0);
     const { showSuccess, showError } = useToast();
@@ -42,12 +45,14 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
             setClientInputValue('');
             setTotalAmount(receivable.totalAmount ? Number(receivable.totalAmount).toString() : '');
             setManualNotes(receivable.manualNotes || '');
+            setCurrency(receivable.currency || 'USD');
             setCreditBalance(0);
         } else {
             setClientId('');
             setClientInputValue('');
             setTotalAmount('');
             setManualNotes('');
+            setCurrency('USD');
             setCreditBalance(0);
         }
     }, [isOpen, receivable]);
@@ -72,6 +77,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
             const payload = {
                 clientId,
                 totalAmount: parseFloat(totalAmount),
+                currency,
                 manualNotes: manualNotes || undefined,
             };
 
@@ -124,12 +130,15 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
                             isClearable
                             classNamePrefix="select"
                         />
-                    </div>
+                        </div>
+
+                    {/* Moneda */}
+                    <CurrencySelect value={currency} onChange={setCurrency} disabled={isEdit && parseFloat(receivable?.paidAmount || 0) > 0} />
 
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-700">Monto Total (USD)</label>
+                        <label className="text-xs font-medium text-slate-700">Monto Total ({getCurrencySymbol(currency)})</label>
                         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary bg-slate-50">
-                            <span className="text-slate-400 font-medium text-sm">$</span>
+                            <span className="text-slate-400 font-medium text-sm">{getCurrencySymbol(currency)}</span>
                             <input
                                 type="number"
                                 step="0.01"
@@ -152,7 +161,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
                                 <div className="text-sm text-emerald-800">
                                     <p className="font-semibold mb-0.5">Saldo a favor disponible</p>
                                     <p>
-                                        Este cliente tiene un saldo a favor de <strong>${Number(creditBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>. Se agregará automáticamente como abono a esta cuenta por cobrar.
+                                        Este cliente tiene un saldo a favor de <strong>{formatCurrency(Number(creditBalance), 'USD')}</strong>. Se agregará automáticamente como abono a esta cuenta por cobrar.
                                     </p>
                                 </div>
                             </div>

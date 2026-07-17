@@ -8,6 +8,7 @@ import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import receivableService from '../../services/receivable.service';
+import { formatCurrency } from '../../utils/currency';
 import { receivableConfig } from '../../config/receivableConfig';
 import ReceivableDetailModal from '../../components/billing/ReceivableDetailModal';
 import RegisterPaymentModal from '../../components/billing/RegisterPaymentModal';
@@ -118,7 +119,7 @@ const Receivables = () => {
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-right shrink-0">
                         <p className="text-xs text-amber-500 font-medium">Saldo pendiente en vista</p>
                         <p className="text-xl font-bold text-amber-700">
-                            ${totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {formatCurrency(totalPending, 'USD')}
                         </p>
                     </div>
                 )}

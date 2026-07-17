@@ -4,6 +4,7 @@ import { CreditCard, X, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { getTodayLocal, toLocalISOString } from '../../utils/dateHelpers';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import OverpaymentConfirmModal from './OverpaymentConfirmModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -30,6 +31,7 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
     const { showSuccess, showError } = useToast();
 
     if (!receivable) return null;
+    const recCurrency = receivable.currency || 'USD';
     const pendingRaw = parseFloat(receivable.totalAmount) - parseFloat(receivable.paidAmount || 0);
     const pendingBalance = Math.max(0, Number(pendingRaw.toFixed(2)));
     const client = receivable.paymentNotice?.client || receivable.client;
@@ -50,9 +52,9 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
         setLoading(true);
         try {
             await axios.post(`${API_URL}/receivables/${receivable.id}/payments`, {
-                amount: normalizedAmount, method, reference: reference || undefined, date: toLocalISOString(date), notes: notes || undefined,
+                amount: normalizedAmount, method, currency: recCurrency, reference: reference || undefined, date: toLocalISOString(date), notes: notes || undefined,
             });
-            showSuccess('¡Pago Registrado!', `Se abonaron $${normalizedAmount.toFixed(2)}`);
+            showSuccess('¡Pago Registrado!', `Se abonaron ${formatCurrency(normalizedAmount, recCurrency)}`);
             onSuccess();
             onClose();
         } catch (error) {
@@ -89,28 +91,28 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
                             <div>
                                 <p className="text-xs text-slate-400 mb-0.5">Total</p>
                                 <p className="font-bold text-slate-700 text-sm">
-                                    ${parseFloat(receivable.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(parseFloat(receivable.totalAmount), recCurrency)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-xs text-green-500 mb-0.5">Abonado</p>
                                 <p className="font-bold text-green-600 text-sm">
-                                    ${parseFloat(receivable.paidAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(parseFloat(receivable.paidAmount || 0), recCurrency)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-xs text-amber-500 mb-0.5">Pendiente</p>
                                 <p className="font-bold text-amber-600 text-sm">
-                                    ${pendingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(pendingBalance, recCurrency)}
                                 </p>
                             </div>
                         </div>
 
                         <form onSubmit={handleSubmitClick} className="p-6 space-y-4">
                             <div className="space-y-1">
-                                <label className="text-xs font-medium text-slate-700">Monto a Abonar (USD)</label>
+                                <label className="text-xs font-medium text-slate-700">Monto a Abonar ({getCurrencySymbol(recCurrency)})</label>
                                 <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary bg-slate-50">
-                                    <span className="text-slate-400 font-medium text-sm">$</span>
+                                    <span className="text-slate-400 font-medium text-sm">{getCurrencySymbol(recCurrency)}</span>
                                     <input type="number" step="0.01" min="0.01"
                                         value={amount} onChange={e => setAmount(e.target.value.replace(',', '.'))}
                                         className="flex-1 bg-transparent text-sm focus:outline-none text-slate-800 font-semibold"
@@ -169,6 +171,7 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
                     overpaymentAmount={overpaymentAmount}
                     clientName={client?.name || 'N/A'}
                     loading={loading}
+                    currency={recCurrency}
                     onConfirm={() => doSubmit(pendingAmount)}
                     onCancel={() => setShowConfirm(false)}
                 />

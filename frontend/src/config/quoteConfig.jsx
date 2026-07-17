@@ -1,5 +1,6 @@
 import { FileText, Calendar, Wallet } from 'lucide-react';
 import { toVenezuelanFormat } from '../utils/dateHelpers';
+import { formatCurrency } from '../utils/currency';
 
 // Status map reutilizable para evitar duplicación (DRY principle)
 const QUOTE_STATUS_MAP = {
@@ -51,7 +52,7 @@ export const quoteConfig = {
             accessor: 'totalAmount',
             render: (item) => (
                 <span className="font-bold text-slate-700">
-                    ${parseFloat(item.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(parseFloat(item.totalAmount || 0), item.currency || 'USD')}
                 </span>
             )
         },

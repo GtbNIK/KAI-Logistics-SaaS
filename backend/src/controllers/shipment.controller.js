@@ -48,7 +48,7 @@ export const getShipments = async (req, res) => {
                 vendedor: { select: { id: true, name: true } },
                 updatedBy: { select: { name: true } },
                 shippingLineRel: { select: { id: true, name: true, code: true } },
-                clientRel: { select: { id: true, name: true, rifOrId: true } },
+                clientRel: { select: { id: true, name: true } },
                 airLine: { select: { id: true, name: true, code: true } },
                 d2dShipmentItems: {
                     include: {
@@ -82,14 +82,14 @@ export const getShipment = async (req, res) => {
                     select: {
                         id: true,
                         number: true,
-                        client: { select: { name: true, rifOrId: true } },
+                        client: { select: { name: true } },
                         items: true,
                     }
                 },
                 vendedor: { select: { id: true, name: true } },
                 updatedBy: { select: { name: true } },
                 shippingLineRel: { select: { id: true, name: true, code: true } },
-                clientRel: { select: { id: true, name: true, rifOrId: true } },
+                clientRel: { select: { id: true, name: true } },
                 airLine: { select: { id: true, name: true, code: true } },
                 d2dShipmentItems: {
                     include: {

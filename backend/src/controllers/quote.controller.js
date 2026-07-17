@@ -2,6 +2,8 @@ import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
 
+const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
+
 // GET /api/quotes - Listar cotizaciones
 export const getQuotes = async (req, res) => {
     try {
@@ -77,11 +79,11 @@ export const getQuote = async (req, res) => {
                 client: {
                     include: {
                         assignedUsers: {
-                            select: { id: true, name: true, email: true }
+                            select: { id: true, name: true }
                         }
                     }
                 },
-                user: { select: { id: true, name: true, email: true } },
+                user: { select: { id: true, name: true } },
                 items: {
                     include: {
                         service: true,
@@ -111,8 +113,10 @@ export const getQuote = async (req, res) => {
 // POST /api/quotes - Crear cotización
 export const createQuote = async (req, res) => {
     try {
-        const { clientId, validUntil, notes, items } = req.body;
+        const { clientId, validUntil, notes, items, currency } = req.body;
         const userId = req.user.id;
+
+        const quoteCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : 'USD';
 
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'La cotización debe tener al menos un ítem' });
@@ -153,6 +157,7 @@ export const createQuote = async (req, res) => {
             data: {
                 clientId,
                 userId,
+                currency: quoteCurrency,
                 validUntil: validUntil ? new Date(validUntil) : null,
                 notes,
                 totalAmount,
@@ -188,7 +193,9 @@ export const createQuote = async (req, res) => {
 export const updateQuote = async (req, res) => {
     try {
         const { id } = req.params;
-        const { clientId, validUntil, notes, items } = req.body;
+        const { clientId, validUntil, notes, items, currency } = req.body;
+
+        const quoteCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : undefined;
 
         const existingQuote = await prisma.quote.findUnique({ where: { id } });
 
@@ -250,6 +257,7 @@ export const updateQuote = async (req, res) => {
                     where: { id },
                     data: {
                         clientId,
+                        currency: quoteCurrency,
                         validUntil: validUntil ? new Date(validUntil) : null,
                         notes,
                         totalAmount,
@@ -270,6 +278,7 @@ export const updateQuote = async (req, res) => {
                 where: { id },
                 data: {
                     clientId,
+                    currency: quoteCurrency,
                     validUntil: validUntil ? new Date(validUntil) : null,
                     notes
                 }

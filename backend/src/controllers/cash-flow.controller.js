@@ -29,6 +29,7 @@ export const getCashFlow = async (req, res) => {
                 receivable: {
                     select: {
                         number: true,
+                        currency: true,
                         client: { select: { name: true, rifOrId: true } },
                         paymentNotice: { select: { number: true } }
                     }
@@ -45,9 +46,10 @@ export const getCashFlow = async (req, res) => {
                     select: {
                         number: true,
                         description: true,
+                        currency: true,
                         ally: { select: { name: true } },
                         svcProvider: { select: { name: true } },
-                employeeUser: { select: { name: true, position: true } }
+                        employeeUser: { select: { name: true, position: true } }
                     }
                 }
             },

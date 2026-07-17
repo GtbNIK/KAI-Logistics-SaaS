@@ -1,6 +1,8 @@
 import prisma from '../config/database.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
 
+const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
+
 const parseRouteFromDescription = (description = '') => {
     const match = description.match(/Ruta:\s*(.+?)\s*→\s*(.+?)(?:\s*·|$)/);
     if (!match) {
@@ -135,6 +137,7 @@ export const convertFromQuote = async (req, res) => {
                     quoteId: quote.id,
                     clientId: quote.clientId,
                     totalAmount: quote.totalAmount,
+                    currency: quote.currency || 'USD',
                     notes: quote.notes,
                     items: {
                         create: quote.items.map(item => {
@@ -171,6 +174,7 @@ export const convertFromQuote = async (req, res) => {
                     paymentNoticeId: paymentNotice.id,
                     clientId: quote.clientId,
                     totalAmount: quote.totalAmount,
+                    currency: quote.currency || 'USD',
                     paidAmount: appliedCredit,
                     balance: remainingAmount,
                     status: remainingAmount <= 0 ? 'PAID' : 'PENDING'
@@ -251,7 +255,7 @@ export const getPaymentNotices = async (req, res) => {
             prisma.paymentNotice.findMany({
                 where,
                 include: {
-                    client: { select: { name: true, rifOrId: true } },
+                    client: { select: { name: true } },
                     quote: { select: { number: true } },
                     items: true,
                     ...(isAdmin ? { receivable: { select: { id: true, number: true, status: true, balance: true, paidAmount: true } } } : {}),
@@ -352,7 +356,8 @@ export const getPaymentNoticeById = async (req, res) => {
 export const updatePaymentNotice = async (req, res) => {
     try {
         const { id } = req.params;
-        const { clientId, items, notes } = req.body;
+        const { clientId, items, notes, currency } = req.body;
+        const noticeCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : undefined;
 
         if (!clientId) return res.status(400).json({ message: 'El cliente es requerido' });
         if (!items || !Array.isArray(items) || items.length === 0)
@@ -432,6 +437,7 @@ export const updatePaymentNotice = async (req, res) => {
                 data: {
                     clientId,
                     totalAmount,
+                    ...(noticeCurrency ? { currency: noticeCurrency } : {}),
                     notes: notes || null,
                     items: { create: processedItems }
                 },
@@ -449,6 +455,7 @@ export const updatePaymentNotice = async (req, res) => {
                     data: {
                         clientId,
                         totalAmount,
+                        ...(noticeCurrency ? { currency: noticeCurrency } : {}),
                         balance: newBalance < 0 ? 0 : newBalance,
                         status: newBalance <= 0 ? 'PAID' : paidAmount > 0 ? 'PARTIALLY_PAID' : 'PENDING'
                     }
@@ -473,7 +480,8 @@ export const updatePaymentNotice = async (req, res) => {
  */
 export const createPaymentNotice = async (req, res) => {
     try {
-        const { clientId, items, notes } = req.body;
+        const { clientId, items, notes, currency } = req.body;
+        const noticeCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : 'USD';
 
         // Validaciones
         if (!clientId) {
@@ -571,6 +579,7 @@ export const createPaymentNotice = async (req, res) => {
                 data: {
                     clientId,
                     totalAmount,
+                    currency: noticeCurrency,
                     notes: notes || null,
                     items: {
                         create: processedItems
@@ -588,6 +597,7 @@ export const createPaymentNotice = async (req, res) => {
                     paymentNoticeId: paymentNotice.id,
                     clientId,
                     totalAmount,
+                    currency: noticeCurrency,
                     paidAmount: appliedCredit,
                     balance: remainingAmount,
                     status: remainingAmount <= 0 ? 'PAID' : 'PENDING'

@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { Receipt, DollarSign, Package, FileText, User, Calendar, X, ScrollText, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { formatCurrency } from '../../utils/currency';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -169,12 +170,12 @@ const NoticeDetailModal = ({ notice, onClose, user }) => {
                                                         </p>
                                                     ))}
                                                     <p className="text-slate-400 text-xs mt-1 italic">
-                                                        {parseFloat(item.quantity)} {serviceName.toLowerCase().includes('door') ? 'CBM' : 'unidades'} @ ${parseFloat(item.unitPrice || 0).toFixed(2)}
+                                                        {parseFloat(item.quantity)} {serviceName.toLowerCase().includes('door') ? 'CBM' : 'unidades'} @ {formatCurrency(parseFloat(item.unitPrice || 0), n.currency || 'USD')}
                                                     </p>
                                                 </div>
                                             </div>
                                             <span className="font-bold text-slate-700 whitespace-nowrap ml-4">
-                                                ${parseFloat(item.totalPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                {formatCurrency(parseFloat(item.totalPrice || 0), n.currency || 'USD')}
                                             </span>
                                         </div>
                                     );
@@ -197,7 +198,7 @@ const NoticeDetailModal = ({ notice, onClose, user }) => {
                         <DollarSign size={16} /> Total del Aviso
                     </span>
                     <span className="text-2xl font-bold">
-                        ${parseFloat(n.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {formatCurrency(parseFloat(n.totalAmount || 0), n.currency || 'USD')}
                     </span>
                 </div>
             </div>

@@ -91,8 +91,8 @@ export const createClient = async (req, res) => {
                 updatedById: req.user.id
             },
             include: {
-                assignedUsers: { select: { id: true, name: true, email: true } },
-                updatedBy: { select: { name: true, email: true } }
+                assignedUsers: { select: { id: true, name: true } },
+                updatedBy: { select: { name: true } }
             }
         });
 
@@ -171,8 +171,8 @@ export const getClients = async (req, res) => {
                 where,
                 orderBy: { name: 'asc' },
                 include: {
-                    assignedUsers: { select: { id: true, name: true, email: true } },
-                    updatedBy: { select: { name: true, email: true } }
+                    assignedUsers: { select: { id: true, name: true } },
+                    updatedBy: { select: { name: true } }
                 }
             });
             return res.json({ data: clients });
@@ -190,7 +190,7 @@ export const getClients = async (req, res) => {
                 assignedUsers: {
                     select: { id: true, name: true, email: true }
                 },
-                updatedBy: { select: { name: true, email: true } }
+                updatedBy: { select: { name: true } }
             }
         });
 
@@ -214,8 +214,8 @@ export const getClient = async (req, res) => {
         const client = await prisma.client.findUnique({
             where: { id },
             include: {
-                assignedUsers: { select: { id: true, name: true, email: true } },
-                updatedBy: { select: { name: true, email: true } }
+                assignedUsers: { select: { id: true, name: true } },
+                updatedBy: { select: { name: true } }
             }
         });
 
@@ -315,8 +315,8 @@ export const updateClient = async (req, res) => {
                 updatedById: req.user.id
             },
             include: {
-                assignedUsers: { select: { id: true, name: true, email: true } },
-                updatedBy: { select: { name: true, email: true } }
+                assignedUsers: { select: { id: true, name: true } },
+                updatedBy: { select: { name: true } }
             }
         });
 

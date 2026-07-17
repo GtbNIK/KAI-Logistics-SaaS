@@ -1,3 +1,5 @@
+import { formatCurrency } from '../utils/currency';
+
 // Configuración de columnas para la tabla de Cuentas por Cobrar
 
 // Status map reutilizable para evitar duplicación (DRY principle)
@@ -54,7 +56,7 @@ export const receivableConfig = {
             accessor: 'totalAmount',
             render: (item) => (
                 <span className="text-slate-700">
-                    ${parseFloat(item.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(parseFloat(item.totalAmount || 0), item.currency || 'USD')}
                 </span>
             )
         },
@@ -63,7 +65,7 @@ export const receivableConfig = {
             accessor: 'paidAmount',
             render: (item) => (
                 <span className="font-medium text-green-600">
-                    ${parseFloat(item.paidAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {formatCurrency(parseFloat(item.paidAmount || 0), item.currency || 'USD')}
                 </span>
             )
         },
@@ -74,7 +76,7 @@ export const receivableConfig = {
                 const pending = parseFloat(item.totalAmount) - parseFloat(item.paidAmount || 0);
                 return (
                     <span className="font-bold text-amber-600">
-                        ${pending.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {formatCurrency(pending, item.currency || 'USD')}
                     </span>
                 );
             }

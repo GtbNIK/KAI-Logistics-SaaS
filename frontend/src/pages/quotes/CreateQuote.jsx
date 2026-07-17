@@ -25,8 +25,10 @@ import QuickCreateZoneModal from '../../components/shared/QuickCreateZoneModal';
 import QuickCreateShippingLineModal from '../../components/shared/QuickCreateShippingLineModal';
 import QuickCreateAirLineModal from '../../components/shared/QuickCreateAirLineModal';
 import { calculateItemSubtotal, formatQuantityLabel } from '../../utils/pricing';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import { toDateString } from '../../utils/dateHelpers';
 import RateSelectModal from '../../components/rates/RateSelectModal';
+import CurrencySelect from '../../components/shared/CurrencySelect';
 
 // Componente para cada línea de item
 const QuoteItemRow = ({ 
@@ -44,7 +46,8 @@ const QuoteItemRow = ({
     canRemove,
     onRateFound,
     onQuickCreate,
-    userRole
+    userRole,
+    currency,
 }) => {
     const [searchingRate, setSearchingRate] = useState(false);
     const [foundRate, setFoundRate] = useState(null);
@@ -422,7 +425,7 @@ const QuoteItemRow = ({
                     <span>
                         Tarifa aplicada: {appliedRate.originPort.name} → {appliedRate.destinationPort.name}
                         {appliedRate.shippingLineName !== '—' ? ` (${appliedRate.shippingLineName})` : ''}
-                        {' — '}${appliedRate.unitPrice?.toFixed(2)}
+                        {' — '}{formatCurrency(appliedRate.unitPrice, currency)}
                     </span>
                 </div>
             )}
@@ -447,7 +450,9 @@ const QuoteItemRow = ({
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-500">Precio Unit. ($)</label>
+                    <label className="text-xs font-medium text-slate-500">
+    Precio Unit. ({getCurrencySymbol(currency)})
+</label>
                     <input 
                         type="number" 
                         min="0"
@@ -462,7 +467,7 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Subtotal</label>
                     <div className="px-3 py-2 text-sm font-bold bg-slate-100 rounded-lg text-slate-700">
-                        ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {formatCurrency(subtotal, currency)}
                     </div>
                 </div>
             </div>
@@ -480,7 +485,7 @@ const QuoteItemRow = ({
                     ) : foundRate ? (
                         <>
                             <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                            <span>Hay una tarifa Guardada para este servicio, si no desea usarla, puede modificarla manualmente: ${foundRate.salePrice.toFixed(2)}</span>
+                            <span>Hay una tarifa Guardada para este servicio, si no desea usarla, puede modificarla manualmente: {formatCurrency(foundRate.salePrice, currency)}</span>
                         </>
                     ) : (item.serviceId && item.allyId) ? (
                         <>
@@ -539,6 +544,7 @@ const CreateQuote = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showPDFModal, setShowPDFModal] = useState(false);
     const [nextQuoteNumber, setNextQuoteNumber] = useState(1);
+    const [currency, setCurrency] = useState('USD');
     
     const [validUntil, setValidUntil] = useState(
         new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -610,6 +616,7 @@ const CreateQuote = () => {
                     setNotes(quote.notes || '');
                     setShowNotesToClient(quote.showNotesToClient);
                     setNextQuoteNumber(quote.number);
+                    setCurrency(quote.currency || 'USD');
                     setValidUntil(toDateString(quote.validUntil));
                     
                     const mappedItems = quote.items.map(item => ({
@@ -698,6 +705,7 @@ const CreateQuote = () => {
         try {
             const payload = {
                 clientId,
+                currency,
                 validUntil: new Date(validUntil),
                 notes,
                 showNotesToClient,
@@ -766,7 +774,8 @@ const CreateQuote = () => {
                     </div>
 
                     {/* Cliente */}
-                    <div className="space-y-2 mb-4">
+                    <CurrencySelect value={currency} onChange={setCurrency} />
+                    <div className="space-y-2 mb-4 mt-2">
                         <label className="text-sm font-medium text-slate-700">Cliente</label>
                         <Select
                             options={filteredClients}
@@ -804,6 +813,7 @@ const CreateQuote = () => {
                                     setQuickCreateRowIndex(idx);
                                 }}
 								userRole={user?.role}
+								currency={currency}
 							/>
 						))}
 					</div>
@@ -930,7 +940,7 @@ const CreateQuote = () => {
                                                 )}
                                             </div>
                                             <span className="font-bold">
-                                                ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                {formatCurrency(subtotal, currency)}
                                             </span>
                                         </div>
                                         <div className="text-xs text-slate-400 space-y-0.5">
@@ -953,7 +963,7 @@ const CreateQuote = () => {
                                                 </p>
                                             )}
                                             <p className="text-slate-500">
-                                                {quantityLabel} @ ${item.unitPrice.toFixed(2)}
+                                                {quantityLabel} @ {formatCurrency(item.unitPrice, currency)}
                                             </p>
                                         </div>
                                     </div>
@@ -975,7 +985,7 @@ const CreateQuote = () => {
                                 <p className="text-xs text-slate-400">{items.filter(i => i.serviceId).length} item(s)</p>
                             </div>
                             <span className="text-2xl font-bold">
-                                ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                {formatCurrency(total, currency)}
                             </span>
                         </div>
                     </div>
@@ -991,6 +1001,7 @@ const CreateQuote = () => {
                     user,
                     items,
                     total,
+                    currency,
                     notes,
                     showNotesToClient,
                     number: nextQuoteNumber,

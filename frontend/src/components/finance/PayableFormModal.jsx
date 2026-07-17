@@ -179,6 +179,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                 employeeUserId: selectedEmployee || null,
                 description: description.trim(),
                 amount: parseFloat(amount),
+                currency: 'USD',
                 dueDate: dueDate || null,
                 invoiceNr: invoiceNr.trim() || null
             };

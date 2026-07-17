@@ -4,6 +4,7 @@ import { CreditCard, X, Plus } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { getTodayLocal, toLocalISOString } from '../../utils/dateHelpers';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -27,6 +28,7 @@ const RegisterPayablePaymentModal = ({ payable, onClose, onSuccess }) => {
     const { showSuccess, showError } = useToast();
 
     if (!payable) return null;
+    const recCurrency = payable.currency || 'USD';
     const pendingRaw = parseFloat(payable.amount) - parseFloat(payable.paidAmount || 0);
     const pendingBalance = Math.max(0, Number(pendingRaw.toFixed(2)));
     const beneficiary = payable.ally?.name || `Servicio: ${payable.svcProvider?.name}` || `${payable.employeeUser ? `Empleado: ${payable.employeeUser.name}` : ''} N/A`;
@@ -35,13 +37,13 @@ const RegisterPayablePaymentModal = ({ payable, onClose, onSuccess }) => {
         e.preventDefault();
         const normalizedAmount = parseFloat(String(amount).replace(',', '.'));
         if (!normalizedAmount || normalizedAmount <= 0) return showError('Validación', 'El monto debe ser mayor a 0');
-        if (normalizedAmount > pendingBalance + 0.000001) return showError('Validación', `No puede superar $${pendingBalance.toFixed(2)}`);
+        if (normalizedAmount > pendingBalance + 0.000001) return showError('Validación', `No puede superar ${formatCurrency(pendingBalance, recCurrency)}`);
         setLoading(true);
         try {
             await axios.post(`${API_URL}/payables/${payable.id}/payments`, {
                 amount: normalizedAmount, method, reference: reference || undefined, date: toLocalISOString(date), notes: notes || undefined,
             });
-            showSuccess('¡Pago Registrado!', `Se abonaron $${normalizedAmount.toFixed(2)}`);
+            showSuccess('¡Pago Registrado!', `Se abonaron ${formatCurrency(normalizedAmount, recCurrency)}`);
             onSuccess();
             onClose();
         } catch (error) {
@@ -73,28 +75,28 @@ const RegisterPayablePaymentModal = ({ payable, onClose, onSuccess }) => {
                     <div>
                         <p className="text-xs text-slate-400 mb-0.5">Total</p>
                         <p className="font-bold text-slate-700 text-sm">
-                            ${parseFloat(payable.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {formatCurrency(payable.amount, recCurrency)}
                         </p>
                     </div>
                     <div>
                         <p className="text-xs text-green-500 mb-0.5">Abonado</p>
                         <p className="font-bold text-green-600 text-sm">
-                            ${parseFloat(payable.paidAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {formatCurrency(payable.paidAmount || 0, recCurrency)}
                         </p>
                     </div>
                     <div>
                         <p className="text-xs text-amber-500 mb-0.5">Pendiente</p>
                         <p className="font-bold text-amber-600 text-sm">
-                            ${pendingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {formatCurrency(pendingBalance, recCurrency)}
                         </p>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-700">Monto a Abonar (USD)</label>
+                        <label className="text-xs font-medium text-slate-700">Monto a Abonar ({getCurrencySymbol(recCurrency)})</label>
                         <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary bg-slate-50">
-                            <span className="text-slate-400 font-medium text-sm">$</span>
+                            <span className="text-slate-400 font-medium text-sm">{getCurrencySymbol(recCurrency)}</span>
                             <input type="number" step="0.01" min="0.01" max={Number(pendingBalance.toFixed(2))}
                                 value={amount} onChange={e => setAmount(e.target.value.replace(',', '.'))}
                                 className="flex-1 bg-transparent text-sm focus:outline-none text-slate-800 font-semibold"

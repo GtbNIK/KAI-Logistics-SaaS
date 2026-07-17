@@ -7,14 +7,17 @@ import { createNotification } from './notification.controller.js';
  */
 export const getPayables = async (req, res) => {
     try {
-        const { status, search = '', page = 1, limit = 10, beneficiaryId } = req.query;
+        const { status, search = '', page = 1, limit = 10, beneficiaryId, employeeOnly, all } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const where = {};
         if (status) where.status = status;
+        if (employeeOnly === 'true') {
+            where.employeeUserId = { not: null };
+        }
         if (beneficiaryId) {
             where.OR = [
-{ allyId: beneficiaryId },
+                { allyId: beneficiaryId },
                 { svcProviderId: beneficiaryId },
                 { employeeUserId: beneficiaryId }
             ];
@@ -43,18 +46,19 @@ OR: [
             }
         }
 
-        const [payables, total] = await Promise.all([
+const [payables, total] = await Promise.all([
             prisma.payable.findMany({
                 where: { ...where, deletedAt: null },
                 include: {
-                    ally: { select: { id: true, name: true } },
-                    svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
+                    ...(employeeOnly === 'true' ? {} : {
+                        ally: { select: { id: true, name: true } },
+                        svcProvider: { select: { id: true, name: true } },
+                    }),
+                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
                     payments: { orderBy: { date: 'desc' } }
                 },
                 orderBy: { createdAt: 'desc' },
-                skip,
-                take: parseInt(limit)
+                ...(all === 'true' ? {} : { skip, take: parseInt(limit) })
             }),
             prisma.payable.count({ where: { ...where, deletedAt: null } })
         ]);
@@ -86,7 +90,7 @@ export const getPayableById = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -108,7 +112,8 @@ export const getPayableById = async (req, res) => {
  */
 export const createPayable = async (req, res) => {
     try {
-        const { allyId, svcProviderId, employeeUserId, description, amount, dueDate, relatedOperationId, invoiceNr } = req.body;
+        const { allyId, svcProviderId, employeeUserId, description, amount, dueDate, relatedOperationId, invoiceNr, currency } = req.body;
+        const recCurrency = currency && ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'].includes(currency) ? currency : 'USD';
 
         if (!allyId && !svcProviderId && !employeeUserId) {
             return res.status(400).json({ message: 'Debe seleccionar un aliado, proveedor o empleado' });
@@ -131,6 +136,7 @@ export const createPayable = async (req, res) => {
                 svcProviderId: svcProviderId || null,
                 employeeUserId: employeeUserId || null,
                 description: description.trim(),
+                currency: recCurrency,
                 amount: parsedAmount,
                 paidAmount: 0,
                 balance: parsedAmount,
@@ -142,7 +148,7 @@ export const createPayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
                 payments: true
             }
         });
@@ -178,7 +184,8 @@ export const updatePayable = async (req, res) => {
             amount,
             dueDate,
             relatedOperationId,
-            invoiceNr
+            invoiceNr,
+            currency
         } = req.body;
 
         const nextAllyId = allyId !== undefined ? allyId : existing.allyId;
@@ -215,6 +222,10 @@ export const updatePayable = async (req, res) => {
             newStatus = 'PARTIALLY_PAID';
         }
 
+        const recCurrency = currency !== undefined
+            ? (['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'].includes(currency) ? currency : 'USD')
+            : existing.currency;
+
         const updated = await prisma.payable.update({
             where: { id },
             data: {
@@ -222,6 +233,7 @@ export const updatePayable = async (req, res) => {
                 svcProviderId: nextProviderId || null,
                 employeeUserId: nextEmployeeId || null,
                 description: newDescription,
+                currency: recCurrency,
                 amount: parsedAmount,
                 balance: newBalance,
                 status: newStatus,
@@ -232,7 +244,7 @@ export const updatePayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -309,7 +321,7 @@ export const registerPayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });
@@ -406,7 +418,7 @@ export const deletePayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, email: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });

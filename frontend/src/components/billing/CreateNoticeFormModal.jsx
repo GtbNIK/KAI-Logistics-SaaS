@@ -13,6 +13,8 @@ import QuickCreateZoneModal from '../shared/QuickCreateZoneModal';
 import shippingLineService from '../../services/shippingLine.service';
 import airlineService from '../../services/airline.service';
 import { calculateItemSubtotal } from '../../utils/pricing';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
+import CurrencySelect from '../shared/CurrencySelect';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -63,6 +65,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
     const [clientInputValue, setClientInputValue] = useState('');
     const [notes, setNotes] = useState('');
     const [items, setItems] = useState([emptyItem()]);
+    const [currency, setCurrency] = useState('USD');
     const [saving, setSaving] = useState(false);
     const { user } = useAuth();
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -147,6 +150,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
             setClientId(noticeToEdit.clientId || '');
             setClientInputValue('');
             setNotes(noticeToEdit.notes || '');
+            setCurrency(noticeToEdit.currency || 'USD');
             setItems(
                 (noticeToEdit.items || []).map(item => {
                     // originPort / destinationPort no se guardan como campo separado en
@@ -169,6 +173,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
             setClientId('');
             setClientInputValue('');
             setNotes('');
+            setCurrency('USD');
             setItems([emptyItem()]);
         }
     }, [isOpen, noticeToEdit]);
@@ -221,6 +226,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
 
         const payload = {
             clientId,
+            currency,
             notes: notes || undefined,
             items: items.map(item => ({
                 serviceId:       item.serviceId,
@@ -295,6 +301,9 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                             styles={clientSelectStyles}
                         />
                     </div>
+
+                    {/* Moneda */}
+                    <CurrencySelect value={currency} onChange={setCurrency} />
 
                     {/* Notas */}
                     <div>
@@ -534,9 +543,9 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-xs text-slate-500">Precio Unit. (USD) <span className="text-red-500">*</span></label>
+                                                <label className="text-xs text-slate-500">Precio Unit. ({getCurrencySymbol(currency)}) <span className="text-red-500">*</span></label>
                                                 <div className="flex items-center gap-1 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
-                                                    <span className="text-slate-400 text-sm">$</span>
+                                                    <span className="text-slate-400 text-sm">{getCurrencySymbol(currency)}</span>
                                                     <input type="number" min="0" step="0.01" value={item.unitPrice}
                                                         onChange={e => updateItem(idx, 'unitPrice', e.target.value)}
                                                         className="flex-1 bg-transparent text-sm focus:outline-none text-slate-800 font-semibold"
@@ -546,7 +555,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                             <div>
                                                 <label className="text-xs text-slate-500">Total</label>
                                                 <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-700">
-                                                    ${getItemTotal(item).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                    ${formatCurrency(getItemTotal(item), currency)}
                                                 </div>
                                             </div>
                                         </div>
@@ -559,7 +568,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                     <div className="flex justify-end">
                         <div className="bg-slate-800 text-white px-6 py-3 rounded-xl flex items-center gap-4">
                             <span className="text-slate-300 text-sm font-medium">TOTAL</span>
-                            <span className="text-xl font-bold">${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            <span className="text-xl font-bold">{formatCurrency(grandTotal, currency)}</span>
                         </div>
                     </div>
                 </form>

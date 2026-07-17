@@ -1,9 +1,13 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
+import { formatCurrency } from '../utils/currency.js';
+
+const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
 
 export const createReceivable = async (req, res) => {
     try {
-        const { clientId, totalAmount, manualNotes } = req.body;
+        const { clientId, totalAmount, manualNotes, currency } = req.body;
+        const recCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : 'USD';
 
         if (!clientId) {
             return res.status(400).json({ message: 'El cliente es requerido' });
@@ -29,6 +33,7 @@ export const createReceivable = async (req, res) => {
                 paymentNoticeId: null,
                 clientId,
                 totalAmount: amount,
+                currency: recCurrency,
                 paidAmount: appliedCredit,
                 balance: remainingAmount,
                 status: remainingAmount <= 0 ? 'PAID' : 'PENDING',
@@ -72,7 +77,7 @@ export const createReceivable = async (req, res) => {
 
         res.status(201).json({
             message: appliedCredit > 0
-                ? `Cuenta por cobrar creada. Se aplicaron $${appliedCredit.toFixed(2)} de saldo a favor.`
+                ? `Cuenta por cobrar creada. Se aplicaron ${formatCurrency(appliedCredit, recCurrency)} de saldo a favor.`
                 : 'Cuenta por cobrar creada exitosamente',
             data: created
         });
@@ -95,7 +100,16 @@ export const updateReceivable = async (req, res) => {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
         }
 
-        const { clientId, totalAmount, manualNotes } = req.body;
+        const { clientId, totalAmount, manualNotes, currency } = req.body;
+
+        // Bloquear cambio de moneda si ya hay pagos registrados
+        const paidAmount = Number(existing.paidAmount);
+        if (currency && currency !== existing.currency && paidAmount > 0) {
+            return res.status(400).json({ message: 'No se puede cambiar la moneda de una CxC con pagos registrados' });
+        }
+        const recCurrency = currency && VALID_CURRENCIES.includes(currency)
+            ? currency
+            : undefined;
 
         const nextClientId = clientId || existing.clientId;
         if (!nextClientId) {
@@ -107,7 +121,6 @@ export const updateReceivable = async (req, res) => {
             return res.status(400).json({ message: 'El monto total debe ser mayor a 0' });
         }
 
-        const paidAmount = Number(existing.paidAmount);
         if (parsedAmount < paidAmount) {
             return res.status(400).json({ message: 'El monto total no puede ser menor al monto ya pagado' });
         }
@@ -125,6 +138,7 @@ export const updateReceivable = async (req, res) => {
             data: {
                 clientId: nextClientId,
                 totalAmount: parsedAmount,
+                ...(recCurrency ? { currency: recCurrency } : {}),
                 balance: newBalance,
                 status: newStatus,
                 manualNotes: manualNotes !== undefined ? (manualNotes || null) : existing.manualNotes
@@ -466,9 +480,9 @@ export const registerPayment = async (req, res) => {
                     where: { id: receivable.clientId },
                     select: { creditBalance: true }
                 });
-                notificationMessage = `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada. Se generó un sobrepago de $${parseFloat(overpaymentAmount).toFixed(2)} → Saldo a favor del cliente: $${parseFloat(clientData.creditBalance).toFixed(2)}.`;
+                notificationMessage = `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada. Se generó un sobrepago de ${formatCurrency(overpaymentAmount, receivable.currency)} → Saldo a favor del cliente: ${formatCurrency(clientData.creditBalance, receivable.currency)}.`;
             } else {
-                notificationMessage = `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada exitosamente ($${parseFloat(receivable.totalAmount).toFixed(2)}).`;
+                notificationMessage = `La cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name} ha sido cobrada exitosamente (${formatCurrency(receivable.totalAmount, receivable.currency)}).`;
             }
             await createNotification({
                 title: 'Cuenta por Cobrar Saldada',
@@ -481,7 +495,7 @@ export const registerPayment = async (req, res) => {
         } else if (newStatus === 'PARTIALLY_PAID') {
             await createNotification({
                 title: 'Abono en Cuenta por Cobrar',
-                message: `Se ha registrado un abono de $${parseFloat(paymentAmount).toFixed(2)} a la cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name}. Saldo restante: $${parseFloat(newBalance).toFixed(2)}.`,
+                message: `Se ha registrado un abono de ${formatCurrency(paymentAmount, receivable.currency)} a la cuenta CXC-${String(receivable.number).padStart(5, '0')} del cliente ${receivable.client.name}. Saldo restante: ${formatCurrency(newBalance, receivable.currency)}.`,
                 type: 'INFO',
                 targetRoles: ['ADMIN'], // Sólo ADMIN
                 entityType: 'RECEIVABLE',

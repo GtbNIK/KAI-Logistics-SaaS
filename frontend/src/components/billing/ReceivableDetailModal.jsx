@@ -6,6 +6,7 @@ import PaymentReceiptPDFModal from './PaymentReceiptPDFModal';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 import receivableService from '../../services/receivable.service';
 import { useToast } from '../../context/ToastContext';
+import { formatCurrency } from '../../utils/currency';
 
 const paymentMethods = [
     { value: 'TRANSFER', label: 'Transferencia Bancaria' },
@@ -134,21 +135,21 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                             <DollarSign size={18} className="mx-auto text-slate-400 mb-1" />
                             <p className="text-xs text-slate-400 mb-0.5">Total</p>
                             <p className="font-bold text-slate-800 text-sm">
-                                ${parseFloat(r.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(parseFloat(r.totalAmount), r.currency || 'USD')}
                             </p>
                         </div>
                         <div className="bg-amber-50 rounded-xl p-4 text-center border border-amber-100">
                             <Clock size={18} className="mx-auto text-amber-500 mb-1" />
                             <p className="text-xs text-amber-500 mb-0.5">Pendiente</p>
                             <p className="font-bold text-amber-700 text-sm">
-                                ${pendingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(pendingBalance, r.currency || 'USD')}
                             </p>
                         </div>
                         <div className="bg-green-50 rounded-xl p-4 text-center border border-green-100">
                             <Wallet size={18} className="mx-auto text-green-500 mb-1" />
                             <p className="text-xs text-green-500 mb-0.5">Pagado</p>
                             <p className="font-bold text-green-700 text-sm">
-                                ${parseFloat(r.paidAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(parseFloat(r.paidAmount || 0), r.currency || 'USD')}
                             </p>
                         </div>
                     </div>
@@ -197,7 +198,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                                                     {p.notes || '—'}
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-semibold text-green-600">
-                                                    +${parseFloat(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                    +{formatCurrency(parseFloat(p.amount), r.currency || 'USD')}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center justify-center gap-2">
@@ -236,6 +237,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                 payment={receiptPayment}
                 clientName={client?.name}
                 receivableNumber={r.number}
+                currency={r.currency || 'USD'}
             />
 
             <ConfirmDeleteModal
@@ -245,7 +247,7 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                 loading={deletingPayment}
                 title="Eliminar abono"
                 message="¿Seguro que deseas eliminar este abono? Se ajustarán los montos de la cuenta."
-                itemName={paymentToDelete ? `Pago de $${parseFloat(paymentToDelete.amount).toFixed(2)} registrado el ${toVenezuelanFormat(paymentToDelete.date || paymentToDelete.createdAt)}` : ''}
+                itemName={paymentToDelete ? `Pago de ${formatCurrency(parseFloat(paymentToDelete.amount), r.currency || 'USD')} registrado el ${toVenezuelanFormat(paymentToDelete.date || paymentToDelete.createdAt)}` : ''}
             />
         </div>,
         document.body

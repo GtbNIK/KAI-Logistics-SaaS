@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import ChangeQuoteStatusModal from '../../components/quotes/ChangeQuoteStatusModal';
 import { formatQuantityLabel } from '../../utils/pricing';
+import { formatCurrency } from '../../utils/currency';
 import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
@@ -349,12 +350,12 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess, portsCatalog = [] })
                                                 ) : null}
 
                                                 <p className="text-slate-400 text-xs mt-1 italic">
-                                                    {quantityLabel} @ ${parseFloat(item.unitPrice).toFixed(2)}
+                                                    {quantityLabel} @ {formatCurrency(parseFloat(item.unitPrice), q.currency || 'USD')}
                                                 </p>
                                             </div>
                                         </div>
                                         <span className="font-bold text-slate-700 whitespace-nowrap">
-                                            ${parseFloat(item.totalPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            {formatCurrency(parseFloat(item.totalPrice || 0), q.currency || 'USD')}
                                         </span>
                                     </div>
                                 );
@@ -391,7 +392,7 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess, portsCatalog = [] })
                         <span className="font-medium">Total:</span>
                     </div>
                     <span className="text-2xl font-bold">
-                        ${parseFloat(q.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {formatCurrency(parseFloat(q.totalAmount || 0), q.currency || 'USD')}
                     </span>
                 </div>
             </div>
@@ -681,6 +682,7 @@ const Quotes = () => {
                             unitPrice: parseFloat(item.unitPrice)
                         })),
                         total: printingQuote.totalAmount,
+                        currency: printingQuote.currency || 'USD',
                         notes: printingQuote.notes,
                         showNotesToClient: printingQuote.showNotesToClient,
                         number: printingQuote.number,

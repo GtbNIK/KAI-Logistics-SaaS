@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Download, Loader2, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useSettings } from '../../context/SettingsContext';
+import { getCurrencySymbol } from '../../utils/currency';
 
 const DEFAULT_LOGO = '/1.png';
 const DEFAULT_COMPANY_NAME = 'Import Services';
@@ -73,9 +74,10 @@ const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
  * Modal para generar y previsualizar el recibo de pago PDF
  * Solo aplica para pagos con método CASH_USD (Efectivo USD)
  */
-const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivableNumber }) => {
+const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivableNumber, currency = 'USD' }) => {
     const [generating, setGenerating] = useState(false);
     const { settings: companySettings } = useSettings();
+    const currencySymbol = getCurrencySymbol(currency);
 
     if (!isOpen || !payment) return null;
 
@@ -187,7 +189,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                 { text: `, RIF: ${companyRif}, hacemos constar que hemos recibido conforme de `, style: 'normal' },
                 { text: clientName || 'N/A', style: 'bold' },
                 { text: `, la cantidad de `, style: 'normal' },
-                { text: `$${amountFormatted}.`, style: 'bold' }
+                { text: `${currencySymbol}${amountFormatted}.`, style: 'bold' }
             ];
 
             // Renderizar texto con fragmentos mixtos bold/normal usando splitTextToSize
@@ -258,7 +260,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-slate-800">Recibo de Pago</h3>
-                            <p className="text-xs text-slate-500">Efectivo USD — ${paymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                            <p className="text-xs text-slate-500">Efectivo {currency} — {currencySymbol}{paymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full">
@@ -275,7 +277,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500">Monto</span>
-                            <span className="font-bold text-green-600">${paymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            <span className="font-bold text-green-600">{currencySymbol}{paymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500">Fecha</span>
