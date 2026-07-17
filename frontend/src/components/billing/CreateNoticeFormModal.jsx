@@ -303,7 +303,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                     </div>
 
                     {/* Moneda */}
-                    <CurrencySelect value={currency} onChange={setCurrency} />
+                    <CurrencySelect value={currency} onChange={setCurrency} disabled={Boolean(noticeToEdit)} />
 
                     {/* Notas */}
                     <div>

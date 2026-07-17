@@ -133,7 +133,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
                         </div>
 
                     {/* Moneda */}
-                    <CurrencySelect value={currency} onChange={setCurrency} disabled={isEdit && parseFloat(receivable?.paidAmount || 0) > 0} />
+                    <CurrencySelect value={currency} onChange={setCurrency} disabled={isEdit} />
 
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-700">Monto Total ({getCurrencySymbol(currency)})</label>

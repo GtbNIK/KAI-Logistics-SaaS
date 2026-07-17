@@ -882,7 +882,7 @@ const CreateQuote = () => {
                 </div>
 
                 {/* Right Panel: Preview */}
-                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 text-white flex flex-col relative overflow-hidden min-h-[1000px]">
+                <div className="bg-slate-800 rounded-2xl shadow-xl p-6 text-white flex flex-col relative z-0 overflow-hidden min-h-[1000px]">
                     {/* Background decoration */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
@@ -892,7 +892,7 @@ const CreateQuote = () => {
                         <p className="text-slate-400 text-sm mb-4">Resumen de la cotización</p>
 
                         {/* Cliente seleccionado - Fijo */}
-                        <div className="bg-white/100 rounded-lg px-4 py-3 mb-4">
+                        <div className="relative z-0 bg-white/100 rounded-lg px-4 py-3 mb-4">
                             {/* Número de cotización */}
                             <p className="text-xs text-slate-400 mb-1">
                                 {nextQuoteNumber ? `COT-${String(nextQuoteNumber).padStart(5, '0')}` : 'NUEVA COTIZACIÓN'}
