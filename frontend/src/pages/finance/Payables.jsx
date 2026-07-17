@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { TrendingDown, Plus, Trash2, Edit, Wallet } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
@@ -104,7 +103,7 @@ const Payables = () => {
         setRegisteringPayment(p);
     };
 
-    const handleGridPayment = (employeeUser) => {
+    const handleGridPayment = ({ employeeUser }) => {
         setSelectedEmployeeForPayment(employeeUser);
         setCreatingPayable(true);
     };

@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, DollarSign, Clock, AlertCircle, Wallet, History, ChevronRight, X, RefreshCw, CreditCard, Loader2 } from 'lucide-react';
+import { Search, DollarSign, Clock, AlertCircle, Wallet, History, ChevronRight, ChevronLeft, X, RefreshCw, CreditCard, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import authService from '../../services/auth.service';
 import EmployeeStatStrip from './EmployeeStatStrip';
 import EmployeeHistoryPanel from './EmployeeHistoryPanel';
 import RegisterPayablePaymentModal from './RegisterPayablePaymentModal';
-import { getTodayLocal, toLocalISOString } from '../../utils/dateHelpers';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -46,12 +45,19 @@ const EmployeePayrollGrid = ({ onRegisterPayment }) => {
     const [pendingPayUser, setPendingPayUser] = useState(null);
     const [pendingPayables, setPendingPayables] = useState([]);
     const [registeringPay, setRegisteringPay] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 9;
 
     // Debounce 800ms
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 800);
         return () => clearTimeout(t);
     }, [search]);
+
+    // Reinicia a la primera página cuando cambia la búsqueda
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearch]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -132,6 +138,13 @@ const EmployeePayrollGrid = ({ onRegisterPayment }) => {
         );
     }, [employeeStats, debouncedSearch]);
 
+    const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredEmployees.length / itemsPerPage)), [filteredEmployees.length]);
+
+    const paginatedEmployees = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredEmployees.slice(start, start + itemsPerPage);
+    }, [filteredEmployees, currentPage]);
+
     if (loading) {
         return (
             <div className="space-y-6">
@@ -210,6 +223,31 @@ const EmployeePayrollGrid = ({ onRegisterPayment }) => {
                 </p>
             </div>
 
+            {/* Controles de paginación sutiles */}
+            {filteredEmployees.length > itemsPerPage && (
+                <div className="flex items-center justify-end gap-2">
+                    <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        title="Anterior"
+                    >
+                        <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-[11px] text-slate-400 font-medium min-w-[3rem] text-center">
+                        {currentPage} / {totalPages}
+                    </span>
+                    <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        title="Siguiente"
+                    >
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
+            )}
+
             {/* Grid de empleados */}
             {filteredEmployees.length === 0 ? (
                 <div className="flex flex-col items-center py-16 text-slate-400 bg-white rounded-2xl border border-slate-100 shadow-sm">
@@ -219,7 +257,7 @@ const EmployeePayrollGrid = ({ onRegisterPayment }) => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filteredEmployees.map(({ user, stats }) => (
+                    {paginatedEmployees.map(({ user, stats }) => (
                         <EmployeeCard
                             key={user.id}
                             user={user}

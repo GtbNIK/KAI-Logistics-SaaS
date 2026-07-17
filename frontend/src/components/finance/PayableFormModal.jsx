@@ -437,7 +437,9 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-700">Descripción</label>
+                        <label className="text-xs font-medium text-slate-700">
+                            Descripción <span className="text-red-500">*</span>
+                        </label>
                         <textarea
                             value={description}
                             onChange={e => setDescription(e.target.value)}
