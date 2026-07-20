@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 import clientRoutes from './routes/client.routes.js';
 import allyRoutes from './routes/ally.routes.js';
 import serviceRoutes from './routes/service.routes.js';
@@ -53,11 +54,11 @@ app.use(cors({
 app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 
-// Rate limiting para login (protección anti fuerza bruta)
-const loginLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000, // 15 minutos
+// Rate limiting para auth (protección anti fuerza bruta en login y signup)
+const authLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutos
     max: 10, // máx 10 intentos
-    message: { message: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 15 minutos.' },
+    message: { message: 'Demasiados intentos. Intenta de nuevo en 10 minutos.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -88,11 +89,14 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Rutas de autenticación (login con rate limiting)
-app.use('/api/auth/login', loginLimiter);
+// Rutas de autenticación (login y signup con rate limiting, resto de auth libre)
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/signup', authLimiter);
 app.use('/api/auth', authRoutes);
-// Rutas de clientes (requiere autenticación)
-app.use('/api/clients', verifyToken, clientRoutes);
+// Rutas del panel admin (KAI Control)
+app.use('/api/admin', adminRoutes);
+// Rutas de clientes (multi-tenant: middlewares internos en client.routes.js)
+app.use('/api/clients', clientRoutes);
 // Rutas de aliados (requiere autenticación)
 app.use('/api/allies', verifyToken, allyRoutes);
 // Dashboard y métricas (requiere autenticación)
@@ -150,15 +154,15 @@ app.use((err, req, res, next) => {
     });
 });
 
-import { initPgBoss } from './workers/pg-boss.js';
+import { startWorkers } from './workers/scheduler.js';
 
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`✅ Servidor corriendo en http://0.0.0.0:${PORT}`);
     console.log(`📊 Modo: ${process.env.NODE_ENV || 'development'}`);
-    
-    // Iniciar el motor de tareas recurrentes pg-boss
-    await initPgBoss();
+
+    // Iniciar el motor de cron jobs (reemplazo de pg-boss)
+    startWorkers();
 });
 
 export default app;

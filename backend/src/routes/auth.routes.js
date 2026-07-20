@@ -1,51 +1,57 @@
 import express from 'express';
-import { register, login, logout, getMe, getUsers, updateUser, deleteUser, resetPassword } from '../controllers/auth.controller.js';
-import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import {
+    signup,
+    login,
+    logout,
+    getMe,
+    switchTenant,
+} from '../controllers/auth.controller.js';
+import { verifyToken } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 /**
- * @route   POST /api/auth/register
- * @desc    Registrar nuevo usuario
- * @access  Private (Solo Admin)
+ * Rutas publicas de autenticacion.
+ * NO requieren tenantResolver ni requireMembership.
  */
-router.post('/register', verifyToken, authorize('ADMIN'), register);
+
+/**
+ * @route   POST /api/auth/signup
+ * @desc    Crear cuenta nueva de tenant (User + Tenant + Membership + Subscription + Settings)
+ * @access  Public
+ */
+router.post('/signup', signup);
 
 /**
  * @route   POST /api/auth/login
- * @desc    Iniciar sesión
+ * @desc    Iniciar sesion
  * @access  Public
  */
 router.post('/login', login);
 
 /**
+ * Rutas privadas (requieren JWT).
+ */
+
+/**
  * @route   POST /api/auth/logout
- * @desc    Cerrar sesión
+ * @desc    Cerrar sesion
  * @access  Private
  */
 router.post('/logout', verifyToken, logout);
 
 /**
  * @route   GET /api/auth/me
- * @desc    Obtener usuario autenticado
+ * @desc    Info del usuario actual + memberships + tenant activo
  * @access  Private
  */
 router.get('/me', verifyToken, getMe);
 
-// Actualizar usuario
-router.put('/users/:id', verifyToken, authorize('ADMIN'), updateUser);
-
-// Eliminar usuario
-router.delete('/users/:id', verifyToken, authorize('ADMIN'), deleteUser);
-
-// Resetear contraseña
-router.post('/users/:id/reset-password', verifyToken, authorize('ADMIN'), resetPassword);
-
 /**
- * @route   GET /api/auth/users
- * @desc    Obtener lista de usuarios
- * @access  Private (Admin)
+ * @route   POST /api/auth/switch-tenant
+ * @desc    Cambiar el tenant activo del usuario
+ * @access  Private
  */
-router.get('/users', verifyToken, authorize('ADMIN'), getUsers);
+router.post('/switch-tenant', verifyToken, switchTenant);
 
 export default router;
