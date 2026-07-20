@@ -72,7 +72,7 @@ export const generatePreAlertaPdf = async (shipment, images = [], currentUser, s
 
     // ── Logo ──
     try {
-        const logoUrl = settings?.logoUrl || '/fondo_login.webp';
+        const logoUrl = settings?.logoUrl || '';
         const logoImg = await loadImage(logoUrl);
         const logoBase64 = await resizeImage(logoImg, { maxWidth: 1200, maxHeight: 600, format: 'png' });
         const logoWidthMm = 45;

@@ -7,7 +7,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { dateToStringHelper } from '../../utils/dateHelpers';
 import { formatCurrency } from '../../utils/currency';
 
-const DEFAULT_LOGO = '/fondo_login.webp';
+const DEFAULT_LOGO = '';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_COMPANY_RIF = 'J-00000000-0';
 const FALLBACK_METHOD_KEY = '__NO_METHOD__';
