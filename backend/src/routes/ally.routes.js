@@ -18,7 +18,7 @@ import { requireMembership } from '../middleware/requireMembership.js';
 
 const router = express.Router();
 
-router.use(verifyToken, tenantResolver(), requireMembership());
+router.use(verifyToken, tenantResolver(), requireMembership);
 
 // ============ CATÁLOGOS (para dropdowns) ============
 router.get('/catalogs/zones', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getZones);

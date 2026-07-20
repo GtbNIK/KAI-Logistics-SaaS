@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 import {
     getShippingLines,
     createShippingLine,
@@ -11,8 +13,6 @@ import {
 const router = Router();
 
 router.use(verifyToken, tenantResolver(), requireMembership);
-
-router.use(verifyToken);
 
 router.get('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getShippingLines);
 router.post('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), createShippingLine);

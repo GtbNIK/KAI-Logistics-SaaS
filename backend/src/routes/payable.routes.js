@@ -1,5 +1,7 @@
 import express from 'express';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 import {
     getPayables,
     getPayableById,
@@ -13,8 +15,6 @@ import {
 const router = express.Router();
 
 router.use(verifyToken, tenantResolver(), requireMembership);
-
-router.use(verifyToken);
 
 router.get('/', authorize('OWNER', 'ADMIN'), getPayables);
 router.get('/:id', authorize('OWNER', 'ADMIN'), getPayableById);
