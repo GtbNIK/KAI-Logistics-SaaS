@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Ship, Plane } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import shippingLineService from '../../services/shippingLine.service';
 import { shippingLineConfig } from '../../config/shippingLineConfig.jsx';
 import airlineService from '../../services/airline.service';
@@ -31,6 +32,7 @@ const adaptedAirLineService = {
 
 const Lines = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [activeTab, setActiveTab] = useState('shipping');
 
     const {
@@ -99,7 +101,7 @@ const Lines = () => {
 
     const [detailItem, setDetailItem] = useState(null);
     const [detailType, setDetailType] = useState(null);
-    const isAdmin = user?.role === 'ADMIN';
+    const isAdmin = effectiveRole === 'ADMIN';
 
     return (
         <div className="space-y-6">

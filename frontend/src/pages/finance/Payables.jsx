@@ -3,6 +3,7 @@ import { TrendingDown, Plus, Trash2, Edit, Wallet } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -71,7 +72,8 @@ const usePayables = (beneficiaryType) => {
 const Payables = () => {
     const [activeTab, setActiveTab] = useState('allies');
     const { user } = useAuth();
-    const isAdmin = user?.role === 'ADMIN';
+    const effectiveRole = useEffectiveRole();
+    const isAdmin = effectiveRole === 'ADMIN';
 
     const [viewingPayable, setViewingPayable] = useState(null);
     const [registeringPayment, setRegisteringPayment] = useState(null);

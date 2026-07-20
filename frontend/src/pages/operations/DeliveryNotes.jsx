@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ScrollText, Plus, Truck, Ban } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { useToast } from '../../context/ToastContext';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -63,6 +64,7 @@ const DeliveryNotes = () => {
     const [showPDFModal, setShowPDFModal] = useState(false);
     const { showSuccess, showError } = useToast();
     const { user } = useAuth ? useAuth() : { user: null };
+    const effectiveRole = useEffectiveRole ? useEffectiveRole() : 'GUEST';
     const {
         items, loading, page, setPage, totalPages, totalItems,
         search, setSearch, statusFilter, setStatusFilter, refresh
@@ -188,7 +190,7 @@ const DeliveryNotes = () => {
                 showStatusFilter={false}
                 showToggle={false}
                 canEdit={true}
-                canDelete={(item) => (user?.role === 'ADMIN') && item.status !== 'DISPATCHED'}
+                canDelete={(item) => (effectiveRole === 'ADMIN') && item.status !== 'DISPATCHED'}
                 canPrint={true}
                 onView={(item) => setViewingNote(item)}
                 onEdit={handleEdit}

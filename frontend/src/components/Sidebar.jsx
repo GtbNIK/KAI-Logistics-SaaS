@@ -67,7 +67,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     label: 'Cotizaciones', 
                     roles: ['ADMIN', 'SALES'],
                     subItems: [
-                        { to: '/dashboard/cotizaciones/nuevo', label: 'Crear Cotización' },
+                        { to: '/dashboard/cotizaciones/nuevo', label: 'Crear Cotización', disableIfReadOnly: true },
                         { to: '/dashboard/cotizaciones', label: 'Ver Cotizaciones' }
                     ]
                 },
@@ -220,22 +220,29 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                             
                                             {isOpen && expandedSubMenus[item.id] && (
                                                 <div className="pl-9 space-y-1">
-                                                    {item.subItems.map(subItem => (
-                                                        <NavLink
-                                                            key={subItem.to}
-                                                            to={subItem.to}
-                                                            end
-                                                            className={({ isActive }) => `
-                                                                block px-3 py-2 rounded-lg text-sm transition-all duration-200
-                                                                ${isActive 
-                                                                    ? 'bg-secondary text-white font-medium shadow-lg shadow-secondary/20' 
-                                                                    : 'text-white/50 hover:bg-white/5 hover:text-white'
-                                                                }
-                                                            `}
-                                                        >
-                                                            {subItem.label}
-                                                        </NavLink>
-                                                    ))}
+                                                    {item.subItems.map(subItem => {
+                                                        const isDisabled = subItem.disableIfReadOnly && isReadOnly;
+                                                        return (
+                                                            <NavLink
+                                                                key={subItem.to}
+                                                                to={subItem.to}
+                                                                end
+                                                                title={isDisabled ? 'Actualiza tu plan para crear' : undefined}
+                                                                onClick={(e) => { if (isDisabled) e.preventDefault(); }}
+                                                                className={({ isActive }) => `
+                                                                    block px-3 py-2 rounded-lg text-sm transition-all duration-200
+                                                                    ${isDisabled
+                                                                        ? 'text-white/20 cursor-not-allowed'
+                                                                        : isActive 
+                                                                            ? 'bg-secondary text-white font-medium shadow-lg shadow-secondary/20' 
+                                                                            : 'text-white/50 hover:bg-white/5 hover:text-white'
+                                                                    }
+                                                                `}
+                                                            >
+                                                                {subItem.label}
+                                                            </NavLink>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>

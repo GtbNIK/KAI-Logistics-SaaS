@@ -15,7 +15,7 @@ export const useEffectiveRole = () => {
     const isBlocked = status === 'EXPIRED' || status === 'CANCELLED' || status === 'SUSPENDED';
     if (isBlocked) return 'GUEST';
 
-    if (rawRole === 'OWNER') return 'ADMIN';
+    if (rawRole === 'OWNER' || rawRole === 'ADMIN') return 'ADMIN';
     if (rawRole === 'SALES') return 'SALES';
     return 'GUEST';
 };

@@ -4,7 +4,9 @@ import { getCashFlow } from '../controllers/cash-flow.controller.js';
 
 const router = Router();
 
+router.use(verifyToken, tenantResolver(), requireMembership);
+
 // GET /api/cash-flow?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
-router.get('/', verifyToken, authorize('ADMIN'), getCashFlow);
+router.get('/', verifyToken, authorize('OWNER', 'ADMIN'), getCashFlow);
 
 export default router;

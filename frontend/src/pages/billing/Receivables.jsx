@@ -4,6 +4,7 @@ import { TrendingUp, Plus, Trash2, Edit } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -69,6 +70,7 @@ const Receivables = () => {
     const [toDelete, setToDelete] = useState(null);
     const [editingReceivable, setEditingReceivable] = useState(null);
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const { showSuccess, showError } = useToast();
     const {
         items, loading, page, setPage, totalPages, totalItems,
@@ -125,7 +127,7 @@ const Receivables = () => {
                 )}
             </div>
 
-            {user?.role === 'ADMIN' && (
+            {effectiveRole === 'ADMIN' && (
                 <div className="flex justify-end">
                     <button
                         onClick={() => setCreatingReceivable(true)}

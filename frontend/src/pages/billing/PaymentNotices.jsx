@@ -3,6 +3,7 @@ import { Receipt, Plus, Pencil } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import EntityTable from '../../components/shared/EntityTable';
 import { paymentNoticeConfig } from '../../config/paymentNoticeConfig';
 import PaymentNoticePDFModal from '../../components/billing/PaymentNoticePDFModal';
@@ -51,6 +52,7 @@ const usePaymentNotices = () => {
 // ─── Página principal ─────────────────────────────────────────────────────────
 const PaymentNotices = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [viewingNotice, setViewingNotice] = useState(null);
     const [printingNotice, setPrintingNotice] = useState(null);
     const [showPDFModal, setShowPDFModal] = useState(false);
@@ -134,8 +136,8 @@ const PaymentNotices = () => {
                 onPageChange={setPage}
                 showStatusFilter={false}
                 showToggle={false}
-                canEdit={user?.role === 'ADMIN'}
-                canDelete={user?.role === 'ADMIN'}
+                canEdit={effectiveRole === 'ADMIN'}
+                canDelete={effectiveRole === 'ADMIN'}
                 canPrint={true}
                 onView={(item) => setViewingNotice(item)}
                 onEdit={handleEdit}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { DollarSign, Ship, Globe, FileText, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { useToast } from '../../context/ToastContext';
 import rateService from '../../services/rate.service';
 import allyService from '../../services/ally.service';
@@ -24,6 +25,7 @@ const createAdaptedService = (region) => ({
 
 const Rates = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const { showSuccess, showError } = useToast();
     const [activeTab, setActiveTab] = useState('CHINA');
     const [detailItem, setDetailItem] = useState(null);
@@ -252,7 +254,7 @@ const Rates = () => {
                 
                 <div className="flex items-center gap-3 flex-wrap">
                     {/* Acciones masivas - solo visibles cuando hay aliado filtrado (ADMIN) */}
-                    {user?.role === 'ADMIN' && selectedAllyId && (
+                    {effectiveRole === 'ADMIN' && selectedAllyId && (
                         <>
                             <button
                                 onClick={openBulkActivateModal}
@@ -282,7 +284,7 @@ const Rates = () => {
                         <FileText size={18} />
                         Generar PDF
                     </button>
-                    {user?.role === 'ADMIN' && (
+                    {effectiveRole === 'ADMIN' && (
                         <button
                             onClick={() => { setEditItem(null); setShowCreateModal(true); }}
                             className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
@@ -355,7 +357,7 @@ const Rates = () => {
                 onToggleStatus={onToggleStatus}
                 entityName={rateConfig.entityName}
                 entityNamePlural={rateConfig.entityNamePlural}
-                canDelete={user?.role === 'ADMIN'}
+                canDelete={effectiveRole === 'ADMIN'}
                 showToggle={true}
                 showStatusFilter={false}
                 codeColor={rateConfig.codeColor}

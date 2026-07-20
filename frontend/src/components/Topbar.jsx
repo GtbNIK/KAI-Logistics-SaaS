@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Settings, LogOut, Bell, Clock, X } from 'lucide-react';
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { notificationService } from '../services/notification.service';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import useSessionTimer from '../hooks/useSessionTimer';
 import TenantSelector from './TenantSelector';
 
@@ -14,6 +15,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout, forceLogout, sessionExpiresAt } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
@@ -251,7 +253,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                         >
                             <div className="text-right hidden md:block">
                                 <p className="text-sm font-medium text-slate-700 leading-none">{user?.name}</p>
-                                <p className="text-xs text-slate-400 mt-1 capitalize leading-none">{getRoleLabel(user?.role)}</p>
+                                <p className="text-xs text-slate-400 mt-1 capitalize leading-none">{getRoleLabel(effectiveRole)}</p>
                             </div>
                             <div className="h-9 w-9 bg-primary-dark/5 rounded-full flex items-center justify-center text-primary-dark font-bold border border-primary-dark/10">
                                 {user?.name?.charAt(0) || 'U'}
@@ -272,9 +274,18 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                 >
                                     <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 md:hidden">
                                         <p className="font-medium text-slate-700">{user?.name}</p>
-                                        <p className="text-xs text-slate-400 capitalize">{getRoleLabel(user?.role)}</p>
+                                            <p className="text-xs text-slate-400 capitalize">{getRoleLabel(effectiveRole)}</p>
                                     </div>
 
+                                    {effectiveRole === 'ADMIN' && (
+                                        <button 
+                                            onClick={() => { navigate('/dashboard/configuracion'); setShowProfileMenu(false); }}
+                                            className="w-full text-left px-4 py-2.5 text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                                        >
+                                            <Settings size={16} />
+                                            Configuración
+                                        </button>
+                                    )}
                                     <button 
                                         onClick={handleLogout}
                                         className="w-full text-left px-4 py-2.5 text-red-500 hover:bg-red-50 flex items-center gap-2 transition-colors"

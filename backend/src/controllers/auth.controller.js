@@ -343,6 +343,7 @@ export const login = async (req, res) => {
                 email: user.email,
                 name: user.name,
                 phoneNumber: user.phoneNumber,
+                role: preferredMembership.role,
             },
             currentTenant: {
                 id: preferredMembership.tenant.id,
@@ -558,6 +559,7 @@ export const getMe = async (req, res) => {
                 phoneNumber: user.phoneNumber,
                 position: user.position,
                 lastLoginAt: user.lastLoginAt,
+                role: currentMembership ? currentMembership.role : null,
             },
             currentTenant: currentMembership
                 ? {

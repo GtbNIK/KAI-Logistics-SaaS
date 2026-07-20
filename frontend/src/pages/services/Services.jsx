@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Package } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import serviceService from '../../services/service.service';
 import { serviceConfig } from '../../config/serviceConfig.jsx';
 import useEntityCRUD from '../../hooks/useEntityCRUD';
@@ -21,6 +22,7 @@ const adaptedService = {
 
 const Services = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [detailItem, setDetailItem] = useState(null);
     
     // Hook genérico con toda la lógica CRUD
@@ -108,7 +110,7 @@ const Services = () => {
                     <p className="text-slate-500 text-sm mt-1">Administra los servicios que ofrece la empresa</p>
                 </div>
                 
-                {user?.role === 'ADMIN' && (
+                {effectiveRole === 'ADMIN' && (
                     <button 
                         onClick={openCreateForm}
                         className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
@@ -139,9 +141,9 @@ const Services = () => {
                 onToggleStatus={openToggleConfirm}
                 entityName={serviceConfig.entityName}
                 entityNamePlural={serviceConfig.entityNamePlural}
-                canEdit={user?.role === 'ADMIN'}
-                canDelete={user?.role === 'ADMIN'}
-                showToggle={user?.role === 'ADMIN'}
+                canEdit={effectiveRole === 'ADMIN'}
+                canDelete={effectiveRole === 'ADMIN'}
+                showToggle={effectiveRole === 'ADMIN'}
                 showStatusFilter={true}
                 codeColor={serviceConfig.codeColor}
             />
