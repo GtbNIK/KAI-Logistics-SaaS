@@ -5,7 +5,7 @@ import jsPDF from 'jspdf';
 import { useSettings } from '../../context/SettingsContext';
 import { getCurrencySymbol } from '../../utils/currency';
 
-const DEFAULT_LOGO = '/1.png';
+const DEFAULT_LOGO = '/fondo_login.webp';
 const DEFAULT_COMPANY_NAME = 'Import Services';
 const DEFAULT_PRIMARY_COLOR = '#003366';
 

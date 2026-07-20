@@ -9,7 +9,7 @@ import axios from 'axios';
 import { buildPortLookup, formatRouteDisplay, replaceRouteCodesWithNames } from '../../utils/locationFormatters';
 import { getCurrencySymbol } from '../../utils/currency';
 
-const DEFAULT_LOGO = '/1.png';
+const DEFAULT_LOGO = '/fondo_login.webp';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_COMPANY_SLOGAN = 'Soluciones logísticas integrales';
 const DEFAULT_PRIMARY_COLOR = '#003366';

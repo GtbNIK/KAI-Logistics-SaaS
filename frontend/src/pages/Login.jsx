@@ -41,7 +41,7 @@ export default function Login() {
                 {/* Logo & Header */}
                 <div className="flex flex-col items-center mb-8">
                     <img 
-                        src="/2.png" 
+                        src="/fondo_login.webp" 
                         alt="Import Services Logo" 
                         className="h-20 mb-4 drop-shadow-md"
                     />

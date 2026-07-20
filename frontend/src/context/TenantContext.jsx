@@ -1,8 +1,6 @@
 /**
  * TenantContext - Mantiene el tenant activo y la lista de tenants del usuario.
- *
- * El tenant activo se persiste en localStorage con la key `kai:currentTenantSlug`.
- * Cualquier cambio invalida automaticamente el header `X-Tenant-Slug` en api.js.
+ * La actualizacion via applySession desde AuthContext setea tenants y slug.
  */
 
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';

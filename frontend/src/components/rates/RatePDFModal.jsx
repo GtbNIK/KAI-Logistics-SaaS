@@ -8,7 +8,7 @@ import { dateToStringHelper } from '../../utils/dateHelpers';
 import { resizePngDataUrl } from '../../utils/imageHelpers';
 import axios from 'axios';
 
-const DEFAULT_LOGO = '/1.png';
+const DEFAULT_LOGO = '/fondo_login.webp';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_PRIMARY_COLOR = '#003366';
 const DEFAULT_COMPANY_RIF = 'J-00000000-0';

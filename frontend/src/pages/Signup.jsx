@@ -48,7 +48,7 @@ export default function Signup() {
 
             <div className="relative z-10 w-full max-w-lg p-8 bg-primary-dark/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl mx-4">
                 <div className="flex flex-col items-center mb-6">
-                    <img src="/2.png" alt="KAI Logo" className="h-16 mb-3 drop-shadow-md" />
+                    <img src="/fondo_login.webp" alt="KAI Logo" className="h-16 mb-3 drop-shadow-md" />
                     <h1 className="text-2xl font-bold tracking-wide text-white">Crear Cuenta</h1>
                     <p className="text-blue-200 text-sm font-light tracking-wide mt-1">
                         Comienza tu prueba gratuita de 10 días

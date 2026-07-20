@@ -217,6 +217,7 @@ export const signup = async (req, res) => {
                 status: result.tenant.status,
                 trialEndsAt: result.tenant.trialEndsAt,
                 planKey: plan.key,
+                isReadOnly: false,
             },
         });
     } catch (error) {
@@ -304,6 +305,25 @@ export const login = async (req, res) => {
             });
         }
 
+        // Bloquear tenants EXPIRED y CANCELLED en login
+        const tenantStatus = preferredMembership.tenant.status;
+        if (tenantStatus === 'EXPIRED') {
+            return res.status(403).json({
+                code: 'TENANT_EXPIRED',
+                message: 'Tu periodo de prueba ha vencido. Contacta al equipo de KAI para activar tu suscripción.',
+                trialEndsAt: preferredMembership.tenant.trialEndsAt,
+            });
+        }
+        if (tenantStatus === 'CANCELLED') {
+            return res.status(403).json({
+                code: 'TENANT_BLOCKED',
+                message: 'Este tenant está cancelado. Contacta al administrador.',
+            });
+        }
+
+        const isNowExpired = tenantStatus === 'TRIAL' && new Date() > new Date(preferredMembership.tenant.trialEndsAt);
+        const isReadOnly = isNowExpired || tenantStatus === 'TRIAL';
+
         await prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() },
@@ -333,6 +353,7 @@ export const login = async (req, res) => {
                 planKey: preferredMembership.tenant.plan?.key,
                 planName: preferredMembership.tenant.plan?.name,
                 role: preferredMembership.role,
+                isReadOnly,
             },
             tenants: user.memberships.map((m) => ({
                 id: m.tenant.id,
@@ -406,6 +427,18 @@ export const switchTenant = async (req, res) => {
             });
         }
 
+        // Bloquear tenants EXPIRED y CANCELLED en switchTenant
+        if (membership.tenant.status === 'EXPIRED' || membership.tenant.status === 'CANCELLED') {
+            return res.status(403).json({
+                code: membership.tenant.status === 'EXPIRED' ? 'TENANT_EXPIRED' : 'TENANT_BLOCKED',
+                message: membership.tenant.status === 'EXPIRED'
+                    ? 'Tu periodo de prueba ha vencido.'
+                    : 'Este tenant está cancelado.',
+            });
+        }
+
+        const isReadOnly = membership.tenant.status === 'TRIAL';
+
         const user = {
             id: req.user.id,
             email: req.user.email,
@@ -440,6 +473,7 @@ export const switchTenant = async (req, res) => {
                 planKey: membership.tenant.plan?.key,
                 planName: membership.tenant.plan?.name,
                 role: membership.role,
+                isReadOnly,
             },
         });
     } catch (error) {
@@ -535,6 +569,7 @@ export const getMe = async (req, res) => {
                     planKey: currentMembership.tenant.plan?.key,
                     planName: currentMembership.tenant.plan?.name,
                     role: currentMembership.role,
+                    isReadOnly: currentMembership.tenant.status === 'TRIAL',
                 }
                 : null,
             tenants: user.memberships.map((m) => ({

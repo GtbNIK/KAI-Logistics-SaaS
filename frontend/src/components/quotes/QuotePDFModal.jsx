@@ -10,7 +10,7 @@ import { buildPortLookup, formatRouteDisplay, formatZoneLabel } from '../../util
 import { getCurrencySymbol, DEFAULT_CURRENCY } from '../../utils/currency';
 
 // Valores por defecto si no hay configuración
-const DEFAULT_LOGO = '/1.png';
+const DEFAULT_LOGO = '/fondo_login.webp';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_COMPANY_SLOGAN = 'Soluciones logísticas integrales';
 const DEFAULT_PRIMARY_COLOR = '#003366';

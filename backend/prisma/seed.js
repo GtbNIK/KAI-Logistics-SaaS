@@ -24,6 +24,8 @@ import { PLANS, TRIAL_DURATION_DAYS, GRACE_PERIOD_DAYS } from '../src/config/pla
 
 const prisma = new PrismaClient();
 
+// Duración de trials demo (3 días para que los demos se vean vencidos rápido)
+const DEMO_TRIAL_DAYS = 3;
 const DEMO_PASSWORD = 'Demo123!';
 const SUPER_ADMIN_PASSWORD = 'Admin123!';
 
@@ -272,7 +274,7 @@ async function seedTenants() {
         userName: 'Antonio Crecente',
         planKey: 'BASE',
         status: 'TRIAL',
-        trialDaysRemaining: TRIAL_DURATION_DAYS,
+        trialDaysRemaining: DEMO_TRIAL_DAYS,
         clients: [
             {
                 internalCode: 'CLI-0001',

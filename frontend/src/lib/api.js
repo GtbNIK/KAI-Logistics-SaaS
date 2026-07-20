@@ -1,13 +1,3 @@
-/**
- * Cliente axios centralizado para KAI Logistics SaaS.
- *
- * - Inyecta automaticamente el header `X-Tenant-Slug` desde el TenantContext
- *   en TODAS las requests a /api/* (excepto /api/auth/* y /api/admin/*).
- * - Envia cookies httpOnly (withCredentials) para que el backend use el JWT
- *   de sesion automaticamente.
- * - Maneja errores 401 y 403 redirigiendo al login o mostrando mensaje.
- */
-
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -34,7 +24,6 @@ export const setAdminContext = (isAdmin) => {
 api.interceptors.request.use(
     (config) => {
         const url = config.url || '';
-
         const isAuthRoute = url.startsWith('/auth/');
         const isAdminRoute = url.startsWith('/admin/');
 
@@ -53,9 +42,20 @@ api.interceptors.response.use(
     (error) => {
         if (error.response) {
             const status = error.response.status;
+            const code = error.response.data?.code;
 
+            // 403 con codigo de tenant bloqueado/expirado → redirigir a /blocked
+            if (code === 'TENANT_EXPIRED' || code === 'TENANT_BLOCKED') {
+                try {
+                    sessionStorage.setItem('kai:tenantBlockReason', code);
+                    sessionStorage.setItem('kai:tenantBlockMessage', error.response.data?.message || '');
+                } catch (e) { void e; }
+                window.location.href = '/blocked';
+                return Promise.reject(error);
+            }
+
+            // 401 sin ruta admin → sesion expirada
             if (status === 401 && !window.location.pathname.startsWith('/login')) {
-                // Sesion expirada o token invalido
                 if (!isAdminContext) {
                     window.dispatchEvent(new CustomEvent('kai:auth-expired'));
                 } else if (window.location.pathname.startsWith('/admin')) {

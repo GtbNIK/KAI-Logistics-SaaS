@@ -90,7 +90,7 @@ const addPageHeader = (doc, logoData, companyName, title, rgb, pageW) => {
 export const generateMonthlyClosePDF = async ({ data, settings, chartsRef, chartsByClientRef }) => {
     const companyName = settings?.companyName || 'ERP Logística';
     const primaryColor = settings?.primaryColor || '#0ea5e9';
-    const logoUrl = settings?.logoUrl || '/1.png';
+    const logoUrl = settings?.logoUrl || '/fondo_login.webp';
     const rgb = hexToRgb(primaryColor);
     const monthLabel = getMonthLabel(data.month);
 

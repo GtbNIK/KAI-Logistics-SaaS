@@ -1,11 +1,13 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { TenantProvider } from './context/TenantContext.jsx';
+import { TenantProvider, useTenant } from './context/TenantContext.jsx';
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext.jsx';
 import { ToastProvider } from './context/ToastContext';
 import { SettingsProvider } from './context/SettingsContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import TenantBlocked from './pages/TenantBlocked';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminTenants from './pages/admin/AdminTenants';
@@ -32,6 +34,16 @@ import MainLayout from './layouts/MainLayout';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
+    const { currentTenant } = useTenant();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!loading && currentTenant &&
+            (currentTenant.status === 'EXPIRED' || currentTenant.status === 'CANCELLED')) {
+            navigate('/blocked', { replace: true });
+        }
+    }, [loading, currentTenant, navigate]);
+
     if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Cargando...</div>;
     return user ? children : <Navigate to="/login" replace />;
 };
@@ -49,6 +61,7 @@ function AppRoutes() {
             {/* Auth publico de tenants */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/blocked" element={<TenantBlocked />} />
 
             {/* Panel Admin (KAI Control) */}
             <Route path="/admin/login" element={<AdminLogin />} />

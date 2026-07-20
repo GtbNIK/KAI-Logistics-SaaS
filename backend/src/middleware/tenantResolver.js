@@ -10,8 +10,8 @@
  * - Ejecuta el resto del request dentro de un AsyncLocalStorage
  *   con el tenantId, para que la Prisma Extension filtre automaticamente.
  *
- * Si no encuentra el tenant:
- * - Retorna 400 (rutas tenant-scoped) o continua sin tenant (rutas publicas/admin).
+ * Si el tenant esta EXPIRED o CANCELLED: bloquea con 403 + codigo especifico.
+ * Si esta TRIAL: marca `req.tenant.isReadOnly = true` (modo demo, sin escrituras).
  *
  * IMPORTANTE: Este middleware NO autentica al usuario.
  * Siempre debe ir acompanado de `verifyToken` y `requireMembership`.
@@ -24,19 +24,15 @@ import { runWithTenant } from '../lib/tenantContext.js';
  * Lee el slug del tenant desde el header o subdominio.
  */
 const extractTenantSlug = (req) => {
-    // 1. Header explicito (dev, testing)
     const headerSlug = req.headers['x-tenant-slug'];
     if (headerSlug && typeof headerSlug === 'string') {
         return headerSlug.trim().toLowerCase();
     }
 
-    // 2. Subdominio (prod)
     const host = req.headers.host || req.hostname || '';
     const hostWithoutPort = host.split(':')[0];
     const parts = hostWithoutPort.split('.');
 
-    // Estructura esperada: slug.kai-logistics.app
-    // Si hay 3+ partes y la primera NO es "www" ni "admin" ni "app"
     if (parts.length >= 3) {
         const firstPart = parts[0].toLowerCase();
         const reservedSubdomains = ['www', 'admin', 'app', 'api', 'mail'];
@@ -53,8 +49,9 @@ const extractTenantSlug = (req) => {
  *
  * Opciones:
  * - optional: si es true, no falla si no hay tenant (rutas publicas)
+ * - allowExpired: si es true, permite el paso a tenants EXPIRED (modo lectura)
  */
-export const tenantResolver = ({ optional = false } = {}) => {
+export const tenantResolver = ({ optional = false, allowExpired = false } = {}) => {
     return async (req, res, next) => {
         try {
             const slug = extractTenantSlug(req);
@@ -64,7 +61,7 @@ export const tenantResolver = ({ optional = false } = {}) => {
                     return next();
                 }
                 return res.status(400).json({
-                    message: 'Tenant no identificado. Envía el header X-Tenant-Slug o accede desde tu subdominio.',
+                    message: 'Tenant no identificado. Envia el header X-Tenant-Slug o accede desde tu subdominio.',
                 });
             }
 
@@ -83,31 +80,41 @@ export const tenantResolver = ({ optional = false } = {}) => {
                 });
             }
 
-            // Seteamos el tenant en req para acceso directo en controllers
+            // Tenant bloqueado (suspendido o cancelado): acceso denegado total
+            const blockedStatuses = ['SUSPENDED', 'CANCELLED'];
+            if (blockedStatuses.includes(tenant.status)) {
+                return res.status(403).json({
+                    code: 'TENANT_BLOCKED',
+                    status: tenant.status,
+                    message: `El tenant "${tenant.name}" esta ${tenant.status.toLowerCase()}. Contacta al administrador.`,
+                });
+            }
+
+            // Tenant con trial vencido: bloqueado salvo que se pida allowExpired
+            if (tenant.status === 'EXPIRED' && !allowExpired) {
+                return res.status(403).json({
+                    code: 'TENANT_EXPIRED',
+                    status: 'EXPIRED',
+                    trialEndsAt: tenant.trialEndsAt,
+                    message: 'Tu periodo de prueba ha vencido. Contacta al equipo de KAI para activar tu suscripcion.',
+                });
+            }
+
+            // Si esta en TRIAL, es modo demo (read-only)
+            const isReadOnly = tenant.status === 'TRIAL' || tenant.status === 'EXPIRED';
+
             req.tenant = {
                 id: tenant.id,
                 slug: tenant.slug,
                 name: tenant.name,
                 status: tenant.status,
+                isReadOnly,
                 planKey: tenant.plan?.key || null,
                 plan: tenant.plan,
                 subscription: tenant.subscription,
                 settings: tenant.settings,
             };
 
-            // Si el tenant está suspendido, expirado o cancelado, bloqueamos
-            const blockedStatuses = ['SUSPENDED', 'CANCELLED'];
-            if (blockedStatuses.includes(tenant.status)) {
-                return res.status(403).json({
-                    message: `El tenant "${tenant.name}" está ${tenant.status.toLowerCase()}. Contacta al administrador.`,
-                });
-            }
-
-            // Si está expirado (trial), permitimos login pero no escritura
-            // (esto se valida despues con enforcePlanLimits o un guard especifico)
-
-            // Ejecutamos el resto del request dentro del tenant context
-            // para que Prisma Extension filtre automaticamente.
             return runWithTenant(tenant.id, () => next());
         } catch (error) {
             console.error('[tenantResolver] Error:', error);

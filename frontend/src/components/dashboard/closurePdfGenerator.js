@@ -10,7 +10,7 @@ import html2canvas from 'html2canvas';
 import dashboardService from '../../services/dashboard.service';
 import { dateToStringHelper, toVenezuelanFormat } from '../../utils/dateHelpers';
 
-const DEFAULT_LOGO = '/2.png';
+const DEFAULT_LOGO = '/fondo_login.webp';
 const CANVAS_EXPORT_QUALITY = 0.8;
 const CANVAS_SCALE = 3;
 const PDF_OPTIONS = { compress: true };
