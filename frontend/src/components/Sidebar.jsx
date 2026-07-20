@@ -110,7 +110,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             {/* Header / Logo */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 bg-black/10">
                 <div className={`flex items-center gap-3 overflow-hidden transition-all duration-300 ${isOpen ? 'w-auto' : 'w-0'}`}>
-                    <img src="/fondo_login.webp" alt="Logo" className="h-12 w-auto min-w-[32px] object-contain" />
+                    <div className="flex items-center gap-2">
+                        <div className="h-10 w-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                            <span className="text-xs font-bold text-slate-300">KAI</span>
+                        </div>
+                        <span className="font-bold text-sm whitespace-nowrap">KAI Logistics</span>
+                    </div>
                 </div>
                 <button 
                     onClick={toggleSidebar}

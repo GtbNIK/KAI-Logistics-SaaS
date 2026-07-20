@@ -40,13 +40,11 @@ export default function Login() {
                 
                 {/* Logo & Header */}
                 <div className="flex flex-col items-center mb-8">
-                    <img 
-                        src="/fondo_login.webp" 
-                        alt="Import Services Logo" 
-                        className="h-20 mb-4 drop-shadow-md"
-                    />
-                    <div className="text-center text-white">
-                        <h1 className="text-2xl font-bold tracking-wide">ERP - Import Services</h1>
+                    <div className="h-16 w-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+                        <span className="text-sm font-bold text-slate-300">KAI</span>
+                    </div>
+                    <div className="text-center text-white mt-3">
+                        <h1 className="text-2xl font-bold tracking-wide">KAI Logistics</h1>
                         <p className="text-blue-200 text-sm font-light tracking-widest uppercase mt-1">
                             Inicio de Sesión
                         </p>
