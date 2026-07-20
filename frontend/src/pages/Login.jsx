@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -13,10 +14,13 @@ export default function Login() {
         e.preventDefault();
         setError('');
         try {
+            setLoading(true);
             await login(email, password);
             navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || 'Error al iniciar sesión');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -83,11 +87,19 @@ export default function Login() {
 
                     <button
                         type="submit"
-                        className="w-full py-3 px-4 bg-secondary hover:bg-orange-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-orange-500/30 transition-all duration-300 transform hover:-translate-y-0.5"
+                        disabled={loading}
+                        className="w-full py-3 px-4 bg-secondary hover:bg-orange-600 disabled:bg-orange-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-orange-500/30 transition-all duration-300 transform hover:-translate-y-0.5 disabled:transform-none"
                     >
-                        Entrar
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </button>
                 </form>
+
+                <div className="mt-6 text-center text-sm text-slate-300">
+                    ¿No tienes cuenta?{' '}
+                    <Link to="/signup" className="text-blue-300 hover:text-blue-200 underline">
+                        Crear cuenta gratis
+                    </Link>
+                </div>
             </div>
         </div>
     );

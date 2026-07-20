@@ -4,6 +4,7 @@ import { Settings, LogOut, Bell, Clock, X } from 'lucide-react';
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { notificationService } from '../services/notification.service';
 import useSessionTimer from '../hooks/useSessionTimer';
+import TenantSelector from './TenantSelector';
 
 // [bundle-dynamic-imports] Cargar de forma diferida el modal para reducir tamaño de bundle del navbar
 const SessionWarningModal = lazy(() => import('./SessionWarningModal'));
@@ -237,6 +238,9 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                             <span className="hidden md:inline">Configuración</span>
                         </button>
                     ) : null}
+
+                    {/* Tenant Selector (multi-tenant) */}
+                    <TenantSelector />
 
                     {/* User Profile */}
                     <div className="relative">

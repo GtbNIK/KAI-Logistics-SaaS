@@ -1,95 +1,141 @@
-import { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import axios from 'axios';
+/**
+ * AuthContext multi-tenant.
+ *
+ * Maneja:
+ * - User actual
+ * - Login / Signup / Logout
+ * - Switch tenant
+ * - Estado de carga
+ *
+ * El tenant activo lo maneja TenantContext, pero AuthContext lo sincroniza
+ * automaticamente al loguear (toma el currentTenant del response del login).
+ */
 
-const AuthContext = createContext();
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import api from '../lib/api.js';
+import { useTenant } from './TenantContext.jsx';
 
-export const useAuth = () => useContext(AuthContext);
+const AuthContext = createContext(null);
+
+export const useAuth = () => {
+    const ctx = useContext(AuthContext);
+    if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider');
+    return ctx;
+};
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
 
-    const API_URL = import.meta.env.VITE_API_URL || '/api';
-
-    // Configurar axios para incluir credenciales (cookies)
-    axios.defaults.withCredentials = true;
+    const { setTenantsList, setCurrentTenantSlug } = useTenant();
 
     useEffect(() => {
-        checkUser();
-    }, []);
-
-    const checkUser = async () => {
-        try {
-            const res = await axios.get(`${API_URL}/auth/me`);
-            setUser(res.data.user);
-
-            // Recuperar expiresAt guardado en localStorage
-            const saved = localStorage.getItem('sessionExpiresAt');
-            if (saved) {
-                const expiresDate = new Date(saved);
-                if (expiresDate > new Date()) {
-                    setSessionExpiresAt(expiresDate);
-                } else {
-                    // Token expirado, forzar logout
-                    await forceLogout();
-                }
-            }
-        } catch (error) {
+        const handler = () => {
             setUser(null);
-            localStorage.removeItem('sessionExpiresAt');
+            setSessionExpiresAt(null);
+            setTenantsList([]);
+            try {
+                localStorage.removeItem('sessionExpiresAt');
+                localStorage.removeItem('kai:currentTenantSlug');
+            } catch (e) { void e; }
+            if (!window.location.pathname.startsWith('/login')) {
+                window.location.href = '/login';
+            }
+        };
+        window.addEventListener('kai:auth-expired', handler);
+        return () => window.removeEventListener('kai:auth-expired', handler);
+    }, [setTenantsList]);
+
+    const applySession = useCallback(
+        (data) => {
+            if (data.user) setUser(data.user);
+            if (data.expiresAt) {
+                setSessionExpiresAt(new Date(data.expiresAt));
+        try {
+            localStorage.setItem('sessionExpiresAt', data.expiresAt);
+        } catch (e) { void e; }
+            }
+            if (data.tenants) setTenantsList(data.tenants);
+            if (data.currentTenant) setCurrentTenantSlug(data.currentTenant.slug);
+        },
+        [setTenantsList, setCurrentTenantSlug]
+    );
+
+    const checkUser = useCallback(async () => {
+        try {
+            const res = await api.get('/auth/me');
+            applySession(res.data);
+        } catch {
+            setUser(null);
+            setSessionExpiresAt(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, [applySession]);
 
-    const login = async (email, password) => {
-        const res = await axios.post(`${API_URL}/auth/login`, { email, password });
-        setUser(res.data.user);
+    useEffect(() => {
+        checkUser();
+    }, [checkUser]);
 
-        // Guardar fecha de expiración
-        if (res.data.expiresAt) {
-            const expiresDate = new Date(res.data.expiresAt);
-            setSessionExpiresAt(expiresDate);
-            localStorage.setItem('sessionExpiresAt', res.data.expiresAt);
-        }
+    const login = useCallback(
+        async (email, password) => {
+            const res = await api.post('/auth/login', { email, password });
+            applySession(res.data);
+            return res.data;
+        },
+        [applySession]
+    );
 
-        // Registrar evento de inicio de sesión (para controlar modales informativos por login)
-        try {
-            const current = parseInt(localStorage.getItem('app_login_count') || '0', 10) + 1;
-            localStorage.setItem('app_login_count', String(current));
-            sessionStorage.setItem('app_last_login_seq', String(current));
-        } catch (e) {
-            // Ignorar errores de acceso a storage
-        }
-
-        return res.data;
-    };
+    const signup = useCallback(
+        async (payload) => {
+            const res = await api.post('/auth/signup', payload);
+            applySession(res.data);
+            return res.data;
+        },
+        [applySession]
+    );
 
     const logout = useCallback(async () => {
         try {
-            await axios.post(`${API_URL}/auth/logout`);
-        } catch {
-            // Ignorar errores de red al cerrar sesión
-        }
+            await api.post('/auth/logout');
+        } catch (e) { void e; }
         setUser(null);
         setSessionExpiresAt(null);
-        localStorage.removeItem('sessionExpiresAt');
-    }, []);
-
-    const forceLogout = useCallback(async () => {
+        setTenantsList([]);
+        setCurrentTenantSlug(null);
         try {
-            await axios.post(`${API_URL}/auth/logout`);
-        } catch {
-            // Ignorar errores
-        }
-        setUser(null);
-        setSessionExpiresAt(null);
-        localStorage.removeItem('sessionExpiresAt');
-    }, []);
+            localStorage.removeItem('sessionExpiresAt');
+            localStorage.removeItem('kai:currentTenantSlug');
+        } catch (e) { void e; }
+    }, [setTenantsList, setCurrentTenantSlug]);
+
+    const switchTenant = useCallback(
+        async (tenantId) => {
+            const res = await api.post('/auth/switch-tenant', { tenantId });
+            if (res.data.tenant) {
+                setCurrentTenantSlug(res.data.tenant.slug);
+                // Refrescar /auth/me para sincronizar listas
+                await checkUser();
+            }
+            return res.data;
+        },
+        [setCurrentTenantSlug, checkUser]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, forceLogout, loading, sessionExpiresAt }}>
+        <AuthContext.Provider
+            value={{
+                user,
+                loading,
+                sessionExpiresAt,
+                login,
+                signup,
+                logout,
+                switchTenant,
+                checkUser,
+            }}
+        >
             {!loading && children}
         </AuthContext.Provider>
     );
