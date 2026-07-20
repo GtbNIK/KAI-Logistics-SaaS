@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ScrollText, Plus, Truck, Ban } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { useToast } from '../../context/ToastContext';
@@ -11,8 +11,6 @@ import { deliveryNoteConfig } from '../../config/deliveryNoteConfig';
 import NoteDetailModal from '../../components/operations/NoteDetailModal';
 import NoteFormModal from '../../components/operations/NoteFormModal';
 import DeliveryNotePDFModal from '../../components/operations/DeliveryNotePDFModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // ─── Hook de datos ────────────────────────────────────────────────────────────
 const useDeliveryNotes = () => {
@@ -36,7 +34,7 @@ const useDeliveryNotes = () => {
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
             if (statusFilter) params.set('status', statusFilter);
-            const res = await axios.get(`${API_URL}/delivery-notes?${params}`, { withCredentials: true });
+            const res = await api.get(`/delivery-notes?${params}`);
             setItems(res.data.data || []);
             setTotalItems(res.data.meta?.total || 0);
             setTotalPages(res.data.meta?.totalPages || 1);
@@ -72,7 +70,7 @@ const DeliveryNotes = () => {
 
     const handlePrint = async (item) => {
         try {
-            const res = await axios.get(`${API_URL}/delivery-notes/${item.id}`, { withCredentials: true });
+            const res = await api.get(`/delivery-notes/${item.id}`);
             setPrintingNote(res.data);
             setShowPDFModal(true);
         } catch (error) {
@@ -93,7 +91,7 @@ const DeliveryNotes = () => {
         if (!deletingNote) return;
         setDeleteLoading(true);
         try {
-            await axios.delete(`${API_URL}/delivery-notes/${deletingNote.id}`, { withCredentials: true });
+            await api.delete(`/delivery-notes/${deletingNote.id}`);
             showSuccess('Eliminada', 'Nota de entrega eliminada correctamente');
             setDeletingNote(null);
             refresh();
@@ -106,7 +104,7 @@ const DeliveryNotes = () => {
 
     const handleStatusChange = async (item, newStatus) => {
         try {
-            await axios.patch(`${API_URL}/delivery-notes/${item.id}/status`, { status: newStatus }, { withCredentials: true });
+            await api.patch(`/delivery-notes/${item.id}/status`, { status: newStatus });
             showSuccess('Estado actualizado', `Nota marcada como ${newStatus === 'DISPATCHED' ? 'Despachada' : newStatus === 'CANCELLED' ? 'Cancelada' : newStatus}`);
             refresh();
         } catch (err) {

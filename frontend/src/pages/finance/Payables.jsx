@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TrendingDown, Plus, Trash2, Edit, Wallet } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useEffectiveRole } from '../../hooks/useEffectiveRole';
@@ -13,8 +13,6 @@ import PayableDetailModal from '../../components/finance/PayableDetailModal';
 import PayableFormModal from '../../components/finance/PayableFormModal';
 import RegisterPayablePaymentModal from '../../components/finance/RegisterPayablePaymentModal';
 import EmployeePayrollGrid from '../../components/finance/EmployeePayrollGrid';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const usePayables = (beneficiaryType) => {
     const [items, setItems] = useState([]);
@@ -39,7 +37,7 @@ const usePayables = (beneficiaryType) => {
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
             if (statusFilter) params.append('status', statusFilter);
-            const res = await axios.get(`${API_URL}/payables?${params}`);
+            const res = await api.get(`/payables?${params}`);
             let filteredItems = res.data.data || [];
 
             if (beneficiaryType === 'employees') {
@@ -98,7 +96,7 @@ const Payables = () => {
         return acc;
     }, 0);
 
-    useAutoOpenModal(setViewingPayable, id => axios.get(`${API_URL}/payables/${id}`));
+    useAutoOpenModal(setViewingPayable, id => api.get(`/payables/${id}`));
 
     const handleRegisterPayment = (p) => {
         setViewingPayable(null);

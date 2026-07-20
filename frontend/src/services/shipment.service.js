@@ -1,49 +1,35 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../lib/api';
 
 const shipmentService = {
     getShipments: async (params = {}) => {
-        const response = await axios.get(`${API_URL}/shipments`, {
-            params,
-            withCredentials: true
-        });
+        const response = await api.get('/shipments', { params });
         return response.data;
     },
 
     getShipment: async (id) => {
-        const response = await axios.get(`${API_URL}/shipments/${id}`, {
-            withCredentials: true
-        });
+        const response = await api.get(`/shipments/${id}`);
         return response.data;
     },
 
     createShipment: async (data) => {
-        const response = await axios.post(`${API_URL}/shipments`, data, {
-            withCredentials: true
-        });
+        const response = await api.post('/shipments', data);
         return response.data;
     },
 
     updateShipment: async (id, data) => {
-        const response = await axios.put(`${API_URL}/shipments/${id}`, data, {
-            withCredentials: true
-        });
+        const response = await api.put(`/shipments/${id}`, data);
         return response.data;
     },
 
     deleteShipment: async (id) => {
-        const response = await axios.delete(`${API_URL}/shipments/${id}`, {
-            withCredentials: true
-        });
+        const response = await api.delete(`/shipments/${id}`);
         return response.data;
     },
 
     // Obtener avisos de cobro sin tracking asignado (para el select)
     getAvailableNotices: async () => {
-        const response = await axios.get(`${API_URL}/payment-notices`, {
-            params: { limit: 999 },
-            withCredentials: true
+        const response = await api.get('/payment-notices', {
+            params: { limit: 999 }
         });
         // La respuesta es paginada: { data: [...], meta: {...} }
         const notices = response.data?.data || response.data || [];
@@ -52,9 +38,8 @@ const shipmentService = {
 
     // Obtener usuarios vendedores/admins para el select
     getVendedores: async () => {
-        const response = await axios.get(`${API_URL}/auth/users`, {
-            params: { limit: 999 },
-            withCredentials: true
+        const response = await api.get('/auth/users', {
+            params: { limit: 999 }
         });
         const users = response.data?.users || [];
         // Solo ADMIN y SALES
@@ -63,67 +48,57 @@ const shipmentService = {
 
     // Obtener clientes activos para el select
     getClients: async () => {
-        const response = await axios.get(`${API_URL}/clients`, {
-            params: { all: 'true' },
-            withCredentials: true
+        const response = await api.get('/clients', {
+            params: { all: 'true' }
         });
         return response.data?.data || [];
     },
 
     // ── Líneas Navieras ──────────────────────────────────────────
     getShippingLines: async () => {
-        const response = await axios.get(`${API_URL}/shipping-lines`, {
-            params: { all: 'true' },
-            withCredentials: true
+        const response = await api.get('/shipping-lines', {
+            params: { all: 'true' }
         });
         return response.data?.data || [];
     },
 
     createShippingLine: async (name, code) => {
-        const response = await axios.post(`${API_URL}/shipping-lines`, { name, code }, {
-            withCredentials: true
-        });
+        const response = await api.post('/shipping-lines', { name, code });
         return response.data;
     },
     // ── Puertos ──────────────────────────────────────────────────
     getPorts: async () => {
-        const response = await axios.get(`${API_URL}/ports`, {
-            params: { all: 'true' },
-            withCredentials: true
+        const response = await api.get('/ports', {
+            params: { all: 'true' }
         });
         return response.data?.data || response.data || [];
     },
 
     createPort: async (name) => {
-        const response = await axios.post(`${API_URL}/ports`, { name }, {
-            withCredentials: true
-        });
+        const response = await api.post('/ports', { name });
         return response.data;
     },
 
     // ── D2D Items ────────────────────────────────────────────────
     getD2DItems: async () => {
-        const response = await axios.get(`${API_URL}/d2d-items`, {
-            params: { all: 'true' },
-            withCredentials: true
+        const response = await api.get('/d2d-items', {
+            params: { all: 'true' }
         });
         return response.data?.data || response.data || [];
     },
 
     // ── Aliados ──────────────────────────────────────────────────
     getAllies: async () => {
-        const response = await axios.get(`${API_URL}/allies`, {
-            params: { all: 'true' },
-            withCredentials: true
+        const response = await api.get('/allies', {
+            params: { all: 'true' }
         });
         return response.data?.data || response.data || [];
     },
 
     // ── Cierre Mensual ───────────────────────────────────────────
     getMonthlyClose: async (month) => {
-        const response = await axios.get(`${API_URL}/shipments/monthly-close`, {
-            params: { month },
-            withCredentials: true
+        const response = await api.get('/shipments/monthly-close', {
+            params: { month }
         });
         return response.data;
     },

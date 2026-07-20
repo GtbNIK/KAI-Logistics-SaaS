@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../lib/api';
 
 const receivableService = {
     /**
@@ -11,7 +9,7 @@ const receivableService = {
         const params = new URLSearchParams();
         if (filters.status) params.append('status', filters.status);
         
-        const response = await axios.get(`${API_URL}/receivables?${params.toString()}`);
+        const response = await api.get(`/receivables?${params.toString()}`);
         return response.data;
     },
 
@@ -19,7 +17,7 @@ const receivableService = {
      * Obtener el detalle de una cuenta por cobrar (historial de pagos)
      */
     getReceivableById: async (id) => {
-        const response = await axios.get(`${API_URL}/receivables/${id}`);
+        const response = await api.get(`/receivables/${id}`);
         return response.data;
     },
 
@@ -29,7 +27,7 @@ const receivableService = {
      * @param {Object} paymentData - { amount, method, reference, date }
      */
     registerPayment: async (id, paymentData) => {
-        const response = await axios.post(`${API_URL}/receivables/${id}/payments`, paymentData);
+        const response = await api.post(`/receivables/${id}/payments`, paymentData);
         return response.data;
     },
 
@@ -40,7 +38,7 @@ const receivableService = {
      * @returns {Promise<Object>} Respuesta del servidor con la cuenta actualizada
      */
     updateReceivable: async (id, data) => {
-        const response = await axios.put(`${API_URL}/receivables/${id}`, data);
+        const response = await api.put(`/receivables/${id}`, data);
         return response.data;
     },
 
@@ -51,7 +49,7 @@ const receivableService = {
      * @returns {Promise<Object>} Respuesta del servidor con la cuenta actualizada
      */
     deletePayment: async (id, paymentId) => {
-        const response = await axios.delete(`${API_URL}/receivables/${id}/payments/${paymentId}`);
+        const response = await api.delete(`/receivables/${id}/payments/${paymentId}`);
         return response.data;
     },
 
@@ -61,7 +59,7 @@ const receivableService = {
      * @returns {Promise<Object>} Respuesta del servidor confirmando la eliminación
      */
     deleteReceivable: async (id) => {
-        const response = await axios.delete(`${API_URL}/receivables/${id}`);
+        const response = await api.delete(`/receivables/${id}`);
         return response.data;
     }
 };

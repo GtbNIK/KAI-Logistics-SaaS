@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
-import axios from 'axios';
+import api from '../../lib/api';
 import ConfirmDeleteModal from '../modals/ConfirmDeleteModal';
 
 // Helper para verificar si una tarifa está vigente
@@ -30,8 +30,6 @@ const getTodayDate = () => {
 };
 */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
 const AllyDetailModal = ({ isOpen, onClose, ally }) => {
     const { user } = useAuth();
     const [rates, setRates] = useState([]);
@@ -51,7 +49,7 @@ const AllyDetailModal = ({ isOpen, onClose, ally }) => {
 
     const fetchPorts = useCallback(async () => {
         try {
-            const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+            const res = await api.get('/ports?all=true');
             setPortCatalog(res.data.data || res.data || []);
         } catch (error) {
             console.error('Error loading ports for Ally detail:', error);

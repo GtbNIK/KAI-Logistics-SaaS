@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle, Clock, Wallet } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const ClientDetailModal = ({ isOpen, onClose, client }) => {
     const { user } = useAuth();
@@ -16,7 +14,7 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
         const fetchSummary = async () => {
             setLoadingReceivables(true);
             try {
-                const res = await axios.get(`${API_URL}/clients/${client.id}/receivables-summary`, { withCredentials: true });
+                const res = await api.get(`/clients/${client.id}/receivables-summary`);
                 setReceivablesSummary(res.data);
             } catch {
                 setReceivablesSummary(null);

@@ -12,7 +12,7 @@ import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ConfirmToggleModal from '../../components/modals/ConfirmToggleModal';
 import ImportExcelModal from '../../components/modals/ImportExcelModal';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../lib/api';
 
 // Adaptar servicio para el hook
 const adaptedService = {
@@ -37,7 +37,7 @@ const Clients = () => {
         }
         const fetchUsers = async () => {
             try {
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/users`);
+                const response = await api.get('/auth/users');
                 const userOptions = response.data.users
                     .filter(u => u.role !== 'ADMIN')
                     .map(u => ({

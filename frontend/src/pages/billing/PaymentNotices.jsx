@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Receipt, Plus, Pencil } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useEffectiveRole } from '../../hooks/useEffectiveRole';
@@ -10,8 +10,6 @@ import PaymentNoticePDFModal from '../../components/billing/PaymentNoticePDFModa
 import NoticeDetailModal from '../../components/billing/NoticeDetailModal';
 import CreateNoticeFormModal from '../../components/billing/CreateNoticeFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // ─── Hook de datos ────────────────────────────────────────────────────────────
 const usePaymentNotices = () => {
@@ -33,7 +31,7 @@ const usePaymentNotices = () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
-            const res = await axios.get(`${API_URL}/payment-notices?${params}`);
+            const res = await api.get(`/payment-notices?${params}`);
             setItems(res.data.data || []);
             setTotalItems(res.data.meta?.total || 0);
             setTotalPages(res.data.meta?.totalPages || 1);
@@ -68,7 +66,7 @@ const PaymentNotices = () => {
 
     const handlePrint = async (item) => {
         try {
-            const res = await axios.get(`${API_URL}/payment-notices/${item.id}`, { withCredentials: true });
+            const res = await api.get(`/payment-notices/${item.id}`);
             setPrintingNotice(res.data);
             setShowPDFModal(true);
         } catch (error) {
@@ -79,7 +77,7 @@ const PaymentNotices = () => {
 
     const handleEdit = async (item) => {
         try {
-            const res = await axios.get(`${API_URL}/payment-notices/${item.id}`, { withCredentials: true });
+            const res = await api.get(`/payment-notices/${item.id}`);
             setEditingNotice(res.data);
         } catch {
             showError('Error', 'No se pudo cargar el aviso para editar');
@@ -90,7 +88,7 @@ const PaymentNotices = () => {
         if (!deletingNotice) return;
         setDeleteLoading(true);
         try {
-            await axios.delete(`${API_URL}/payment-notices/${deletingNotice.id}`, { withCredentials: true });
+            await api.delete(`/payment-notices/${deletingNotice.id}`);
             showSuccess('Eliminado', 'Aviso de Cobro eliminado correctamente');
             setDeletingNotice(null);
             refresh();

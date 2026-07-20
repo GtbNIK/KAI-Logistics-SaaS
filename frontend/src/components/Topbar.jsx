@@ -277,15 +277,6 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                             <p className="text-xs text-slate-400 capitalize">{getRoleLabel(effectiveRole)}</p>
                                     </div>
 
-                                    {effectiveRole === 'ADMIN' && (
-                                        <button 
-                                            onClick={() => { navigate('/dashboard/configuracion'); setShowProfileMenu(false); }}
-                                            className="w-full text-left px-4 py-2.5 text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-                                        >
-                                            <Settings size={16} />
-                                            Configuración
-                                        </button>
-                                    )}
                                     <button 
                                         onClick={handleLogout}
                                         className="w-full text-left px-4 py-2.5 text-red-500 hover:bg-red-50 flex items-center gap-2 transition-colors"

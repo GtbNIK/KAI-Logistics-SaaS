@@ -1,15 +1,13 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../lib/api';
 
 const countryService = {
     getCountries: async () => {
-        const response = await axios.get(`${API_URL}/countries`, { withCredentials: true });
+        const response = await api.get('/countries');
         return response.data;
     },
 
     createCountry: async (data) => {
-        const response = await axios.post(`${API_URL}/countries`, data, { withCredentials: true });
+        const response = await api.post('/countries', data);
         return response.data;
     }
 };

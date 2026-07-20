@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../lib/api';
 
 /**
  * Servicio para gestionar la configuración de la empresa
@@ -10,7 +8,7 @@ const settingsService = {
      * Obtener configuración de la empresa
      */
     getSettings: async () => {
-        const response = await axios.get(`${API_URL}/settings`, { withCredentials: true });
+        const response = await api.get('/settings');
         return response.data;
     },
 
@@ -48,8 +46,7 @@ const settingsService = {
         if (removals.removeReceiptBg) formData.append('removeReceiptBg', 'true');
         if (removals.removeRateBg) formData.append('removeRateBg', 'true');
 
-        const response = await axios.put(`${API_URL}/settings`, formData, {
-            withCredentials: true,
+        const response = await api.put('/settings', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;

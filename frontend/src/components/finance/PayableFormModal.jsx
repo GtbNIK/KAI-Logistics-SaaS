@@ -1,15 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Receipt, X, Loader2, Wallet } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTodayLocal } from '../../utils/dateHelpers';
 import authService from '../../services/auth.service';
 import QuickCreateSvcProviderModal from '../shared/QuickCreateSvcProviderModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const selectStyles = {
     control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px', '&:hover': { borderColor: '#3b82f6' } }),
@@ -74,8 +72,8 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
         const fetchAll = async () => {
             try {
                 const [aRes, pRes, uRes] = await Promise.all([
-                    axios.get(`${API_URL}/allies?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/svc-providers?all=true`, { withCredentials: true }),
+                    api.get('/allies?all=true'),
+                    api.get('/svc-providers?all=true'),
                     authService.getUsers(),
                 ]);
                 setAllies(aRes.data.data || []);
@@ -185,7 +183,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
             };
 
             if (isEdit) {
-                await axios.put(`${API_URL}/payables/${payable.id}`, payload, { withCredentials: true });
+                await api.put(`/payables/${payable.id}`, payload);
                 showSuccess('Cuenta actualizada', 'La cuenta por pagar se actualizó correctamente');
                 onSuccess?.();
                 onClose?.();
@@ -193,12 +191,12 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
             }
 
             // Crear la cuenta por pagar
-            const res = await axios.post(`${API_URL}/payables`, payload);
+            const res = await api.post('/payables', payload);
             const newPayable = res.data.data || res.data;
 
             // Si es pago a empleado y modo "Ya pagado", crear el abono inmediatamente
             if (beneficiaryType === 'employee' && paymentMode === 'paid' && newPayable?.id) {
-                await axios.post(`${API_URL}/payables/${newPayable.id}/payments`, {
+                await api.post(`/payables/${newPayable.id}/payments`, {
                     amount: parseFloat(amount),
                     method: paymentMethod,
                     reference: paymentReference.trim() || undefined,

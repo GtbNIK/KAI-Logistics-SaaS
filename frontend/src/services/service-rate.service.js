@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../lib/api';
 
 const rateService = {
     /**
@@ -9,10 +7,7 @@ const rateService = {
      * @returns Objeto con { found: boolean, rate?: objeto tarifa }
      */
     findRate: async (params) => {
-        const response = await axios.get(`${API_URL}/service-rates/find`, { 
-            params,
-            withCredentials: true 
-        });
+        const response = await api.get('/service-rates/find', { params });
         return response.data;
     },
 
@@ -20,10 +15,7 @@ const rateService = {
      * Obtener lista de tarifas (para administración)
      */
     getRates: async (params) => {
-        const response = await axios.get(`${API_URL}/service-rates`, { 
-            params,
-            withCredentials: true 
-        });
+        const response = await api.get('/service-rates', { params });
         return response.data;
     }
 };
