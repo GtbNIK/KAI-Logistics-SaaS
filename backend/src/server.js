@@ -45,8 +45,10 @@ app.use(helmet());
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map(s => s.trim());
 app.use(cors({
     origin: (origin, callback) => {
-        // Permitir requests sin origin (mobile apps, Postman, server-to-server)
-        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        // Permitir Vercel previews: cualquier *.vercel.app
+        if (origin.endsWith('.vercel.app')) return callback(null, true);
         callback(new Error('CORS no permitido'));
     },
     credentials: true
@@ -84,7 +86,7 @@ app.use('/uploads', (req, res, next) => {
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
-        message: 'ERP Import Services Backend - Running',
+        message: 'KAI Logistics SaaS Backend - Running',
         timestamp: new Date().toISOString()
     });
 });
