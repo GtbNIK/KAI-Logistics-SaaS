@@ -6,13 +6,11 @@ import { useSettings } from '../../context/SettingsContext';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
 import { dateToStringHelper } from '../../utils/dateHelpers';
 import { resizePngDataUrl } from '../../utils/imageHelpers';
-import axios from 'axios';
+import api from '../../lib/api';
 
 const DEFAULT_LOGO = '';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_PRIMARY_COLOR = '#003366';
-const DEFAULT_COMPANY_RIF = 'J-00000000-0';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -98,7 +96,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
         if (!isOpen) return;
         const fetchPorts = async () => {
             try {
-                const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+                const res = await api.get('/ports?all=true');
                 setPortCatalog(res.data.data || res.data || []);
             } catch (error) {
                 console.error('Error loading ports for Rate PDF:', error);

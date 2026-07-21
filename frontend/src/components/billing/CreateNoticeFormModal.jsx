@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Receipt, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,8 +15,6 @@ import airlineService from '../../services/airline.service';
 import { calculateItemSubtotal } from '../../utils/pricing';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import CurrencySelect from '../shared/CurrencySelect';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Tipos de servicio que usan zona (los demás usan ruta con puertos)
 const ZONE_SERVICE_TYPES = ['DOOR_TO_DOOR', 'WAREHOUSE', 'CUSTOMS', 'OTHER'];
@@ -123,11 +121,11 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
         const fetchAll = async () => {
             try {
                 const [cRes, sRes, aRes, zRes, pRes, slRes, alRes] = await Promise.all([
-                    axios.get(`${API_URL}/clients?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/services?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/allies?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/zones?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/ports?all=true`, { withCredentials: true }),
+                    api.get('/clients?all=true'),
+                    api.get('/services?all=true'),
+                    api.get('/allies?all=true'),
+                    api.get('/zones?all=true'),
+                    api.get('/ports?all=true'),
                     shippingLineService.getShippingLines(),
                     airlineService.getAirLines()
                 ]);
@@ -244,10 +242,10 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
         setSaving(true);
         try {
             if (noticeToEdit) {
-                await axios.put(`${API_URL}/payment-notices/${noticeToEdit.id}`, payload, { withCredentials: true });
+                await api.put(`/payment-notices/${noticeToEdit.id}`, payload);
                 showSuccess('¡Actualizado!', 'Aviso de Cobro actualizado exitosamente');
             } else {
-                await axios.post(`${API_URL}/payment-notices`, payload, { withCredentials: true });
+                await api.post('/payment-notices', payload);
                 showSuccess('¡Creado!', 'Aviso de Cobro creado exitosamente');
             }
             onSuccess?.();

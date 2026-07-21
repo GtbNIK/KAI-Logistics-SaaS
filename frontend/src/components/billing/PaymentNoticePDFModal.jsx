@@ -5,7 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
-import axios from 'axios';
+import api from '../../lib/api';
 import { buildPortLookup, formatRouteDisplay, replaceRouteCodesWithNames } from '../../utils/locationFormatters';
 import { getCurrencySymbol } from '../../utils/currency';
 
@@ -68,8 +68,6 @@ const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
 /**
  * Modal para vista previa y generación de PDF de aviso de cobro
  */
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
 const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const [generating, setGenerating] = useState(false);
     const [showNotes, setShowNotes] = useState(true);
@@ -81,7 +79,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
         if (!isOpen) return;
         const fetchPorts = async () => {
             try {
-                const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+                const res = await api.get('/ports?all=true');
                 setPortCatalog(res.data.data || res.data || []);
             } catch (error) {
                 console.error('Error loading ports for PaymentNotice PDF:', error);

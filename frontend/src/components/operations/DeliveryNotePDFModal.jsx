@@ -4,7 +4,7 @@ import { X, Download, Loader2, ScrollText, Eye, EyeOff } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
-import axios from 'axios';
+import api from '../../lib/api';
 import { buildPortLookup, replaceRouteCodesWithNames } from '../../utils/locationFormatters';
 
 const DEFAULT_LOGO = '';
@@ -67,8 +67,6 @@ const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
 /**
  * Modal para vista previa y generación de PDF de nota de entrega
  */
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
 const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
     const [generating, setGenerating] = useState(false);
     const [showNotes, setShowNotes] = useState(true);
@@ -80,7 +78,7 @@ const DeliveryNotePDFModal = ({ isOpen, onClose, note }) => {
         if (!isOpen) return;
         const fetchPorts = async () => {
             try {
-                const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+                const res = await api.get('/ports?all=true');
                 setPortCatalog(res.data.data || res.data || []);
             } catch (error) {
                 console.error('Error loading ports for DeliveryNote PDF:', error);
