@@ -1,16 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+const STATUS_TRANSLATIONS = {
+    'TENANT_EXPIRED': 'Prueba vencida',
+    'TENANT_BLOCKED': 'Tenant bloqueado',
+};
+
+const STATUS_LABELS = {
+    SUSPENDED: 'suspendido',
+    CANCELLED: 'cancelado',
+    EXPIRED: 'vencido',
+    TRIAL: 'en prueba',
+};
+
+const translateMessage = (msg) => {
+    if (!msg) return msg;
+    for (const [en, es] of Object.entries(STATUS_LABELS)) {
+        msg = msg.replace(new RegExp(`\\b${en}\\b`, 'gi'), es);
+    }
+    return msg;
+};
+
 export default function TenantBlocked() {
-    const [reason, setReason] = useState('SUSPENDED');
+    const [reason, setReason] = useState('TENANT_BLOCKED');
     const [message, setMessage] = useState('');
 
     useEffect(() => {
         try {
-            const r = sessionStorage.getItem('kai:tenantBlockReason') || 'SUSPENDED';
+            const r = sessionStorage.getItem('kai:tenantBlockReason') || 'TENANT_BLOCKED';
             const m = sessionStorage.getItem('kai:tenantBlockMessage') || '';
             setReason(r);
-            setMessage(m);
+            setMessage(translateMessage(m));
             sessionStorage.removeItem('kai:tenantBlockReason');
             sessionStorage.removeItem('kai:tenantBlockMessage');
         } catch (e) { void e; }

@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }) => {
 
     useEffect(() => {
         if (!loading && currentTenant &&
-            (currentTenant.status === 'EXPIRED' || currentTenant.status === 'CANCELLED')) {
+            (currentTenant.status === 'EXPIRED' || currentTenant.status === 'CANCELLED' || currentTenant.status === 'SUSPENDED')) {
             navigate('/blocked', { replace: true });
         }
     }, [loading, currentTenant, navigate]);

@@ -45,7 +45,9 @@ api.interceptors.response.use(
             const code = error.response.data?.code;
 
             // 403 con codigo de tenant bloqueado/expirado → redirigir a /blocked
-            if (code === 'TENANT_EXPIRED' || code === 'TENANT_BLOCKED') {
+            // Si ya estamos en /blocked no redirigimos otra vez (evita loop infinito)
+            if ((code === 'TENANT_EXPIRED' || code === 'TENANT_BLOCKED') &&
+                window.location.pathname !== '/blocked') {
                 try {
                     sessionStorage.setItem('kai:tenantBlockReason', code);
                     sessionStorage.setItem('kai:tenantBlockMessage', error.response.data?.message || '');
