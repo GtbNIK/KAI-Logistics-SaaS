@@ -202,7 +202,7 @@ const where = {
                 where,
                 orderBy: { name: 'asc' },
                 include: {
-                    clientAssignments: { select: { userId: true } },
+                    clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
                 },
             });
             return res.json({ data: clients });
@@ -216,7 +216,7 @@ const where = {
             take,
             orderBy: { createdAt: 'desc' },
             include: {
-                clientAssignments: { select: { userId: true } },
+                clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
             },
         });
 
@@ -249,7 +249,7 @@ export const getClient = async (req, res) => {
                 ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Client'),
             },
             include: {
-                clientAssignments: { select: { userId: true } },
+                clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
             },
         });
 

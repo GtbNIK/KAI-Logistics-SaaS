@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { X, User, FileText, Mail, Phone, MapPin, Building, Calendar, UserCheck, AlertCircle, Clock, Wallet } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 
 const ClientDetailModal = ({ isOpen, onClose, client }) => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [receivablesSummary, setReceivablesSummary] = useState(null);
     const [loadingReceivables, setLoadingReceivables] = useState(false);
 
@@ -217,16 +219,19 @@ const ClientDetailModal = ({ isOpen, onClose, client }) => {
                             <UserCheck size={14} /> Asignación
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Solo ADMIN ve quiénes son los vendedores asignados */}
-                            {user?.role !== 'SALES' && (
+                            {/* OWNER/ADMIN ven quiénes son los vendedores asignados */}
+                            {effectiveRole === 'ADMIN' && (
                                 <div className="p-4 bg-slate-50 rounded-xl md:col-span-2">
                                     <p className="text-xs text-slate-400 mb-2">Vendedores Asignados</p>
-                                    {client.assignedUsers && client.assignedUsers.length > 0 ? (
+                                    {client.clientAssignments && client.clientAssignments.length > 0 ? (
                                         <div className="flex flex-wrap gap-2">
-                                            {client.assignedUsers.map(u => (
-                                                <span key={u.id} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-sm font-medium">
+                                            {client.clientAssignments.map(a => (
+                                                <span key={a.user.id} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-sm font-medium">
                                                     <UserCheck size={13} />
-                                                    {u.name}
+                                                    {a.user.name}
+                                                    {a.user.position && (
+                                                        <span className="text-xs text-blue-400 ml-1">({a.user.position})</span>
+                                                    )}
                                                 </span>
                                             ))}
                                         </div>

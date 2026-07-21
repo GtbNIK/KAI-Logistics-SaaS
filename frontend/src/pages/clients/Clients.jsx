@@ -39,10 +39,10 @@ const Clients = () => {
             try {
                 const response = await api.get('/auth/users');
                 const userOptions = response.data.users
-                    .filter(u => u.role !== 'ADMIN')
+                    .filter(u => !['OWNER', 'ADMIN'].includes(u.role))
                     .map(u => ({
                         value: u.id,
-                        label: `${u.name} (${u.role})`
+                        label: u.position ? `${u.name} — ${u.position}` : u.name
                     }));
                 
                 // Actualizar clientConfig con los usuarios cargados
