@@ -224,7 +224,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
 
                     {/* Config Button (Solo Admin) */}
                     {/* [rendering-conditional-render] ternario en vez de && */}
-                    {user?.role === 'ADMIN' ? (
+                    {effectiveRole === 'ADMIN' ? (
                         <button 
                             onClick={() => navigate('/dashboard/configuracion')}
                             className={`
