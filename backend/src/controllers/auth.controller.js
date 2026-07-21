@@ -594,57 +594,209 @@ export const getMe = async (req, res) => {
 
 /**
  * @route   POST /api/auth/register
- * @desc    Legacy: crea usuarios adicionales en el tenant activo (solo OWNER/ADMIN)
- *          Mantenido por compatibilidad con el ERP anterior.
- *          Recomendado migrar a POST /api/tenants/:id/members en Sprint 2.
- * @access  Private
+ * @desc    Crear usuario nuevo dentro del tenant activo (solo OWNER)
+ * @access  Private (OWNER)
  */
 export const register = async (req, res) => {
-    return res.status(410).json({
-        message: 'Endpoint legacy deshabilitado. Usa el sistema de invitaciones multi-tenant.',
-    });
+    try {
+        const { name, email, password, phoneNumber, position, role } = req.body;
+        const tenantId = req.tenant.id;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: 'Nombre, email y contraseña son obligatorios.' });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' });
+        }
+
+        const validRoles = ['ADMIN', 'SALES', 'OPERATOR', 'VIEWER'];
+        const memberRole = validRoles.includes(role) ? role : 'SALES';
+
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            const alreadyMember = await prisma.membership.findUnique({
+                where: { userId_tenantId: { userId: existingUser.id, tenantId } },
+            });
+            if (alreadyMember) {
+                return res.status(409).json({ message: 'El usuario ya pertenece a este tenant.' });
+            }
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const result = await prisma.$transaction(async (tx) => {
+            const user = existingUser || await tx.user.create({
+                data: { name, email, password: hashedPassword, phoneNumber, position },
+            });
+
+            const membership = await tx.membership.create({
+                data: {
+                    userId: user.id,
+                    tenantId,
+                    role: memberRole,
+                    status: 'ACTIVE',
+                },
+                include: { user: { select: { id: true, name: true, email: true, phoneNumber: true, position: true, isActive: true } } },
+            });
+
+            return membership;
+        });
+
+        res.status(201).json({
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            phoneNumber: result.user.phoneNumber,
+            position: result.user.position,
+            isActive: result.user.isActive,
+            role: result.role,
+            membershipId: result.id,
+        });
+    } catch (error) {
+        console.error('[register] Error:', error);
+        res.status(500).json({ message: 'Error al crear el usuario.' });
+    }
 };
 
 /**
  * @route   GET /api/auth/users
- * @desc    Legacy: lista usuarios del tenant activo
- * @access  Private
+ * @desc    Lista usuarios (memberships) del tenant activo
+ * @access  Private (OWNER, ADMIN)
  */
 export const getUsers = async (req, res) => {
-    return res.status(410).json({
-        message: 'Endpoint legacy deshabilitado. Usa GET /api/tenants/:id/members.',
-    });
+    try {
+        const tenantId = req.tenant.id;
+
+        const memberships = await prisma.membership.findMany({
+            where: { tenantId, status: { not: 'INVITED' } },
+            include: {
+                user: {
+                    select: { id: true, name: true, email: true, phoneNumber: true, position: true, isActive: true },
+                },
+            },
+            orderBy: { user: { name: 'asc' } },
+        });
+
+        const users = memberships.map((m) => ({
+            id: m.user.id,
+            name: m.user.name,
+            email: m.user.email,
+            phoneNumber: m.user.phoneNumber,
+            position: m.user.position,
+            isActive: m.user.isActive,
+            role: m.role,
+            membershipId: m.id,
+            membershipStatus: m.status,
+        }));
+
+        res.json({ users });
+    } catch (error) {
+        console.error('[getUsers] Error:', error);
+        res.status(500).json({ message: 'Error al obtener usuarios.' });
+    }
 };
 
 /**
  * @route   PUT /api/auth/users/:id
- * @desc    Legacy
- * @access  Private
+ * @desc    Actualizar datos de un usuario (solo OWNER)
+ * @access  Private (OWNER)
  */
 export const updateUser = async (req, res) => {
-    return res.status(410).json({
-        message: 'Endpoint legacy deshabilitado.',
-    });
+    try {
+        const { id } = req.params;
+        const { name, email, phoneNumber, position, role } = req.body;
+        const tenantId = req.tenant.id;
+
+        const membership = await prisma.membership.findUnique({
+            where: { userId_tenantId: { userId: id, tenantId } },
+        });
+        if (!membership) {
+            return res.status(404).json({ message: 'El usuario no pertenece a este tenant.' });
+        }
+
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (email !== undefined) updateData.email = email;
+        if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+        if (position !== undefined) updateData.position = position;
+
+        const validRoles = ['ADMIN', 'SALES', 'OPERATOR', 'VIEWER'];
+        if (role !== undefined && validRoles.includes(role)) {
+            await prisma.membership.update({
+                where: { id: membership.id },
+                data: { role },
+            });
+        }
+
+        if (Object.keys(updateData).length > 0) {
+            await prisma.user.update({ where: { id }, data: updateData });
+        }
+
+        res.json({ message: 'Usuario actualizado correctamente.' });
+    } catch (error) {
+        console.error('[updateUser] Error:', error);
+        res.status(500).json({ message: 'Error al actualizar usuario.' });
+    }
 };
 
 /**
  * @route   DELETE /api/auth/users/:id
- * @desc    Legacy
- * @access  Private
+ * @desc    Desactivar usuario (soft delete, solo OWNER)
+ * @access  Private (OWNER)
  */
 export const deleteUser = async (req, res) => {
-    return res.status(410).json({
-        message: 'Endpoint legacy deshabilitado.',
-    });
+    try {
+        const { id } = req.params;
+        const tenantId = req.tenant.id;
+
+        const membership = await prisma.membership.findUnique({
+            where: { userId_tenantId: { userId: id, tenantId } },
+        });
+        if (!membership) {
+            return res.status(404).json({ message: 'El usuario no pertenece a este tenant.' });
+        }
+
+        await prisma.user.update({
+            where: { id },
+            data: { isActive: false },
+        });
+
+        res.json({ message: 'Usuario desactivado correctamente.' });
+    } catch (error) {
+        console.error('[deleteUser] Error:', error);
+        res.status(500).json({ message: 'Error al desactivar usuario.' });
+    }
 };
 
 /**
  * @route   POST /api/auth/users/:id/reset-password
- * @desc    Legacy
- * @access  Private
+ * @desc    Resetear contraseña de un usuario (solo OWNER)
+ * @access  Private (OWNER)
  */
 export const resetPassword = async (req, res) => {
-    return res.status(410).json({
-        message: 'Endpoint legacy deshabilitado.',
-    });
+    try {
+        const { id } = req.params;
+        const { password } = req.body;
+        const tenantId = req.tenant.id;
+
+        if (!password || password.length < 6) {
+            return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' });
+        }
+
+        const membership = await prisma.membership.findUnique({
+            where: { userId_tenantId: { userId: id, tenantId } },
+        });
+        if (!membership) {
+            return res.status(404).json({ message: 'El usuario no pertenece a este tenant.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await prisma.user.update({ where: { id }, data: { password: hashedPassword } });
+
+        res.json({ message: 'Contraseña actualizada correctamente.' });
+    } catch (error) {
+        console.error('[resetPassword] Error:', error);
+        res.status(500).json({ message: 'Error al cambiar la contraseña.' });
+    }
 };

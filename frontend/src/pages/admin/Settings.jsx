@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useToast } from '../../context/ToastContext';
+import { useTenant } from '../../context/TenantContext';
 import EntityTable from '../../components/shared/EntityTable';
 import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -68,8 +69,11 @@ const getUserFormSections = (isNew) => [
                 required: true,
                 defaultValue: 'SALES',
                 options: [
+                    { value: 'OWNER', label: 'Dueño' },
                     { value: 'ADMIN', label: 'Administrador' },
                     { value: 'SALES', label: 'Ventas' },
+                    { value: 'OPERATOR', label: 'Operador' },
+                    { value: 'VIEWER', label: 'Espectador' },
                 ],
             },
             ...(isNew
@@ -263,6 +267,7 @@ const PdfBackgroundUploader = ({ label, description, currentUrl, file, onFileCha
 const Settings = () => {
     const { settings, updateSettings, loading } = useSettings();
     const { showSuccess, showError } = useToast();
+    const { currentTenant } = useTenant();
     const [activeTab, setActiveTab] = useState('general');
 
     const [formData, setFormData] = useState({});
@@ -661,16 +666,17 @@ const Settings = () => {
             {/* ────── USUARIOS ────── */}
             {activeTab === 'users' && (
                 <div className="space-y-4">
-                    {/* Botón agregar encima de la tabla */}
-                    <div className="flex justify-end">
-                        <button
-                            onClick={() => setFormModal({ open: true, editMode: false, user: null })}
-                            className="inline-flex items-center gap-2 bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all shadow-lg shadow-orange-500/20 active:scale-95"
-                        >
-                            <UserPlus size={16} />
-                            Agregar Usuario
-                        </button>
-                    </div>
+                    {currentTenant?.role === 'OWNER' && (
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => setFormModal({ open: true, editMode: false, user: null })}
+                                className="inline-flex items-center gap-2 bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                            >
+                                <UserPlus size={16} />
+                                Agregar Usuario
+                            </button>
+                        </div>
+                    )}
 
                     <EntityTable
                         items={users}
@@ -681,15 +687,21 @@ const Settings = () => {
                             {
                                 header: 'Rol',
                                 accessor: 'role',
-                                render: (u) => (
-                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                        u.role === 'ADMIN'
-                                            ? 'bg-purple-100 text-purple-700'
-                                            : 'bg-blue-100 text-blue-700'
-                                    }`}>
-                                        {u.role === 'ADMIN' ? 'Administrador' : 'Ventas'}
-                                    </span>
-                                ),
+                                render: (u) => {
+                                    const roleLabels = {
+                                        OWNER: ['Dueño', 'bg-amber-100 text-amber-700'],
+                                        ADMIN: ['Administrador', 'bg-purple-100 text-purple-700'],
+                                        SALES: ['Ventas', 'bg-blue-100 text-blue-700'],
+                                        OPERATOR: ['Operador', 'bg-green-100 text-green-700'],
+                                        VIEWER: ['Espectador', 'bg-slate-100 text-slate-600'],
+                                    };
+                                    const [label, cls] = roleLabels[u.role] || [u.role, 'bg-slate-100 text-slate-600'];
+                                    return (
+                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
+                                            {label}
+                                        </span>
+                                    );
+                                },
                             },
                         ]}
                         loading={usersLoading}
@@ -698,8 +710,8 @@ const Settings = () => {
                         page={1}
                         entityName="usuario"
                         entityNamePlural="usuarios"
-                        canEdit
-                        canDelete
+                        canEdit={currentTenant?.role === 'OWNER'}
+                        canDelete={currentTenant?.role === 'OWNER'}
                         showToggle={false}
                         showStatusFilter={false}
                         onView={(u) => setViewModal({ open: true, user: u })}

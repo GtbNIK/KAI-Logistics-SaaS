@@ -5,8 +5,15 @@ import {
     logout,
     getMe,
     switchTenant,
+    register,
+    getUsers,
+    updateUser,
+    deleteUser,
+    resetPassword,
 } from '../controllers/auth.controller.js';
-import { verifyToken } from '../middleware/auth.middleware.js';
+import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 
 const router = express.Router();
 
@@ -53,5 +60,40 @@ router.get('/me', verifyToken, getMe);
  * @access  Private
  */
 router.post('/switch-tenant', verifyToken, switchTenant);
+
+/**
+ * @route   GET /api/auth/users
+ * @desc    Lista de usuarios del tenant activo
+ * @access  Private (OWNER, ADMIN)
+ */
+router.get('/users', verifyToken, tenantResolver(), requireMembership, authorize('OWNER', 'ADMIN'), getUsers);
+
+/**
+ * @route   POST /api/auth/register
+ * @desc    Crear usuario dentro del tenant activo
+ * @access  Private (OWNER)
+ */
+router.post('/register', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), register);
+
+/**
+ * @route   PUT /api/auth/users/:id
+ * @desc    Actualizar datos de un usuario
+ * @access  Private (OWNER)
+ */
+router.put('/users/:id', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), updateUser);
+
+/**
+ * @route   DELETE /api/auth/users/:id
+ * @desc    Desactivar usuario
+ * @access  Private (OWNER)
+ */
+router.delete('/users/:id', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), deleteUser);
+
+/**
+ * @route   POST /api/auth/users/:id/reset-password
+ * @desc    Resetear contraseña de un usuario
+ * @access  Private (OWNER)
+ */
+router.post('/users/:id/reset-password', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), resetPassword);
 
 export default router;
