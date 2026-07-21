@@ -613,6 +613,21 @@ export const register = async (req, res) => {
         const validRoles = ['OWNER', 'ADMIN', 'SALES', 'OPERATOR', 'VIEWER'];
         const memberRole = validRoles.includes(role) ? role : 'SALES';
 
+        // Verificar limite de usuarios del plan
+        const plan = await prisma.plan.findFirst({
+            where: { subscriptions: { some: { tenantId, status: { not: 'CANCELED' } } } },
+        });
+        if (plan) {
+            const currentUsers = await prisma.membership.count({
+                where: { tenantId, status: { not: 'INVITED' } },
+            });
+            if (currentUsers >= plan.maxUsers) {
+                return res.status(403).json({
+                    message: `Límite de usuarios alcanzado (${plan.maxUsers}). Actualiza tu plan para agregar más usuarios.`,
+                });
+            }
+        }
+
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             const alreadyMember = await prisma.membership.findUnique({
