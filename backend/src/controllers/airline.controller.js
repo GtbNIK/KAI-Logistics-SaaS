@@ -42,7 +42,7 @@ export const createAirLine = async (req, res) => {
         if (!finalName) {
             return res.status(400).json({ message: 'El nombre es obligatorio' });
         }
-        const existing = await prisma.airLine.findUnique({ where: { name: finalName } });
+        const existing = await prisma.airLine.findFirst({ where: { name: finalName } });
         if (existing) {
             return res.status(400).json({ message: 'Ya existe una línea aérea con ese nombre' });
         }

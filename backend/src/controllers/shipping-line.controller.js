@@ -52,7 +52,7 @@ export const createShippingLine = async (req, res) => {
         if (!finalName) {
             return res.status(400).json({ message: 'El nombre es obligatorio' });
         }
-        const existing = await prisma.shippingLine.findUnique({ where: { name: finalName } });
+        const existing = await prisma.shippingLine.findFirst({ where: { name: finalName } });
         if (existing) {
             return res.status(400).json({ message: 'Ya existe una línea con ese nombre' });
         }

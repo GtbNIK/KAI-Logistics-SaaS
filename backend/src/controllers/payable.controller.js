@@ -130,8 +130,17 @@ export const createPayable = async (req, res) => {
             return res.status(400).json({ message: 'El monto debe ser mayor a 0' });
         }
 
+        // Generar numero secuencial por tenant
+        const lastPayable = await prisma.payable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true },
+        });
+        const nextNumber = (lastPayable?.number || 0) + 1;
+
         const payable = await prisma.payable.create({
             data: {
+                number: nextNumber,
                 allyId: allyId || null,
                 svcProviderId: svcProviderId || null,
                 employeeUserId: employeeUserId || null,
