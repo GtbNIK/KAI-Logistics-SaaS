@@ -11,7 +11,7 @@
 
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
-import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
+import { getScopeFilter, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP } from '../utils/scope.js';
 
 const normalizeRifOrId = (rifOrId) => {
     if (!rifOrId) return '';
@@ -70,8 +70,10 @@ export const createClient = async (req, res) => {
             contactPerson,
             referencePoint,
             clientDetails,
-            assignedToId,
+            assignedUserIds,
         } = req.body;
+
+        const assigneeIds = Array.isArray(assignedUserIds) ? assignedUserIds.filter(Boolean) : [];
 
         if (!name || !rifOrId || !email || !phone || !address || !deliveryAddress || !contactPerson) {
             return res.status(400).json({
@@ -107,7 +109,7 @@ export const createClient = async (req, res) => {
         const client = await prisma.$transaction(async (tx) => {
             const internalCode = await generateInternalCode(tx);
 
-            return tx.client.create({
+            const created = await tx.client.create({
                 data: {
                     internalCode,
                     name,
@@ -119,10 +121,20 @@ export const createClient = async (req, res) => {
                     contactPerson,
                     referencePoint: referencePoint || null,
                     clientDetails: clientDetails || null,
-                    assignedToId,
                     deletedAt: null,
                 },
             });
+
+            if (assigneeIds.length > 0) {
+                await tx.clientAssignment.createMany({
+                    data: assigneeIds.map(userId => ({
+                        clientId: created.id,
+                        userId,
+                    })),
+                });
+            }
+
+            return created;
         });
 
         return res.status(201).json(client);
@@ -169,7 +181,7 @@ export const getClients = async (req, res) => {
 
 const where = {
         deletedAt: null,
-        ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Client'),
+        ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Client'),
     };
 
         if (search) {
@@ -189,6 +201,9 @@ const where = {
             const clients = await prisma.client.findMany({
                 where,
                 orderBy: { name: 'asc' },
+                include: {
+                    clientAssignments: { select: { userId: true } },
+                },
             });
             return res.json({ data: clients });
         }
@@ -200,6 +215,9 @@ const where = {
             skip,
             take,
             orderBy: { createdAt: 'desc' },
+            include: {
+                clientAssignments: { select: { userId: true } },
+            },
         });
 
         return res.json({
@@ -228,7 +246,10 @@ export const getClient = async (req, res) => {
         const client = await prisma.client.findFirst({
             where: {
                 id,
-                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Client'),
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Client'),
+            },
+            include: {
+                clientAssignments: { select: { userId: true } },
             },
         });
 
@@ -261,7 +282,7 @@ export const updateClient = async (req, res) => {
             contactPerson,
             referencePoint,
             clientDetails,
-            assignedToId,
+            assignedUserIds,
         } = req.body;
 
         const existingClient = await prisma.client.findFirst({ where: { id } });
@@ -303,20 +324,34 @@ export const updateClient = async (req, res) => {
             }
         }
 
-        const updatedClient = await prisma.client.update({
-            where: { id },
-            data: {
-                ...(name !== undefined && { name }),
-                ...(rifOrId !== undefined && { rifOrId: normalizedRifOrId }),
-                ...(email !== undefined && { email }),
-                ...(phone !== undefined && { phone: normalizedPhone }),
-                ...(address !== undefined && { address }),
-                ...(deliveryAddress !== undefined && { deliveryAddress }),
-                ...(contactPerson !== undefined && { contactPerson }),
-                ...(referencePoint !== undefined && { referencePoint }),
-                ...(clientDetails !== undefined && { clientDetails }),
-                ...(assignedToId !== undefined && { assignedToId }),
-            },
+        const updatedClient = await prisma.$transaction(async (tx) => {
+            const updated = await tx.client.update({
+                where: { id },
+                data: {
+                    ...(name !== undefined && { name }),
+                    ...(rifOrId !== undefined && { rifOrId: normalizedRifOrId }),
+                    ...(email !== undefined && { email }),
+                    ...(phone !== undefined && { phone: normalizedPhone }),
+                    ...(address !== undefined && { address }),
+                    ...(deliveryAddress !== undefined && { deliveryAddress }),
+                    ...(contactPerson !== undefined && { contactPerson }),
+                    ...(referencePoint !== undefined && { referencePoint }),
+                    ...(clientDetails !== undefined && { clientDetails }),
+                },
+            });
+
+            // Reemplazar asignaciones si vienen en el payload
+            if (assignedUserIds !== undefined) {
+                const newIds = Array.isArray(assignedUserIds) ? assignedUserIds.filter(Boolean) : [];
+                await tx.clientAssignment.deleteMany({ where: { clientId: id } });
+                if (newIds.length > 0) {
+                    await tx.clientAssignment.createMany({
+                        data: newIds.map(userId => ({ clientId: id, userId })),
+                    });
+                }
+            }
+
+            return updated;
         });
 
         return res.json(updatedClient);

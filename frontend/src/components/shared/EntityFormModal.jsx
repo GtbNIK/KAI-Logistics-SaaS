@@ -44,10 +44,11 @@ const EntityFormModal = ({
                 sections.forEach(section => {
                     section.fields.forEach(field => {
                         if (field.type === 'multiselect') {
-                            // Extraer IDs del array de objetos (ej. assignedUsers -> assignedToIds)
-                            const arrayData = entityData.assignedUsers;
+                            // Extraer IDs del array de objetos. Usa relationKey o fallback a field.name
+                            const sourceKey = field.relationKey || field.name;
+                            const arrayData = entityData[sourceKey];
                             initialData[field.name] = Array.isArray(arrayData)
-                                ? arrayData.map(u => u.id)
+                                ? arrayData.map(u => u.id || u.userId)
                                 : [];
                         } else {
                             initialData[field.name] = entityData[field.name] || '';

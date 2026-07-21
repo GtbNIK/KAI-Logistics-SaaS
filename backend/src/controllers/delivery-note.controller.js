@@ -18,8 +18,7 @@ export const getDeliveryNotes = async (req, res) => {
         const where = { deletedAt: null };
         const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
         if (!isPrivileged) {
-            // Para roles no privilegiados, solo notas de delivery de sus clientes asignados
-            where.client = { assignedToId: req.user.id };
+            where.client = { clientAssignments: { some: { userId: req.user.id } } };
         }
 
         // Filtro por estado
@@ -39,7 +38,7 @@ export const getDeliveryNotes = async (req, res) => {
 
             if (!isPrivileged) {
                 where.AND = [
-                    { client: { assignedToId: req.user.id } },
+                    { client: { clientAssignments: { some: { userId: req.user.id } } } },
                     searchConditions
                 ];
                 delete where.client;
@@ -82,10 +81,10 @@ export const getDeliveryNoteById = async (req, res) => {
         const note = await prisma.deliveryNote.findFirst({
             where: {
                 id,
-                ...(['OWNER', 'ADMIN'].includes(req.membership.role) ? {} : { client: { assignedToId: req.user.id } }),
+                ...(['OWNER', 'ADMIN'].includes(req.membership.role) ? {} : { client: { clientAssignments: { some: { userId: req.user.id } } } }),
             },
             include: {
-                client: { select: { name: true, rifOrId: true, assignedToId: true } },
+                client: { select: { name: true, rifOrId: true } },
                 quote: { select: { number: true } },
                 items: true,
             }

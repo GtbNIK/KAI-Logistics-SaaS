@@ -87,7 +87,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            paymentNoticesQuery.where.client = { assignedToId: userId };
+            paymentNoticesQuery.where.client = { clientAssignments: { some: { userId } } };
         }
         const latestPaymentNotices = await prisma.paymentNotice.findMany(paymentNoticesQuery);
 
@@ -99,7 +99,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            deliveryNotesQuery.where.client = { assignedToId: userId };
+            deliveryNotesQuery.where.client = { clientAssignments: { some: { userId } } };
         }
         const latestDeliveryNotes = await prisma.deliveryNote.findMany(deliveryNotesQuery);
 

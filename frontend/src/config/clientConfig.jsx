@@ -175,11 +175,12 @@ export const clientConfig = {
             showForRoles: ['ADMIN'], // Solo visible para ADMIN
             fields: [
                 {
-                    name: 'assignedToId',
-                    label: 'Asignar a Vendedor',
-                    type: 'select',
+                    name: 'assignedUserIds',
+                    label: 'Asignar a Vendedores',
+                    type: 'multiselect',
+                    relationKey: 'clientAssignments',
                     required: false,
-                    placeholder: 'Seleccionar vendedor...',
+                    placeholder: 'Seleccionar vendedores...',
                     options: [] // Se cargará dinámicamente en Clients.jsx
                 }
             ]

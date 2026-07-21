@@ -233,7 +233,7 @@ export const getPaymentNotices = async (req, res) => {
         let where = {};
 
         if (!isPrivileged) {
-            where.client = { assignedToId: req.user.id };
+            where.client = { clientAssignments: { some: { userId: req.user.id } } };
         }
 
         if (search) {
@@ -245,7 +245,7 @@ export const getPaymentNotices = async (req, res) => {
             };
             where = isPrivileged
                 ? searchConditions
-                : { AND: [{ client: { assignedToId: req.user.id } }, searchConditions] };
+                : { AND: [{ client: { clientAssignments: { some: { userId: req.user.id } } } }, searchConditions] };
         }
 
         const isAdmin = isPrivileged;
@@ -295,7 +295,7 @@ export const getPaymentNoticeById = async (req, res) => {
         const notice = await prisma.paymentNotice.findFirst({
             where: {
                 id,
-                ...(isPrivileged ? {} : { client: { assignedToId: req.user.id } }),
+                ...(isPrivileged ? {} : { client: { clientAssignments: { some: { userId: req.user.id } } } }),
             },
             include: {
                 client: { select: { name: true, rifOrId: true } },

@@ -238,7 +238,7 @@ model User {
     shipmentsHandled  Shipment[]            @relation("ShipmentHandler")
     shipmentsAsVendedor Shipment[]          @relation("ShipmentVendedor")
     payablesAsEmployee Payable[]            @relation("EmployeePayables")
-    clientsAssigned    Client[]             @relation("ClientAssignedTo")
+    clientAssignments  ClientAssignment[]
 }
 
 model Membership {
@@ -557,9 +557,6 @@ model Client {
     deactivationNote String?  @db.Text // Nota al desactivar
     creditBalance    Decimal  @default(0) @db.Decimal(10, 2)
 
-    assignedToId String? // Usuario asignado (scope de visibilidad)
-    assignedTo   User?   @relation("ClientAssignedTo", fields: [assignedToId], references: [id])
-
     isActive  Boolean  @default(true)
     deletedAt DateTime?
 
@@ -572,12 +569,26 @@ model Client {
     deliveryNotes  DeliveryNote[]
     receipts       PaymentReceipt[]
     shipments      Shipment[]      @relation("ShipmentClient")
+    clientAssignments ClientAssignment[]
 
     @@unique([tenantId, internalCode])
     @@unique([tenantId, rifOrId])
     @@unique([tenantId, phone])
     @@index([tenantId])
     @@index([deletedAt])
+}
+
+model ClientAssignment {
+    id        String   @id @default(uuid())
+    clientId  String
+    client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([clientId, userId])
+    @@index([clientId])
+    @@index([userId])
 }
 
 model Ally {
