@@ -5,8 +5,9 @@ import { getCashFlow } from './cash-flow.controller.js';
 
 export const getDashboardSummary = async (req, res) => {
     try {
-        const userRole = req.user.role;
+        const userRole = req.membership.role;
         const userId = req.user.id;
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(userRole);
 
         const now = new Date();
 
@@ -86,7 +87,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            paymentNoticesQuery.where.client = { assignedUsers: { some: { id: userId } } };
+            paymentNoticesQuery.where.client = { assignedToId: userId };
         }
         const latestPaymentNotices = await prisma.paymentNotice.findMany(paymentNoticesQuery);
 
@@ -98,7 +99,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            deliveryNotesQuery.where.client = { assignedUsers: { some: { id: userId } } };
+            deliveryNotesQuery.where.client = { assignedToId: userId };
         }
         const latestDeliveryNotes = await prisma.deliveryNote.findMany(deliveryNotesQuery);
 

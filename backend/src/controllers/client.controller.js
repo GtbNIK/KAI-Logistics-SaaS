@@ -11,6 +11,7 @@
 
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 const normalizeRifOrId = (rifOrId) => {
     if (!rifOrId) return '';
@@ -69,6 +70,7 @@ export const createClient = async (req, res) => {
             contactPerson,
             referencePoint,
             clientDetails,
+            assignedToId,
         } = req.body;
 
         if (!name || !rifOrId || !email || !phone || !address || !deliveryAddress || !contactPerson) {
@@ -117,6 +119,7 @@ export const createClient = async (req, res) => {
                     contactPerson,
                     referencePoint: referencePoint || null,
                     clientDetails: clientDetails || null,
+                    assignedToId,
                     deletedAt: null,
                 },
             });
@@ -164,9 +167,10 @@ export const getClients = async (req, res) => {
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const take = parseInt(limit);
 
-        const where = {
-            deletedAt: null,
-        };
+const where = {
+        deletedAt: null,
+        ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Client'),
+    };
 
         if (search) {
             where.OR = [
@@ -222,7 +226,10 @@ export const getClient = async (req, res) => {
         const { id } = req.params;
 
         const client = await prisma.client.findFirst({
-            where: { id },
+            where: {
+                id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Client'),
+            },
         });
 
         if (!client) {
@@ -254,6 +261,7 @@ export const updateClient = async (req, res) => {
             contactPerson,
             referencePoint,
             clientDetails,
+            assignedToId,
         } = req.body;
 
         const existingClient = await prisma.client.findFirst({ where: { id } });
@@ -307,6 +315,7 @@ export const updateClient = async (req, res) => {
                 ...(contactPerson !== undefined && { contactPerson }),
                 ...(referencePoint !== undefined && { referencePoint }),
                 ...(clientDetails !== undefined && { clientDetails }),
+                ...(assignedToId !== undefined && { assignedToId }),
             },
         });
 

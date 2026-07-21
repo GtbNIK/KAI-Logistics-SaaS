@@ -238,6 +238,7 @@ model User {
     shipmentsHandled  Shipment[]            @relation("ShipmentHandler")
     shipmentsAsVendedor Shipment[]          @relation("ShipmentVendedor")
     payablesAsEmployee Payable[]            @relation("EmployeePayables")
+    clientsAssigned    Client[]             @relation("ClientAssignedTo")
 }
 
 model Membership {
@@ -555,6 +556,9 @@ model Client {
     clientDetails    String?  // Descripcion de lo que hace o pide comunmente
     deactivationNote String?  @db.Text // Nota al desactivar
     creditBalance    Decimal  @default(0) @db.Decimal(10, 2)
+
+    assignedToId String? // Usuario asignado (scope de visibilidad)
+    assignedTo   User?   @relation("ClientAssignedTo", fields: [assignedToId], references: [id])
 
     isActive  Boolean  @default(true)
     deletedAt DateTime?

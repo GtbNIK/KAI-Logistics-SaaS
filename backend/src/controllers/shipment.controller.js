@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 /**
  * @route   GET /api/shipments
@@ -9,11 +10,13 @@ export const getShipments = async (req, res) => {
     try {
         const { search, type, status, vendedorId } = req.query;
 
-        const where = {};
+        const where = {
+            ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Shipment'),
+        };
 
         if (type) where.type = type;
         if (status) where.status = status;
-        if (vendedorId) where.vendedorId = vendedorId;
+        if (vendedorId && ['OWNER', 'ADMIN'].includes(req.membership.role)) where.vendedorId = vendedorId;
 
         if (search) {
             const or = [
@@ -75,8 +78,11 @@ export const getShipments = async (req, res) => {
  */
 export const getShipment = async (req, res) => {
     try {
-        const shipment = await prisma.shipment.findUnique({
-            where: { id: req.params.id },
+        const shipment = await prisma.shipment.findFirst({
+            where: {
+                id: req.params.id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Shipment'),
+            },
             include: {
                 paymentNotice: {
                     select: {

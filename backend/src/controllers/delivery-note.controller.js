@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -13,13 +14,12 @@ export const getDeliveryNotes = async (req, res) => {
     try {
         const { search = '', page = 1, limit = 10, status } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        const isSales = req.user.role === 'SALES';
 
         const where = { deletedAt: null };
-
-        // Filtrar por clientes asignados si es vendedor
-        if (isSales) {
-            where.client = { assignedUsers: { some: { id: req.user.id } } };
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
+        if (!isPrivileged) {
+            // Para roles no privilegiados, solo notas de delivery de sus clientes asignados
+            where.client = { assignedToId: req.user.id };
         }
 
         // Filtro por estado
@@ -37,9 +37,9 @@ export const getDeliveryNotes = async (req, res) => {
                 ]
             };
 
-            if (isSales) {
+            if (!isPrivileged) {
                 where.AND = [
-                    { client: { assignedUsers: { some: { id: req.user.id } } } },
+                    { client: { assignedToId: req.user.id } },
                     searchConditions
                 ];
                 delete where.client;
@@ -79,10 +79,13 @@ export const getDeliveryNoteById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const note = await prisma.deliveryNote.findUnique({
-            where: { id },
+        const note = await prisma.deliveryNote.findFirst({
+            where: {
+                id,
+                ...(['OWNER', 'ADMIN'].includes(req.membership.role) ? {} : { client: { assignedToId: req.user.id } }),
+            },
             include: {
-                client: { include: { assignedUsers: { select: { id: true } } } },
+                client: { select: { name: true, rifOrId: true, assignedToId: true } },
                 quote: { select: { number: true } },
                 items: true,
             }
@@ -90,11 +93,6 @@ export const getDeliveryNoteById = async (req, res) => {
 
         if (!note || note.deletedAt) {
             return res.status(404).json({ message: 'Nota de entrega no encontrada' });
-        }
-
-        // Restricción SALES
-        if (req.user.role === 'SALES' && !note.client.assignedUsers.some(u => u.id === req.user.id)) {
-            return res.status(403).json({ message: 'No tienes acceso a esta nota de entrega' });
         }
 
         res.json(note);

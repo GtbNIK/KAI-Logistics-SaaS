@@ -53,7 +53,7 @@ const Clients = () => {
                             return {
                                 ...section,
                                 fields: section.fields.map(field => 
-                                    field.name === 'assignedToIds' 
+                                    field.name === 'assignedToId' 
                                         ? { ...field, options: userOptions }
                                         : field
                                 )

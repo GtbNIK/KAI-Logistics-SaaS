@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 /**
  * @route   GET /api/payables
@@ -10,7 +11,9 @@ export const getPayables = async (req, res) => {
         const { status, search = '', page = 1, limit = 10, beneficiaryId, employeeOnly, all } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const where = {};
+        const where = {
+            ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Payable'),
+        };
         if (status) where.status = status;
         if (employeeOnly === 'true') {
             where.employeeUserId = { not: null };
@@ -85,8 +88,11 @@ const [payables, total] = await Promise.all([
 export const getPayableById = async (req, res) => {
     try {
         const { id } = req.params;
-        const payable = await prisma.payable.findUnique({
-            where: { id },
+        const payable = await prisma.payable.findFirst({
+            where: {
+                id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Payable'),
+            },
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },

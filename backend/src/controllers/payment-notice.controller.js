@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
 
 const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
@@ -227,13 +228,12 @@ export const getPaymentNotices = async (req, res) => {
     try {
         const { search = '', page = 1, limit = 10 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        const isSales = req.user.role === 'SALES';
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
 
         let where = {};
 
-        // Si es SALES, solo ver avisos de sus clientes asignados
-        if (isSales) {
-            where.client = { assignedUsers: { some: { id: req.user.id } } };
+        if (!isPrivileged) {
+            where.client = { assignedToId: req.user.id };
         }
 
         if (search) {
@@ -243,13 +243,12 @@ export const getPaymentNotices = async (req, res) => {
                     { number: { equals: parseInt(search) || undefined } }
                 ]
             };
-            // Combinar filtro de SALES con búsqueda
-            where = isSales
-                ? { AND: [{ client: { assignedUsers: { some: { id: req.user.id } } } }, searchConditions] }
-                : searchConditions;
+            where = isPrivileged
+                ? searchConditions
+                : { AND: [{ client: { assignedToId: req.user.id } }, searchConditions] };
         }
 
-        const isAdmin = req.user.role === 'ADMIN';
+        const isAdmin = isPrivileged;
 
         const [notices, total] = await Promise.all([
             prisma.paymentNotice.findMany({
@@ -291,12 +290,15 @@ export const getPaymentNotices = async (req, res) => {
 export const getPaymentNoticeById = async (req, res) => {
     try {
         const { id } = req.params;
-        const isAdmin = req.user.role === 'ADMIN';
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
 
-        const notice = await prisma.paymentNotice.findUnique({
-            where: { id },
+        const notice = await prisma.paymentNotice.findFirst({
+            where: {
+                id,
+                ...(isPrivileged ? {} : { client: { assignedToId: req.user.id } }),
+            },
             include: {
-                client: { include: { assignedUsers: { select: { id: true } } } },
+                client: { select: { name: true, rifOrId: true } },
                 items: {
                     include: {
                         service: { select: { name: true, type: true } },
@@ -308,7 +310,7 @@ export const getPaymentNoticeById = async (req, res) => {
                 quote: {
                     select: { number: true }
                 },
-                ...(isAdmin ? {
+                ...(isPrivileged ? {
                     receivable: {
                         include: {
                             payments: {
@@ -322,11 +324,6 @@ export const getPaymentNoticeById = async (req, res) => {
 
         if (!notice) {
             return res.status(404).json({ message: 'Aviso de Cobro no encontrado' });
-        }
-
-        // Si es rol de ventas, verificar que el aviso pertenezca a un cliente asignado
-        if (req.user.role === 'SALES' && !notice.client.assignedUsers.some(u => u.id === req.user.id)) {
-            return res.status(403).json({ message: 'No tienes permisos para ver el aviso de cobro de este cliente' });
         }
 
         const noticeWithRouteInfo = {

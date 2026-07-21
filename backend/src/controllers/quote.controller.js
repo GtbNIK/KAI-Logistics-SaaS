@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
 
@@ -10,12 +11,9 @@ export const getQuotes = async (req, res) => {
         const { page = 1, limit = 10, search, status, clientId, startDate, endDate } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const where = {};
-
-        // Filtro por rol (SALES solo ve sus propias cotizaciones)
-        if (req.user.role === 'SALES') {
-            where.userId = req.user.id;
-        }
+        const where = {
+            ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Quote'),
+        };
 
         // Búsqueda por número, cliente o vendedor
         if (search) {
@@ -73,15 +71,14 @@ export const getQuote = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const quote = await prisma.quote.findUnique({
-            where: { id },
+        const quote = await prisma.quote.findFirst({
+            where: {
+                id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Quote'),
+            },
             include: {
                 client: {
-                    include: {
-                        assignedUsers: {
-                            select: { id: true, name: true }
-                        }
-                    }
+                    select: { id: true, name: true, email: true, internalCode: true }
                 },
                 user: { select: { id: true, name: true } },
                 items: {
@@ -100,10 +97,6 @@ export const getQuote = async (req, res) => {
             return res.status(404).json({ message: 'Cotización no encontrada' });
         }
 
-        // Verificar permisos
-        if (req.user.role === 'SALES' && quote.userId !== req.user.id) {
-            return res.status(403).json({ message: 'No tienes permiso para ver esta cotización' });
-        }
         res.json(quote);
     } catch (error) {
         res.status(500).json({ message: 'Error al obtener la cotización' });
