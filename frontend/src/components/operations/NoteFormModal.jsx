@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ScrollText, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Estilos base compartidos para todos los react-select del modal.
 const selectStyles = {
@@ -57,11 +55,11 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
 
     useEffect(() => {
         if (!isOpen) return;
-        axios.get(`${API_URL}/clients?all=true`, { withCredentials: true })
+        api.get('/clients?all=true')
             .then(res => setClients(res.data.data || []))
             .catch(() => {});
 
-        axios.get(`${API_URL}/d2d-items?all=true`, { withCredentials: true })
+        api.get('/d2d-items?all=true')
             .then(res => setD2dItems(res.data.data || []))
             .catch(() => {});
 
@@ -121,10 +119,10 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
         try {
             const data = { clientId, deliveredTo, contactPhone, deliveryAddress, warehouseNumber, notes, items };
             if (editNote) {
-                await axios.put(`${API_URL}/delivery-notes/${editNote.id}`, data, { withCredentials: true });
+                await api.put(`/delivery-notes/${editNote.id}`, data);
                 showSuccess('Actualizada', 'Nota de entrega actualizada correctamente');
             } else {
-                await axios.post(`${API_URL}/delivery-notes`, data, { withCredentials: true });
+                await api.post('/delivery-notes', data);
                 showSuccess('Creada', 'Nota de entrega creada correctamente');
             }
             onSuccess();

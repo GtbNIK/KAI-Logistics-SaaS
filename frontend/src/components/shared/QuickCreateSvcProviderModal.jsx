@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Loader2, Building2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const QuickCreateSvcProviderModal = ({ isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
@@ -15,7 +13,7 @@ const QuickCreateSvcProviderModal = ({ isOpen, onClose, onSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await axios.post(`${API_URL}/svc-providers`, { name }, { withCredentials: true });
+            const res = await api.post('/svc-providers', { name });
             const created = res.data;
             showSuccess('¡Éxito!', 'Proveedor de servicios creado correctamente');
             onSuccess({ value: created.id, label: created.name, data: created });

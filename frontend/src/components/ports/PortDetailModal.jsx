@@ -4,9 +4,7 @@ import portService from '../../services/port.service';
 import rateService from '../../services/rate.service';
 import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../../lib/api';
 
 const PortDetailModal = ({ isOpen, onClose, port }) => {
     const [portDetails, setPortDetails] = useState(null);
@@ -19,7 +17,7 @@ const PortDetailModal = ({ isOpen, onClose, port }) => {
 
     const fetchPorts = useCallback(async () => {
         try {
-            const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+            const res = await api.get('/ports?all=true');
             setPortCatalog(res.data.data || res.data || []);
         } catch (error) {
             console.error('Error loading ports for Port detail:', error);
