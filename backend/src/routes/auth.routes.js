@@ -14,6 +14,7 @@ import {
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 import { tenantResolver } from '../middleware/tenantResolver.js';
 import { requireMembership } from '../middleware/requireMembership.js';
+import { enforcePlanLimits } from '../middleware/enforcePlanLimits.js';
 
 const router = express.Router();
 
@@ -73,7 +74,7 @@ router.get('/users', verifyToken, tenantResolver(), requireMembership, authorize
  * @desc    Crear usuario dentro del tenant activo
  * @access  Private (OWNER)
  */
-router.post('/register', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), register);
+router.post('/register', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), enforcePlanLimits('users'), register);
 
 /**
  * @route   PUT /api/auth/users/:id

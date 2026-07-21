@@ -16,7 +16,6 @@
 
 import prisma from '../config/database.js';
 import { getPlanLimits } from '../config/plans.config.js';
-import { getCurrentTenantId } from '../lib/tenantContext.js';
 
 /**
  * Cuenta el uso actual de un recurso para el tenant activo.
@@ -70,17 +69,12 @@ const getCurrentUsage = async (tenantId, resource) => {
 export const enforcePlanLimits = (resource) => {
     return async (req, res, next) => {
         try {
-            const tenantId = getCurrentTenantId() || req.tenant?.id;
+            const tenantId = req.tenant?.id;
             if (!tenantId) {
                 return res.status(400).json({ message: 'Tenant no identificado.' });
             }
 
-            const tenant = await prisma.tenant.findUnique({
-                where: { id: tenantId },
-                select: { plan: { select: { key: true } } },
-            });
-
-            const planKey = tenant?.plan?.key || 'BASE';
+            const planKey = req.tenant?.planKey || 'BASE';
             const limits = getPlanLimits(planKey);
 
             const limitField = `max${resource.charAt(0).toUpperCase() + resource.slice(1)}`;
