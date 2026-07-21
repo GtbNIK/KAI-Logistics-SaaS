@@ -137,6 +137,19 @@ export const createClient = async (req, res) => {
             return created;
         });
 
+        // Notificar a los usuarios asignados
+        for (const userId of assigneeIds) {
+            await createNotification({
+                tenantId: req.tenant.id,
+                title: 'Cliente asignado',
+                message: `Se te ha asignado el cliente "${name}"`,
+                type: 'SUCCESS',
+                targetUserId: userId,
+                entityType: 'CLIENT',
+                entityId: client.id,
+            });
+        }
+
         return res.status(201).json(client);
     } catch (error) {
         console.error('[createClient] Error:', error);
@@ -324,6 +337,13 @@ export const updateClient = async (req, res) => {
             }
         }
 
+        // Obtener asignaciones actuales antes de actualizar
+        const oldAssignments = await prisma.clientAssignment.findMany({
+            where: { clientId: id },
+            select: { userId: true },
+        });
+        const oldIds = oldAssignments.map(a => a.userId);
+
         const updatedClient = await prisma.$transaction(async (tx) => {
             const updated = await tx.client.update({
                 where: { id },
@@ -353,6 +373,23 @@ export const updateClient = async (req, res) => {
 
             return updated;
         });
+
+        // Notificar solo a los NUEVOS asignados
+        if (assignedUserIds !== undefined) {
+            const newIds = Array.isArray(assignedUserIds) ? assignedUserIds.filter(Boolean) : [];
+            const addedIds = newIds.filter(id => !oldIds.includes(id));
+            for (const userId of addedIds) {
+                await createNotification({
+                    tenantId: req.tenant.id,
+                    title: 'Cliente asignado',
+                    message: `Se te ha asignado el cliente "${updatedClient.name}"`,
+                    type: 'SUCCESS',
+                    targetUserId: userId,
+                    entityType: 'CLIENT',
+                    entityId: updatedClient.id,
+                });
+            }
+        }
 
         return res.json(updatedClient);
     } catch (error) {
