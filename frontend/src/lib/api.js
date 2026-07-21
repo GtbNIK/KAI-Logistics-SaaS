@@ -24,10 +24,11 @@ export const setAdminContext = (isAdmin) => {
 api.interceptors.request.use(
     (config) => {
         const url = config.url || '';
-        const isAuthRoute = url.startsWith('/auth/');
+        // Solo login y signup no necesitan tenant (rutas publicas)
+        const isPublicAuth = url === '/auth/login' || url === '/auth/signup';
         const isAdminRoute = url.startsWith('/admin/');
 
-        if (!isAuthRoute && !isAdminRoute && currentTenantSlug) {
+        if (!isPublicAuth && !isAdminRoute && currentTenantSlug) {
             config.headers = config.headers || {};
             config.headers[TENANT_HEADER_NAME] = currentTenantSlug;
         }

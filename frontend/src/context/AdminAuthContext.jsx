@@ -28,6 +28,7 @@ export const AdminAuthProvider = ({ children }) => {
     useEffect(() => {
         const handler = () => {
             setSuperAdmin(null);
+            try { localStorage.removeItem('admin:session'); } catch (e) { void e; }
             if (window.location.pathname.startsWith('/admin') &&
                 !window.location.pathname.startsWith('/admin/login')) {
                 window.location.href = '/admin/login';
@@ -38,6 +39,14 @@ export const AdminAuthProvider = ({ children }) => {
     }, []);
 
     const checkSuperAdmin = useCallback(async () => {
+        // Si no hay admin token guardado, evitar 401 innecesario
+        const hasStoredSession = (() => {
+            try { return !!localStorage.getItem('admin:session'); } catch { return false; }
+        })();
+        if (!hasStoredSession) {
+            setLoading(false);
+            return;
+        }
         try {
             const res = await api.get('/admin/auth/me');
             setSuperAdmin(res.data.superAdmin);
@@ -53,6 +62,7 @@ export const AdminAuthProvider = ({ children }) => {
     const login = useCallback(async (email, password, totpCode) => {
         const res = await api.post('/admin/auth/login', { email, password, totpCode });
         setSuperAdmin(res.data.superAdmin);
+        try { localStorage.setItem('admin:session', '1'); } catch (e) { void e; }
         return res.data;
     }, []);
 
@@ -61,6 +71,7 @@ export const AdminAuthProvider = ({ children }) => {
             await api.post('/admin/auth/logout');
         } catch (e) { void e; }
         setSuperAdmin(null);
+        try { localStorage.removeItem('admin:session'); } catch (e) { void e; }
     }, []);
 
     return (

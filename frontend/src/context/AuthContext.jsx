@@ -58,6 +58,16 @@ export const AuthProvider = ({ children }) => {
     }, [setTenantsList, setCurrentTenantSlug]);
 
     const checkUser = useCallback(async () => {
+        // Si no hay sessionExpiresAt guardado, no hay sesion activa — evitar 401 innecesario
+        const hasStoredSession = (() => {
+            try { return !!localStorage.getItem('sessionExpiresAt'); } catch { return false; }
+        })();
+        if (!hasStoredSession) {
+            setUser(null);
+            setSessionExpiresAt(null);
+            setLoading(false);
+            return;
+        }
         try {
             const res = await api.get('/auth/me');
             applySession(res.data);
