@@ -434,12 +434,22 @@ export const getMonthlyClose = async (req, res) => {
         const start = new Date(year, mon - 1, 1);
         const end = new Date(year, mon, 1);
 
-        // Obtener todos los usuarios ADMIN + SALES activos
-        const users = await prisma.user.findMany({
-            where: { isActive: true, role: { in: ['ADMIN', 'SALES'] } },
-            select: { id: true, name: true, role: true },
-            orderBy: { name: 'asc' }
+        // Obtener usuarios del tenant activo con sus roles (via Membership)
+        const memberships = await prisma.membership.findMany({
+            where: {
+                tenantId: req.tenant.id,
+                role: { in: ['OWNER', 'ADMIN', 'SALES', 'OPERATOR'] },
+                status: 'ACTIVE',
+                user: { isActive: true },
+            },
+            include: { user: { select: { id: true, name: true } } },
+            orderBy: { user: { name: 'asc' } },
         });
+        const users = memberships.map(m => ({
+            id: m.user.id,
+            name: m.user.name,
+            role: m.role,
+        }));
 
         // --- D2D: embarques D2D del mes con cbm ---
         const d2dShipments = await prisma.shipment.findMany({

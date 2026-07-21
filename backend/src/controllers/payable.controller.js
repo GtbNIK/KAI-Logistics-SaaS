@@ -54,7 +54,7 @@ const [payables, total] = await Promise.all([
                         ally: { select: { id: true, name: true } },
                         svcProvider: { select: { id: true, name: true } },
                     }),
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                     payments: { orderBy: { date: 'desc' } }
                 },
                 orderBy: { createdAt: 'desc' },
@@ -90,7 +90,7 @@ export const getPayableById = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -148,7 +148,7 @@ export const createPayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                 payments: true
             }
         });
@@ -244,7 +244,7 @@ export const updatePayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -321,7 +321,7 @@ export const registerPayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });
@@ -418,7 +418,7 @@ export const deletePayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });
