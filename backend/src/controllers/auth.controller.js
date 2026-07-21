@@ -610,7 +610,7 @@ export const register = async (req, res) => {
             return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' });
         }
 
-        const validRoles = ['ADMIN', 'SALES', 'OPERATOR', 'VIEWER'];
+        const validRoles = ['OWNER', 'ADMIN', 'SALES', 'OPERATOR', 'VIEWER'];
         const memberRole = validRoles.includes(role) ? role : 'SALES';
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -721,8 +721,21 @@ export const updateUser = async (req, res) => {
         if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
         if (position !== undefined) updateData.position = position;
 
-        const validRoles = ['ADMIN', 'SALES', 'OPERATOR', 'VIEWER'];
-        if (role !== undefined && validRoles.includes(role)) {
+        const validRoles = ['OWNER', 'ADMIN', 'SALES', 'OPERATOR', 'VIEWER'];
+
+        if (role !== undefined && validRoles.includes(role) && role !== membership.role) {
+            // Proteccion: no permitir dejar al tenant sin OWNERs
+            if (membership.role === 'OWNER' && role !== 'OWNER') {
+                const ownerCount = await prisma.membership.count({
+                    where: { tenantId, role: 'OWNER', status: 'ACTIVE' },
+                });
+                if (ownerCount <= 1) {
+                    return res.status(400).json({
+                        message: 'No puedes cambiar el rol del unico OWNER del tenant. Agrega otro OWNER primero.',
+                    });
+                }
+            }
+
             await prisma.membership.update({
                 where: { id: membership.id },
                 data: { role },
@@ -755,6 +768,25 @@ export const deleteUser = async (req, res) => {
         });
         if (!membership) {
             return res.status(404).json({ message: 'El usuario no pertenece a este tenant.' });
+        }
+
+        // Proteccion: no puedes desactivarte a ti mismo
+        if (id === req.user.id) {
+            return res.status(400).json({
+                message: 'No puedes desactivarte a ti mismo. Pide a otro OWNER que lo haga.',
+            });
+        }
+
+        // Proteccion: no permitir dejar al tenant sin OWNERs
+        if (membership.role === 'OWNER') {
+            const ownerCount = await prisma.membership.count({
+                where: { tenantId, role: 'OWNER', status: 'ACTIVE' },
+            });
+            if (ownerCount <= 1) {
+                return res.status(400).json({
+                    message: 'No puedes desactivar al unico OWNER del tenant.',
+                });
+            }
         }
 
         await prisma.user.update({

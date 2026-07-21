@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useToast } from '../../context/ToastContext';
 import { useTenant } from '../../context/TenantContext';
+import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
 import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -23,73 +24,89 @@ const userService = {
 };
 
 // Secciones del formulario para Crear / Editar usuario
-const getUserFormSections = (isNew) => [
-    {
-        title: 'Información del usuario',
-        columns: 2,
-        fields: [
-            {
-                name: 'name',
-                label: 'Nombre completo',
-                type: 'text',
-                required: true,
-                icon: User,
-                placeholder: 'Ej: Juan Pérez',
-            },
-            {
-                name: 'email',
-                label: 'Correo electrónico',
-                type: 'email',
-                required: true,
-                icon: Mail,
-                placeholder: 'usuario@empresa.com',
-            },
-            {
-                name: 'phoneNumber',
-                label: 'Teléfono',
-                type: 'text',
-                required: false,
-                icon: Phone,
-                placeholder: '+58 412 123 4567',
-                stripPattern: /\D/g,
-            },
-            {
-                name: 'position',
-                label: 'Cargo',
-                type: 'text',
-                required: false,
-                icon: Briefcase,
-                placeholder: 'Ej: Gerente de Operaciones',
-                stripPattern: /[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g,
-            },
-            {
-                name: 'role',
-                label: 'Rol',
-                type: 'select',
-                required: true,
-                defaultValue: 'SALES',
-                options: [
-                    { value: 'OWNER', label: 'Dueño' },
-                    { value: 'ADMIN', label: 'Administrador' },
-                    { value: 'SALES', label: 'Ventas' },
-                    { value: 'OPERATOR', label: 'Operador' },
-                    { value: 'VIEWER', label: 'Espectador' },
-                ],
-            },
-            ...(isNew
-                ? [{
-                    name: 'password',
-                    label: 'Contraseña',
-                    type: 'password',
+const getUserFormSections = (isNew, editingUser, currentUserId) => {
+    // El campo de rol se deshabilita cuando:
+    // - Se está editando a si mismo (no se puede cambiar el propio rol)
+    // - Se está editando a otro OWNER (los OWNERs no pueden ser degradados por la UI)
+    const isEditingSelf = !isNew && editingUser && currentUserId && editingUser.id === currentUserId;
+    const isEditingOwner = !isNew && editingUser && editingUser.role === 'OWNER';
+    const disableRole = isEditingSelf || isEditingOwner;
+    const roleHint = isEditingSelf
+        ? 'No puedes cambiar tu propio rol.'
+        : isEditingOwner
+            ? 'El rol de un OWNER no puede ser cambiado desde aqui. Contacta a soporte.'
+            : null;
+
+    return [
+        {
+            title: 'Información del usuario',
+            columns: 2,
+            fields: [
+                {
+                    name: 'name',
+                    label: 'Nombre completo',
+                    type: 'text',
                     required: true,
-                    icon: Lock,
-                    placeholder: 'Mínimo 6 caracteres',
-                    hint: 'El usuario NO podrá cambiarla después.',
-                }]
-                : []),
-        ],
-    },
-];
+                    icon: User,
+                    placeholder: 'Ej: Juan Pérez',
+                },
+                {
+                    name: 'email',
+                    label: 'Correo electrónico',
+                    type: 'email',
+                    required: true,
+                    icon: Mail,
+                    placeholder: 'usuario@empresa.com',
+                },
+                {
+                    name: 'phoneNumber',
+                    label: 'Teléfono',
+                    type: 'text',
+                    required: false,
+                    icon: Phone,
+                    placeholder: '+58 412 123 4567',
+                    stripPattern: /\D/g,
+                },
+                {
+                    name: 'position',
+                    label: 'Cargo',
+                    type: 'text',
+                    required: false,
+                    icon: Briefcase,
+                    placeholder: 'Ej: Gerente de Operaciones',
+                    stripPattern: /[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g,
+                },
+                {
+                    name: 'role',
+                    label: 'Rol',
+                    type: 'select',
+                    required: true,
+                    defaultValue: 'SALES',
+                    disabled: disableRole,
+                    hint: roleHint,
+                    options: [
+                        { value: 'OWNER', label: 'Dueño' },
+                        { value: 'ADMIN', label: 'Administrador' },
+                        { value: 'SALES', label: 'Ventas' },
+                        { value: 'OPERATOR', label: 'Operador' },
+                        { value: 'VIEWER', label: 'Espectador' },
+                    ],
+                },
+                ...(isNew
+                    ? [{
+                        name: 'password',
+                        label: 'Contraseña',
+                        type: 'password',
+                        required: true,
+                        icon: Lock,
+                        placeholder: 'Mínimo 6 caracteres',
+                        hint: 'El usuario NO podrá cambiarla después.',
+                    }]
+                    : []),
+            ],
+        },
+    ];
+};
 
 // ─────────────────────────────────────────────────
 // Modal de cambio de contraseña
@@ -268,6 +285,7 @@ const Settings = () => {
     const { settings, updateSettings, loading } = useSettings();
     const { showSuccess, showError } = useToast();
     const { currentTenant } = useTenant();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('general');
 
     const [formData, setFormData] = useState({});
@@ -740,7 +758,7 @@ const Settings = () => {
                 service={userService}
                 entityName="usuario"
                 title={formModal.editMode ? 'Editar Usuario' : 'Agregar Nuevo Usuario'}
-                sections={getUserFormSections(!formModal.editMode)}
+                sections={getUserFormSections(!formModal.editMode, formModal.user, user?.id)}
             />
 
             {/* Cambiar contraseña */}

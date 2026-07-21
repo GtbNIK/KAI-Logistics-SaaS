@@ -157,19 +157,21 @@ const EntityFormModal = ({
                                             <textarea
                                                 name={field.name}
                                                 required={field.required}
+                                                disabled={field.disabled}
                                                 value={formData[field.name] || ''}
                                                 onChange={handleChange}
                                                 rows={field.rows || 2}
-                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all resize-none"
+                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                                                 placeholder={field.placeholder}
                                             />
                                         ) : field.type === 'select' ? (
                                             <select
                                                 name={field.name}
                                                 required={field.required}
+                                                disabled={field.disabled}
                                                 value={formData[field.name] || ''}
                                                 onChange={handleChange}
-                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
+                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                                             >
                                                 <option value="">{field.placeholder || 'Seleccionar...'}</option>
                                                 {field.options?.map((opt, i) => (
@@ -183,6 +185,7 @@ const EntityFormModal = ({
                                                         <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer hover:bg-white p-1.5 rounded-lg transition-colors">
                                                             <input
                                                                 type="checkbox"
+                                                                disabled={field.disabled}
                                                                 checked={(formData[field.name] || []).includes(opt.value)}
                                                                 onChange={() => {
                                                                     const current = formData[field.name] || [];
@@ -206,6 +209,7 @@ const EntityFormModal = ({
                                                 {(!editMode || formData[field.name]) ? (
                                                     <PhoneInput
                                                         defaultCountry="ve"
+                                                        disabled={field.disabled}
                                                         value={formData[field.name] || ''}
                                                         onChange={phone => handleChange({ target: { name: field.name, value: phone, type: 'text' } })}
                                                         inputClassName="!w-full !py-2 !h-auto !bg-slate-50 border border-slate-200 !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all"
@@ -221,16 +225,17 @@ const EntityFormModal = ({
                                         ) : (
                                             <div className="relative">
                                                 {field.icon && (
-                                                    <field.icon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                                    <field.icon className={`absolute left-3 top-1/2 -translate-y-1/2 ${field.disabled ? 'text-slate-300' : 'text-slate-400'}`} size={18} />
                                                 )}
                                                 <input
                                                     type={field.type || 'text'}
                                                     name={field.name}
                                                     required={field.required}
+                                                    disabled={field.disabled}
                                                     value={formData[field.name] || ''}
                                                     onChange={handleChange}
                                                     maxLength={field.maxLength}
-                                                    className={`w-full py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all ${field.icon ? 'pl-10 pr-4' : 'px-4'}`}
+                                                    className={`w-full py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all ${field.icon ? 'pl-10 pr-4' : 'px-4'} disabled:opacity-60 disabled:cursor-not-allowed`}
                                                     placeholder={field.placeholder}
                                                 />
                                             </div>
