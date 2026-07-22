@@ -28,9 +28,19 @@ export const createReceivable = async (req, res) => {
         const appliedCredit = Math.min(creditAvailable, amount);
         const remainingAmount = amount - appliedCredit;
 
+        // Generar número secuencial de cuenta por cobrar por tenant
+        const lastRec = await prisma.receivable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextRecNumber = (lastRec?.number || 0) + 1;
+
         const receivable = await prisma.receivable.create({
             data: {
                 paymentNoticeId: null,
+                number: nextRecNumber,
+                tenantId: req.tenant.id,
                 clientId,
                 totalAmount: amount,
                 currency: recCurrency,

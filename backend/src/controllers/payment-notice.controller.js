@@ -138,6 +138,14 @@ export const convertFromQuote = async (req, res) => {
         });
         const nextNumber = (lastNotice?.number || 0) + 1;
 
+        // Generar número secuencial de la cuenta por cobrar por tenant
+        const lastRec = await prisma.receivable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextRecNumber = (lastRec?.number || 0) + 1;
+
         // 2. Transacción de base de datos para asegurar integridad
         const result = await prisma.$transaction(async (tx) => {
             // A. Crear PaymentNotice y PaymentNoticeItems
@@ -184,6 +192,8 @@ export const convertFromQuote = async (req, res) => {
             const receivable = await tx.receivable.create({
                 data: {
                     paymentNoticeId: paymentNotice.id,
+                    number: nextRecNumber,
+                    tenantId: req.tenant.id,
                     clientId: quote.clientId,
                     totalAmount: quote.totalAmount,
                     currency: quote.currency || 'USD',
@@ -591,6 +601,14 @@ export const createPaymentNotice = async (req, res) => {
         });
         const nextNumber = (lastNotice?.number || 0) + 1;
 
+        // Generar número secuencial de la cuenta por cobrar por tenant
+        const lastRec = await prisma.receivable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextRecNumber = (lastRec?.number || 0) + 1;
+
         // Transacción: crear PaymentNotice + Items + Receivable
         const result = await prisma.$transaction(async (tx) => {
             const paymentNotice = await tx.paymentNotice.create({
@@ -615,6 +633,8 @@ export const createPaymentNotice = async (req, res) => {
             const receivable = await tx.receivable.create({
                 data: {
                     paymentNoticeId: paymentNotice.id,
+                    number: nextRecNumber,
+                    tenantId: req.tenant.id,
                     clientId,
                     totalAmount,
                     currency: noticeCurrency,
