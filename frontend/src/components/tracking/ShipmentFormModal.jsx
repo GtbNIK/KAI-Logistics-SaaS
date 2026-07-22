@@ -8,7 +8,8 @@ import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
 import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
 import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
-import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 import airlineService from '../../services/airline.service';
 
 const STATUS_OPTIONS = [

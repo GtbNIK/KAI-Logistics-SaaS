@@ -8,7 +8,8 @@ import allyService from '../../services/ally.service';
 import portService from '../../services/port.service';
 import countryService from '../../services/country.service';
 import shippingLineService from '../../services/shippingLine.service';
-import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
 import QuickCreateCountryModal from '../shared/QuickCreateCountryModal';
 

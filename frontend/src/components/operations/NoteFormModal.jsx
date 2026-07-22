@@ -5,7 +5,8 @@ import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
 import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
-import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 
 // Estilos base compartidos para todos los react-select del modal.
 const selectStyles = {

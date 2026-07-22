@@ -9,7 +9,8 @@ import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal
 import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
 import QuickCreateZoneModal from '../shared/QuickCreateZoneModal';
-import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 import shippingLineService from '../../services/shippingLine.service';
 import airlineService from '../../services/airline.service';
 import { calculateItemSubtotal } from '../../utils/pricing';

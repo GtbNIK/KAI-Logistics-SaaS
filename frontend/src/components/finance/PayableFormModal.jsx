@@ -7,7 +7,8 @@ import { useToast } from '../../context/ToastContext';
 import { getTodayLocal } from '../../utils/dateHelpers';
 import authService from '../../services/auth.service';
 import QuickCreateSvcProviderModal from '../shared/QuickCreateSvcProviderModal';
-import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 
 const selectStyles = {
     control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px', '&:hover': { borderColor: '#3b82f6' } }),
