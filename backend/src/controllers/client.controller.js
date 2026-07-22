@@ -216,6 +216,7 @@ const where = {
                 orderBy: { name: 'asc' },
                 include: {
                     clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
+                updatedBy: { select: { id: true, name: true } },
                 },
             });
             return res.json({ data: clients });
@@ -230,6 +231,7 @@ const where = {
             orderBy: { createdAt: 'desc' },
             include: {
                 clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
+                updatedBy: { select: { id: true, name: true } },
             },
         });
 
@@ -263,6 +265,7 @@ export const getClient = async (req, res) => {
             },
             include: {
                 clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
+                updatedBy: { select: { id: true, name: true } },
             },
         });
 
@@ -357,6 +360,7 @@ export const updateClient = async (req, res) => {
                     ...(contactPerson !== undefined && { contactPerson }),
                     ...(referencePoint !== undefined && { referencePoint }),
                     ...(clientDetails !== undefined && { clientDetails }),
+                    updatedById: req.user.id,
                 },
             });
 
