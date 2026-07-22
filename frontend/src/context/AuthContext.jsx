@@ -106,6 +106,15 @@ export const AuthProvider = ({ children }) => {
         try { localStorage.removeItem('sessionExpiresAt'); localStorage.removeItem('kai:currentTenantSlug'); } catch (e) { void e; }
     }, [setTenantsList, setCurrentTenantSlug]);
 
+    const refreshSession = useCallback(async () => {
+        const res = await api.post('/auth/refresh');
+        if (res.data.expiresAt) {
+            setSessionExpiresAt(new Date(res.data.expiresAt));
+            try { localStorage.setItem('sessionExpiresAt', res.data.expiresAt); } catch (e) { void e; }
+        }
+        return res.data;
+    }, []);
+
     const switchTenant = useCallback(async (tenantId) => {
         const res = await api.post('/auth/switch-tenant', { tenantId });
         if (res.data.tenant) setCurrentTenantSlug(res.data.tenant.slug);
@@ -114,7 +123,7 @@ export const AuthProvider = ({ children }) => {
     }, [setCurrentTenantSlug, checkUser]);
 
     return (
-        <AuthContext.Provider value={{ user, loading, sessionExpiresAt, login, signup, logout, forceLogout, switchTenant, checkUser }}>
+        <AuthContext.Provider value={{ user, loading, sessionExpiresAt, login, signup, logout, forceLogout, refreshSession, switchTenant, checkUser }}>
             {!loading && children}
         </AuthContext.Provider>
     );

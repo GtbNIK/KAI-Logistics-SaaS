@@ -14,7 +14,7 @@ const SessionWarningModal = lazy(() => import('./SessionWarningModal'));
 const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout, forceLogout, sessionExpiresAt } = useAuth();
+    const { user, logout, forceLogout, sessionExpiresAt, refreshSession } = useAuth();
     const effectiveRole = useEffectiveRole();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -45,10 +45,19 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     }, [forceLogout, navigate]);
 
     // Hook modularizado importado
-    const { secondsLeft, formattedTime, showWarning, dismissWarning } = useSessionTimer(
+    const { secondsLeft, formattedTime, showWarning, dismissWarning, resetWarning } = useSessionTimer(
         sessionExpiresAt,
         handleSessionExpired
     );
+
+    const handleExtendSession = useCallback(async () => {
+        try {
+            await refreshSession();
+            resetWarning();
+        } catch (error) {
+            console.error('Error extendiendo sesión:', error);
+        }
+    }, [refreshSession, resetWarning]);
 
     // [rerender-dependencies] Logout memorizado
     const handleLogout = useCallback(async () => {
@@ -297,6 +306,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                     isOpen={showWarning}
                     onClose={dismissWarning}
                     onLogout={handleLogout}
+                    onExtendSession={handleExtendSession}
                     minutesLeft={secondsLeft !== null ? Math.ceil(secondsLeft / 60) : 10}
                 />
             </Suspense>

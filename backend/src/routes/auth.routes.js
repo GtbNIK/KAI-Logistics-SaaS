@@ -2,6 +2,7 @@ import express from 'express';
 import {
     signup,
     login,
+    refreshSession,
     logout,
     getMe,
     switchTenant,
@@ -47,6 +48,13 @@ router.post('/login', login);
  * @access  Private
  */
 router.post('/logout', verifyToken, logout);
+
+/**
+ * @route   POST /api/auth/refresh
+ * @desc    Extender sesion (nuevo JWT con 1h mas)
+ * @access  Private
+ */
+router.post('/refresh', verifyToken, refreshSession);
 
 /**
  * @route   GET /api/auth/me

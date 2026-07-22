@@ -487,6 +487,26 @@ export const switchTenant = async (req, res) => {
 };
 
 /**
+ * @route   POST /api/auth/refresh
+ * @desc    Extiende la sesion emitiendo un nuevo JWT (misma identidad, 1h mas)
+ * @access  Private (token debe ser aun valido)
+ */
+export const refreshSession = async (req, res) => {
+    try {
+        const isProduction = process.env.NODE_ENV === 'production';
+        const token = generateUserToken(req.user, req.user.currentTenantId);
+        const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS).toISOString();
+
+        res.cookie('token', token, COOKIE_OPTIONS(isProduction));
+
+        return res.json({ message: 'Sesión extendida.', token, expiresAt });
+    } catch (error) {
+        console.error('[refreshSession] Error:', error);
+        return res.status(500).json({ message: 'Error al extender la sesión.' });
+    }
+};
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Cierra sesion (limpia la cookie)
  * @access  Private
