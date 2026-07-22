@@ -135,6 +135,7 @@ export const createDeliveryNote = async (req, res) => {
                 notes: notes || null,
                 items: {
                     create: items.map(item => ({
+						tenantId: req.tenant.id,
 						d2dItemId: item.d2dItemId || null,
                         description: item.description,
                         quantity: item.quantity,
@@ -183,6 +184,7 @@ export const updateDeliveryNote = async (req, res) => {
                     notes: notes ?? existing.notes,
                     items: {
                         create: (items || []).map(item => ({
+							tenantId: req.tenant.id,
 							d2dItemId: item.d2dItemId || null,
                             description: item.description,
                             quantity: item.quantity,

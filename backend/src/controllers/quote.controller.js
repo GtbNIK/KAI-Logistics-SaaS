@@ -139,6 +139,7 @@ export const createQuote = async (req, res) => {
             totalAmount += totalPrice;
 
             return {
+                tenantId: req.tenant.id,
                 serviceId: item.serviceId,
                 allyId: item.allyId || null,
                 zoneId: item.zoneId || null,
@@ -233,6 +234,7 @@ export const updateQuote = async (req, res) => {
                 totalAmount += totalPrice;
                 
                 return {
+                    tenantId: req.tenant.id,
                     serviceId: item.serviceId,
                     allyId: item.allyId || null,
                     zoneId: item.zoneId || null,

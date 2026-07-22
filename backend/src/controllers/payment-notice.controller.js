@@ -154,6 +154,7 @@ export const convertFromQuote = async (req, res) => {
                             }
                             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
                             return {
+                                tenantId: req.tenant.id,
                                 serviceId:      item.serviceId,
                                 allyId:         item.allyId || null,
                                 zoneId:         item.zoneId || null,
@@ -412,6 +413,7 @@ export const updatePaymentNotice = async (req, res) => {
             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
 
             processedItems.push({
+                tenantId: req.tenant.id,
                 serviceId: item.serviceId,
                 allyId: item.allyId || null,
                 zoneId: item.zoneId || null,
@@ -545,6 +547,7 @@ export const createPaymentNotice = async (req, res) => {
             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
 
             processedItems.push({
+                tenantId: req.tenant.id,
                 serviceId: item.serviceId,
                 allyId: item.allyId || null,
                 zoneId: item.zoneId || null,
