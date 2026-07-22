@@ -248,6 +248,9 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
         if (!clientId) return showError('Validación', 'Selecciona un cliente');
         if (items.some(i => !i.serviceId)) return showError('Validación', 'Todos los items deben tener un servicio seleccionado');
         if (items.some(i => !i.unitPrice || Number(i.unitPrice) <= 0)) return showError('Validación', 'Todos los items deben tener un precio válido');
+        if (items.some(i => i.serviceId && isZoneService(i.serviceId) && !i.zoneId)) return showError('Validación', 'Todos los items con servicio de zona deben tener una zona seleccionada');
+        if (items.some(i => i.serviceId && !isZoneService(i.serviceId) && !i.originPort)) return showError('Validación', 'Todos los items con ruta deben tener un puerto de origen');
+        if (items.some(i => i.serviceId && !isZoneService(i.serviceId) && !i.destinationPort)) return showError('Validación', 'Todos los items con ruta deben tener un puerto de destino');
 
         const payload = {
             clientId,
@@ -471,7 +474,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                         {item.serviceId && (
                                             showZone ? (
                                                 <div>
-                                                    <label className="text-xs text-slate-500 mb-1 block">Zona <span className="text-slate-300">(opcional)</span></label>
+                                                    <label className="text-xs text-slate-500 mb-1 block">Zona <span className="text-red-500">*</span></label>
                                                     <Select
                                                         options={zoneOptions}
                                                         value={zoneOptions.find(o => o.value === item.zoneId) || null}
@@ -497,7 +500,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                             ) : (
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Origen</label>
+                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Origen <span className="text-red-500">*</span></label>
                                                         <Select
                                                             options={portOptions}
                                                             value={portOptions.find(o => o.value === item.originPort) || null}
@@ -521,7 +524,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Destino</label>
+                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Destino <span className="text-red-500">*</span></label>
                                                         <Select
                                                             options={portOptions}
                                                             value={portOptions.find(o => o.value === item.destinationPort) || null}
