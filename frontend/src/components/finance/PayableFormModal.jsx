@@ -4,10 +4,10 @@ import { Receipt, X, Loader2, Wallet } from 'lucide-react';
 import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
-import { useAuth } from '../../context/AuthContext';
 import { getTodayLocal } from '../../utils/dateHelpers';
 import authService from '../../services/auth.service';
 import QuickCreateSvcProviderModal from '../shared/QuickCreateSvcProviderModal';
+import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
 
 const selectStyles = {
     control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px', '&:hover': { borderColor: '#3b82f6' } }),
@@ -16,7 +16,7 @@ const selectStyles = {
 };
 
 const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, defaultEmployeeId }) => {
-    const { user } = useAuth();
+    const canQuickCreateSvcProvider = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.SvcProvider);
     const [allies, setAllies] = useState([]);
     const [svcProviders, setSvcProviders] = useState([]);
     const [users, setUsers] = useState([]);
@@ -51,17 +51,23 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
         [svcProviders]
     );
     const providerOptions = useMemo(() =>
-        user?.role === 'ADMIN'
+        canQuickCreateSvcProvider
             ? [...baseProviderOptions, { value: 'NEW', label: '+ Agregar nuevo proveedor', isAction: true }]
             : baseProviderOptions,
-        [baseProviderOptions, user]
+        [baseProviderOptions, canQuickCreateSvcProvider]
     );
 
     const userOptions = useMemo(() =>
         (users || []).filter(u => u.isActive !== false).map(u => ({
             value: u.id,
             label: `${u.name}${u.position ? ' — ' + u.position : ''}`,
-            subLabel: u.position || (u.role === 'ADMIN' ? 'Administrador' : 'Ventas')
+            subLabel: u.position || ({
+                OWNER: 'Administrador',
+                ADMIN: 'Administrador',
+                SALES: 'Ventas',
+                OPERATOR: 'Operador',
+                VIEWER: 'Visor',
+            })[u.role] || ''
         })),
         [users]
     );

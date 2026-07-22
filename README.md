@@ -1,7 +1,7 @@
 # KAI Logistics SaaS - Guía de Arranque
 
 > ERP multi-tenant de logística. Conversión del antiguo "Import Services" a SaaS.
-
+ESTE PROYECTO SE LLAMA KAI-Logistics-SaaS, aunque este repositorio contiene codigo heredado y referencias al proyecto ERP_Logistica ignora el contexto del proyecto viejo. Enfocate exclusivamente en la estructura actual y trata las referencias viejas solo como plantillas o bibliotecas secundarias
 ---
 
 ## 📋 Pre-requisitos

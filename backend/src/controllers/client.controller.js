@@ -75,9 +75,9 @@ export const createClient = async (req, res) => {
 
         const assigneeIds = Array.isArray(assignedUserIds) ? assignedUserIds.filter(Boolean) : [];
 
-        if (!name || !rifOrId || !email || !phone || !address || !deliveryAddress || !contactPerson) {
+        if (!name || !rifOrId || !email || !phone || !address || !contactPerson) {
             return res.status(400).json({
-                message: 'Faltan campos requeridos: name, rifOrId, email, phone, address, deliveryAddress, contactPerson.',
+                message: 'Faltan campos requeridos: name, rifOrId, email, phone, address, contactPerson.',
             });
         }
 

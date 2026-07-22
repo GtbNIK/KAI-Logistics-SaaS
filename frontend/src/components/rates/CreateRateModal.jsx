@@ -2,14 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Ship, DollarSign, Calendar, Plus, Loader2 } from 'lucide-react';
 import Select from 'react-select';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import rateService from '../../services/rate.service';
 import allyService from '../../services/ally.service';
 import portService from '../../services/port.service';
 import countryService from '../../services/country.service';
 import shippingLineService from '../../services/shippingLine.service';
-import QuickCreatePortModal from '../shared/QuickCreatePortModal';
+import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
 import QuickCreateCountryModal from '../shared/QuickCreateCountryModal';
 
@@ -37,8 +36,9 @@ const emptyForm = {
 };
 
 const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityData = null }) => {
-    const { user } = useAuth();
     const { showSuccess, showError } = useToast();
+    const canQuickCreateShippingLine = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.ShippingLine);
+    const canQuickCreateCountry = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Country);
     const [formData, setFormData] = useState(emptyForm);
     const [saving, setSaving] = useState(false);
 
@@ -107,21 +107,21 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
         const base = shippingLines.filter(l => l.isActive !== false).map(l => ({
             value: l.id, label: l.name
         }));
-        if (user?.role === 'ADMIN') {
+        if (canQuickCreateShippingLine) {
             return [...base, { value: 'NEW', label: 'Agregar nueva línea naviera', isAction: true }];
         }
         return base;
-    }, [shippingLines, user]);
+    }, [shippingLines, canQuickCreateShippingLine]);
 
     const countryOptions = useMemo(() => {
         const base = countries.map(c => ({
             value: c.id, label: c.name
         }));
-        if (user?.role === 'ADMIN') {
+        if (canQuickCreateCountry) {
             return [...base, { value: 'NEW', label: '+ Agregar nuevo país', isAction: true }];
         }
         return base;
-    }, [countries, user]);
+    }, [countries, canQuickCreateCountry]);
 
     // Precios calculados
     const sale20HC = useMemo(() => {
@@ -256,14 +256,6 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
 
     return createPortal(
         <>
-            <QuickCreatePortModal
-                isOpen={quickCreateOpen && quickCreateType === 'port'}
-                onClose={() => setQuickCreateOpen(false)}
-                onSuccess={() => {
-                    setQuickCreateOpen(false);
-                    loadCatalogs();
-                }}
-            />
             <QuickCreateShippingLineModal
                 isOpen={quickCreateOpen && quickCreateType === 'shippingLine'}
                 onClose={() => setQuickCreateOpen(false)}

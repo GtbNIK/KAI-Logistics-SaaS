@@ -4,8 +4,8 @@ import { ScrollText, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
-import { useAuth } from '../../context/AuthContext';
 import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
+import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
 
 // Estilos base compartidos para todos los react-select del modal.
 const selectStyles = {
@@ -21,7 +21,7 @@ const clientSelectStyles = {
 };
 
 const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
-    const { user } = useAuth();
+    const canQuickCreateD2DItem = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.D2DItem);
     const [clients, setClients] = useState([]);
     const [clientId, setClientId] = useState('');
     const [deliveredTo, setDeliveredTo] = useState('');
@@ -103,7 +103,7 @@ const NoteFormModal = ({ isOpen, onClose, onSuccess, editNote = null }) => {
 
     // Opciones de D2D items con "Agregar nuevo" solo para ADMIN
     const baseD2dItemOptions = d2dItems.map(i => ({ value: i.id, label: i.description }));
-    const d2dItemOptions = user?.role === 'ADMIN'
+    const d2dItemOptions = canQuickCreateD2DItem
         ? [...baseD2dItemOptions, { value: 'NEW', label: '+ Agregar nuevo item', isAction: true }]
         : baseD2dItemOptions;
 

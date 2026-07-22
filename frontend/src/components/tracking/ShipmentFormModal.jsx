@@ -4,11 +4,11 @@ import { X, Loader2, Container, Package, Calendar } from 'lucide-react';
 import Select from 'react-select';
 import shipmentService from '../../services/shipment.service';
 import { useToast } from '../../context/ToastContext';
-import { useAuth } from '../../context/AuthContext';
 import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
 import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
 import QuickCreateD2DItemModal from '../shared/QuickCreateD2DItemModal';
+import { useCanQuickCreate, QUICK_CREATE_ALLOWED_ROLES } from '../../hooks/useCanQuickCreate';
 import airlineService from '../../services/airline.service';
 
 const STATUS_OPTIONS = [
@@ -51,7 +51,10 @@ const calculateTransitDays = (etd, eta) => {
 const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     const isEdit = !!shipment;
     const { showSuccess, showError } = useToast();
-    const { user } = useAuth();
+    const canQuickCreateShippingLine = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.ShippingLine);
+    const canQuickCreatePort = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Port);
+    const canQuickCreateAirLine = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.AirLine);
+    const canQuickCreateD2DItem = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.D2DItem);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [quickCreateType, setQuickCreateType] = useState(null);
@@ -432,7 +435,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     if (!isOpen) return null;
 
     const isFCL = form.type === 'FCL';
-    const isConsolidado = form.type === 'CONSOLIDADO'
+    const isConsolidado = form.type === 'CONSOLIDADO';
 
 
     // Opciones para selects
@@ -461,15 +464,25 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
     
     // Opciones de líneas navieras con "Agregar nuevo" solo para ADMIN
     const baseShippingLineOptions = shippingLines.map(sl => ({ value: sl.id, label: sl.name }));
-    const shippingLineOptions = user?.role === 'ADMIN'
+    const shippingLineOptions = canQuickCreateShippingLine
         ? [...baseShippingLineOptions, { value: 'NEW', label: '+ Agregar nueva línea naviera', isAction: true }]
         : baseShippingLineOptions;
     
     // Opciones de puertos con "Agregar nuevo" solo para ADMIN
     const basePortOptions = ports.map(p => ({ value: p.name, label: p.name }));
-    const portOptions = user?.role === 'ADMIN'
+    const portOptions = canQuickCreatePort
         ? [...basePortOptions, { value: 'NEW', label: '+ Agregar nuevo puerto', isAction: true }]
         : basePortOptions;
+
+    const baseAirLineOptions = airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name }));
+    const airLineOptions = canQuickCreateAirLine
+        ? [...baseAirLineOptions, { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
+        : baseAirLineOptions;
+
+    const baseD2dItemOptions = d2dItems.map(item => ({ value: item.id, label: item.description }));
+    const d2dItemOptions = canQuickCreateD2DItem
+        ? [...baseD2dItemOptions, { value: 'NEW', label: '+ Agregar nuevo item', isAction: true }]
+        : baseD2dItemOptions;
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
@@ -740,10 +753,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         />
                                     ) : (
                                         <Select
-                                            options={user?.role === 'ADMIN'
-                                                ? [...airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })), { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
-                                                : airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name }))
-                                            }
+                                            options={airLineOptions}
                                             value={airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })).find(o => o.value === form.airLineId) || null}
                                             onChange={(opt) => {
                                                 if (opt?.value === 'NEW') { setQuickCreateType('AIR_LINE'); return; }
@@ -1069,12 +1079,7 @@ const ShipmentFormModal = ({ isOpen, shipment, onClose, onSuccess }) => {
                                         <label className="block text-xs font-medium text-slate-500 mb-1">Items / Servicios <span className="text-red-500">*</span></label>
                                         <Select
                                             isMulti
-                                            options={(() => {
-                                                const base = d2dItems.map(item => ({ value: item.id, label: item.description }));
-                                                return user?.role === 'ADMIN'
-                                                    ? [...base, { value: 'NEW', label: '+ Agregar nuevo item', isAction: true }]
-                                                    : base;
-                                            })()}
+                                            options={d2dItemOptions}
                                             value={d2dItems.filter(item => form.d2dItemIds.includes(item.id)).map(item => ({ value: item.id, label: item.description }))}
                                             onChange={(selected) => {
                                                 const last = selected?.[selected.length - 1];
