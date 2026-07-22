@@ -37,7 +37,7 @@ export const createSvcProvider = async (req, res) => {
 			return res.status(400).json({ message: 'El nombre es obligatorio' });
 		}
 
-		const existing = await prisma.svcProvider.findUnique({
+		const existing = await prisma.svcProvider.findFirst({
 			where: { name: finalName }
 		});
 		if (existing) {

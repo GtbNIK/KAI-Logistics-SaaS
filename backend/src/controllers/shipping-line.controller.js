@@ -90,7 +90,7 @@ export const updateShippingLine = async (req, res) => {
 export const toggleShippingLineStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const line = await prisma.shippingLine.findUnique({ where: { id } });
+        const line = await prisma.shippingLine.findFirst({ where: { id } });
         if (!line) return res.status(404).json({ message: 'Línea naviera no encontrada' });
         const updated = await prisma.shippingLine.update({
             where: { id },

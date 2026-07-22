@@ -44,7 +44,7 @@ export const createD2DItem = async (req, res) => {
 			return res.status(400).json({ message: 'La descripción es obligatoria' });
 		}
 
-		const existing = await prisma.d2DItem.findUnique({
+		const existing = await prisma.d2DItem.findFirst({
 			where: { description: finalDescription }
 		});
 		if (existing) {

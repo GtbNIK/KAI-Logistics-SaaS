@@ -78,7 +78,7 @@ export const updateAirLine = async (req, res) => {
 export const toggleAirLineStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const line = await prisma.airLine.findUnique({ where: { id } });
+        const line = await prisma.airLine.findFirst({ where: { id } });
         if (!line) return res.status(404).json({ message: 'Línea aérea no encontrada' });
         const updated = await prisma.airLine.update({
             where: { id },

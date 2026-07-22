@@ -30,7 +30,7 @@ export const createCountry = async (req, res) => {
             return res.status(400).json({ message: 'El nombre del país es requerido' });
         }
 
-        const existing = await prisma.country.findUnique({
+        const existing = await prisma.country.findFirst({
             where: { name }
         });
 
