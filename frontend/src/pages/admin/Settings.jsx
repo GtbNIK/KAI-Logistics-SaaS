@@ -7,10 +7,11 @@ import EntityTable from '../../components/shared/EntityTable';
 import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import UserViewModal from '../../components/modals/UserViewModal';
+import LogoDropzone from '../../components/shared/LogoDropzone';
 import authService from '../../services/auth.service';
 import {
     Save, Briefcase, Users, Key, Palette,
-    FileText, Image, UserPlus, Mail, Lock,
+    FileText, UserPlus, Mail, Lock,
     User, ShieldCheck, Eye, EyeOff, X, Upload, Trash2, Phone
 } from 'lucide-react';
 
@@ -292,9 +293,9 @@ const Settings = () => {
     const [saving, setSaving] = useState(false);
 
     // Archivos de fondo pendientes de subir
-    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
+    const [pendingFiles, setPendingFiles] = useState({ logo: null, quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
     // Flags de eliminación de fondos
-    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
+    const [pendingRemovals, setPendingRemovals] = useState({ removeLogo: false, removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
 
     // Estados usuarios
     const [users, setUsers] = useState([]);
@@ -338,8 +339,8 @@ const Settings = () => {
         try {
             await updateSettings(formData, pendingFiles, pendingRemovals);
             // Resetear estados pendientes
-            setPendingFiles({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
-            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
+            setPendingFiles({ logo: null, quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
+            setPendingRemovals({ removeLogo: false, removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
         } finally {
             setSaving(false);
         }
@@ -446,25 +447,19 @@ const Settings = () => {
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                    <Image size={14} /> URL del Logo
-                                </label>
-                                <input
-                                    type="text"
-                                    name="logoUrl"
-                                    value={formData.logoUrl || ''}
-                                    onChange={handleInputChange}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                                    placeholder="https://ejemplo.com/logo.png"
-                                />
-                                {formData.logoUrl && (
-                                    <div className="mt-3 p-3 border border-slate-200 rounded-lg bg-slate-50 inline-flex items-center gap-3">
-                                        <img src={formData.logoUrl} alt="Logo Preview" className="h-10 object-contain" />
-                                        <span className="text-xs text-slate-400">Vista previa</span>
-                                    </div>
-                                )}
-                            </div>
+                            <LogoDropzone
+                                currentUrl={pendingRemovals.removeLogo ? null : formData.logoUrl}
+                                file={pendingFiles.logo}
+                                onFileChange={(f) => {
+                                    setPendingFiles(prev => ({ ...prev, logo: f }));
+                                    setPendingRemovals(prev => ({ ...prev, removeLogo: false }));
+                                }}
+                                onRemove={() => {
+                                    setPendingFiles(prev => ({ ...prev, logo: null }));
+                                    setPendingRemovals(prev => ({ ...prev, removeLogo: true }));
+                                }}
+                                disabled={saving}
+                            />
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
                                     <FileText size={14} /> Texto Encabezado PDF

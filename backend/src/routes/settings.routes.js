@@ -15,6 +15,7 @@ router.put(
     '/',
     authorize('OWNER', 'ADMIN'),
     upload.fields([
+        { name: 'logo', maxCount: 1 },
         { name: 'quoteBg', maxCount: 1 },
         { name: 'noticeBg', maxCount: 1 },
         { name: 'deliveryNoteBg', maxCount: 1 },

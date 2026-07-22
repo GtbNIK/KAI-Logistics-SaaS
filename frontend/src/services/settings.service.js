@@ -26,13 +26,14 @@ const settingsService = {
             if (
                 value !== undefined &&
                 value !== null &&
-                !['quoteBgUrl', 'noticeBgUrl', 'deliveryNoteBgUrl', 'receiptBgUrl', 'rateBgUrl'].includes(key)
+                !['logoUrl', 'quoteBgUrl', 'noticeBgUrl', 'deliveryNoteBgUrl', 'receiptBgUrl', 'rateBgUrl'].includes(key)
             ) {
                 formData.append(key, value);
             }
         });
 
         // Archivos de imagen
+        if (files.logo) formData.append('logo', files.logo);
         if (files.quoteBg) formData.append('quoteBg', files.quoteBg);
         if (files.noticeBg) formData.append('noticeBg', files.noticeBg);
         if (files.deliveryNoteBg) formData.append('deliveryNoteBg', files.deliveryNoteBg);
@@ -40,6 +41,7 @@ const settingsService = {
         if (files.rateBg) formData.append('rateBg', files.rateBg);
 
         // Flags de eliminación
+        if (removals.removeLogo) formData.append('removeLogo', 'true');
         if (removals.removeQuoteBg) formData.append('removeQuoteBg', 'true');
         if (removals.removeNoticeBg) formData.append('removeNoticeBg', 'true');
         if (removals.removeDeliveryNoteBg) formData.append('removeDeliveryNoteBg', 'true');

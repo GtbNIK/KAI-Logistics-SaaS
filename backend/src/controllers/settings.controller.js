@@ -1,5 +1,5 @@
 import prisma from '../config/database.js';
-import { supabase, BACKGROUNDS_BUCKET } from '../lib/supabase.js';
+import { supabase, BACKGROUNDS_BUCKET, LOGOS_BUCKET } from '../lib/supabase.js';
 
 /**
  * Obtener la configuración de la empresa
@@ -68,6 +68,7 @@ export const updateSettings = async (req, res) => {
         };
 
         const hasFilesToUpload = Boolean(
+            req.files?.logo?.[0] ||
             req.files?.quoteBg?.[0] ||
             req.files?.noticeBg?.[0] ||
             req.files?.deliveryNoteBg?.[0] ||
@@ -76,6 +77,7 @@ export const updateSettings = async (req, res) => {
         );
 
         const hasFilesToRemove = [
+            req.body.removeLogo,
             req.body.removeQuoteBg,
             req.body.removeNoticeBg,
             req.body.removeDeliveryNoteBg,
@@ -91,6 +93,12 @@ export const updateSettings = async (req, res) => {
 
         // Procesar archivos subidos (si los hay) - usando Supabase Storage
         if (req.files) {
+            // Logo de la empresa
+            if (req.files.logo?.[0]) {
+                await deleteOldLogoFromStorage(existing.logoUrl);
+                data.logoUrl = await uploadToStorage(req.files.logo[0], 'logo', LOGOS_BUCKET);
+            }
+
             // Fondo de cotización
             if (req.files.quoteBg?.[0]) {
                 // Borrar archivo anterior si existe
@@ -120,6 +128,10 @@ export const updateSettings = async (req, res) => {
         }
 
         // Comprobar si se solicita eliminar una imagen (sin reemplazar)
+        if (req.body.removeLogo === 'true') {
+            await deleteOldLogoFromStorage(existing.logoUrl);
+            data.logoUrl = null;
+        }
         if (req.body.removeQuoteBg === 'true') {
             await deleteOldFileFromStorage(existing.quoteBgUrl);
             data.quoteBgUrl = null;
@@ -156,7 +168,7 @@ export const updateSettings = async (req, res) => {
 /**
  * Sube un archivo a Supabase Storage
  */
-async function uploadToStorage(file, prefix) {
+async function uploadToStorage(file, prefix, bucketName = BACKGROUNDS_BUCKET) {
     if (!supabase) {
         throw new Error('Supabase Storage no está configurado');
     }
@@ -165,28 +177,52 @@ async function uploadToStorage(file, prefix) {
         const timestamp = Date.now();
         const fileExt = file.originalname.split('.').pop();
         const fileName = `${prefix}-${timestamp}.${fileExt}`;
-        
+
         const { data, error } = await supabase.storage
-            .from(BACKGROUNDS_BUCKET)
+            .from(bucketName)
             .upload(fileName, file.buffer, {
                 contentType: file.mimetype,
                 upsert: false
             });
-        
+
         if (error) {
             console.error('Error uploading to Supabase:', error);
             throw error;
         }
-        
+
         // Obtener URL pública
         const { data: publicUrlData } = supabase.storage
-            .from(BACKGROUNDS_BUCKET)
+            .from(bucketName)
             .getPublicUrl(fileName);
-        
+
         return publicUrlData.publicUrl;
     } catch (err) {
         console.error('Error uploading file:', err);
         throw new Error('Error al subir imagen al storage');
+    }
+}
+
+/**
+ * Elimina un logo antiguo de Supabase Storage (bucket logos)
+ */
+async function deleteOldLogoFromStorage(fileUrl) {
+    if (!supabase || !fileUrl) return;
+    try {
+        if (fileUrl.includes('supabase.co')) {
+            const url = new URL(fileUrl);
+            const pathParts = url.pathname.split('/');
+            const fileName = pathParts[pathParts.length - 1];
+
+            const { error } = await supabase.storage
+                .from(LOGOS_BUCKET)
+                .remove([fileName]);
+
+            if (error) {
+                console.warn('No se pudo eliminar logo antiguo de Supabase:', error.message);
+            }
+        }
+    } catch (err) {
+        console.warn('No se pudo eliminar logo antiguo:', err.message);
     }
 }
 
