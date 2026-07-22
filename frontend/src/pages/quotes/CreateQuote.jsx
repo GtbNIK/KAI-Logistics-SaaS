@@ -722,7 +722,7 @@ const CreateQuote = () => {
                     const service = services.find(s => s.value === item.serviceId);
                     const quantity = parseFloat(item.quantity);
                     const unitPrice = parseFloat(item.unitPrice);
-                    const totalPrice = calculateItemSubtotal(service?.type, quantity, unitPrice);
+                    const totalPrice = calculateItemSubtotal(quantity, unitPrice, service?.type);
                     
                     return {
                         serviceId: item.serviceId,

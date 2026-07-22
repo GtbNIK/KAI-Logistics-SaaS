@@ -106,7 +106,7 @@ export const getQuote = async (req, res) => {
 // POST /api/quotes - Crear cotización
 export const createQuote = async (req, res) => {
     try {
-        const { clientId, validUntil, notes, items, currency } = req.body;
+        const { clientId, validUntil, notes, items, currency, showNotesToClient } = req.body;
         const userId = req.user.id;
 
         const quoteCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : 'USD';
@@ -117,6 +117,14 @@ export const createQuote = async (req, res) => {
 
         // Calcular totales
         let totalAmount = 0;
+
+        // Obtener el siguiente número de cotización
+        const lastQuote = await prisma.quote.findFirst({
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastQuote?.number || 0) + 1;
+
         const quoteItems = await Promise.all(items.map(async (item) => {
             const quantity = parseFloat(item.quantity) || 1;
             const unitPrice = parseFloat(item.unitPrice) || 0;
@@ -150,6 +158,7 @@ export const createQuote = async (req, res) => {
             data: {
                 clientId,
                 userId,
+                number: nextNumber,
                 currency: quoteCurrency,
                 validUntil: validUntil ? new Date(validUntil) : null,
                 notes,
