@@ -11,7 +11,7 @@ import LogoDropzone from '../../components/shared/LogoDropzone';
 import authService from '../../services/auth.service';
 import {
     Save, Briefcase, Users, Key, Palette,
-    FileText, UserPlus, Mail, Lock,
+    FileText, Image, UserPlus, Mail, Lock,
     User, ShieldCheck, Eye, EyeOff, X, Upload, Trash2, Phone
 } from 'lucide-react';
 
