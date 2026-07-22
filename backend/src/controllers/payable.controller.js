@@ -185,7 +185,7 @@ export const createPayable = async (req, res) => {
 export const updatePayable = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma.payable.findUnique({ where: { id } });
+        const existing = await prisma.payable.findFirst({ where: { id } });
 
         if (!existing) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
@@ -290,7 +290,7 @@ export const registerPayablePayment = async (req, res) => {
             return res.status(400).json({ message: 'El método de pago es requerido' });
         }
 
-        const payable = await prisma.payable.findUnique({ where: { id } });
+        const payable = await prisma.payable.findFirst({ where: { id } });
 
         if (!payable) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
@@ -374,7 +374,7 @@ export const registerPayablePayment = async (req, res) => {
 export const deletePayable = async (req, res) => {
     try {
         const { id } = req.params;
-        const payable = await prisma.payable.findUnique({ where: { id }, include: { payments: true } });
+        const payable = await prisma.payable.findFirst({ where: { id }, include: { payments: true } });
 
         if (!payable) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
@@ -396,12 +396,12 @@ export const deletePayablePayment = async (req, res) => {
     try {
         const { id, paymentId } = req.params;
 
-        const payable = await prisma.payable.findUnique({ where: { id } });
+        const payable = await prisma.payable.findFirst({ where: { id } });
         if (!payable) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
         }
 
-        const payment = await prisma.payableTransaction.findUnique({
+        const payment = await prisma.payableTransaction.findFirst({
             where: { id: paymentId }
         });
 

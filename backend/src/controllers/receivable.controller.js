@@ -19,7 +19,7 @@ export const createReceivable = async (req, res) => {
         }
 
         // Aplicar saldo a favor del cliente automáticamente
-        const client = await prisma.client.findUnique({
+        const client = await prisma.client.findFirst({
             where: { id: clientId },
             select: { creditBalance: true }
         });
@@ -60,7 +60,7 @@ export const createReceivable = async (req, res) => {
             });
         }
 
-        const created = await prisma.receivable.findUnique({
+        const created = await prisma.receivable.findFirst({
             where: { id: receivable.id },
             include: {
                 client: { select: { name: true, rifOrId: true, creditBalance: true } },
@@ -94,7 +94,7 @@ export const createReceivable = async (req, res) => {
 export const updateReceivable = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma.receivable.findUnique({ where: { id } });
+        const existing = await prisma.receivable.findFirst({ where: { id } });
 
         if (!existing) {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
@@ -173,7 +173,7 @@ export const updateReceivable = async (req, res) => {
 export const deleteReceivable = async (req, res) => {
     try {
         const { id } = req.params;
-        const receivable = await prisma.receivable.findUnique({ where: { id }, include: { payments: { include: { receipt: true } } } });
+        const receivable = await prisma.receivable.findFirst({ where: { id }, include: { payments: { include: { receipt: true } } } });
         if (!receivable) {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
         }
@@ -191,12 +191,12 @@ export const deleteReceivablePayment = async (req, res) => {
     try {
         const { id, paymentId } = req.params;
 
-        const receivable = await prisma.receivable.findUnique({ where: { id } });
+        const receivable = await prisma.receivable.findFirst({ where: { id } });
         if (!receivable) {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
         }
 
-        const payment = await prisma.paymentTransaction.findUnique({
+        const payment = await prisma.paymentTransaction.findFirst({
             where: { id: paymentId },
             include: { receipt: true }
         });
@@ -332,7 +332,7 @@ export const getReceivableById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const receivable = await prisma.receivable.findUnique({
+        const receivable = await prisma.receivable.findFirst({
             where: { id },
             include: {
                 client: { select: { name: true, email: true, rifOrId: true } },
@@ -380,7 +380,7 @@ export const registerPayment = async (req, res) => {
         }
         
 
-        const receivable = await prisma.receivable.findUnique({
+        const receivable = await prisma.receivable.findFirst({
             where: { id },
             include: { client: true }
         });
@@ -476,7 +476,7 @@ export const registerPayment = async (req, res) => {
         if (newStatus === 'PAID') {
             let notificationMessage;
             if (overpaymentAmount > 0) {
-                const clientData = await prisma.client.findUnique({
+                const clientData = await prisma.client.findFirst({
                     where: { id: receivable.clientId },
                     select: { creditBalance: true }
                 });

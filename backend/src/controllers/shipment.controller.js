@@ -153,7 +153,7 @@ vendedorId, currentLocation, arrivalDate,
         // Si se pasa un aviso de cobro, verificar que exista y no tenga tracking ya
         let notice = null;
         if (noticeId) {
-            notice = await prisma.paymentNotice.findUnique({
+            notice = await prisma.paymentNotice.findFirst({
                 where: { id: noticeId },
                 include: { tracking: true, client: { select: { name: true } } }
             });
@@ -292,7 +292,7 @@ export const updateShipment = async (req, res) => {
             consolidadoNumber, arrivalPort, consolidadoTransitTime
         } = req.body;
 
-        const existing = await prisma.shipment.findUnique({ where: { id } });
+        const existing = await prisma.shipment.findFirst({ where: { id } });
         if (!existing) {
             return res.status(404).json({ message: 'Embarque no encontrado' });
         }

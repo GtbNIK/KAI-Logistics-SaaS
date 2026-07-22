@@ -30,7 +30,7 @@ export const deletePaymentNotice = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const notice = await prisma.paymentNotice.findUnique({
+        const notice = await prisma.paymentNotice.findFirst({
             where: { id },
             include: {
                 receivable: {
@@ -89,7 +89,7 @@ export const convertFromQuote = async (req, res) => {
         const { id } = req.params;
 
         // 1. Verificar cotización
-        const quote = await prisma.quote.findUnique({
+        const quote = await prisma.quote.findFirst({
             where: { id },
             include: {
                 items: {
@@ -113,7 +113,7 @@ export const convertFromQuote = async (req, res) => {
         }
 
         // Verificar si ya tiene aviso de cobro
-        const existingNotice = await prisma.paymentNotice.findUnique({
+        const existingNotice = await prisma.paymentNotice.findFirst({
             where: { quoteId: id }
         });
 
@@ -122,7 +122,7 @@ export const convertFromQuote = async (req, res) => {
         }
 
         // Obtener saldo a favor del cliente
-        const clientData = await prisma.client.findUnique({
+        const clientData = await prisma.client.findFirst({
             where: { id: quote.clientId },
             select: { creditBalance: true }
         });
@@ -360,7 +360,7 @@ export const updatePaymentNotice = async (req, res) => {
         if (!items || !Array.isArray(items) || items.length === 0)
             return res.status(400).json({ message: 'Debe incluir al menos un servicio' });
 
-        const notice = await prisma.paymentNotice.findUnique({
+        const notice = await prisma.paymentNotice.findFirst({
             where: { id },
             include: { receivable: { select: { id: true, paidAmount: true } } }
         });
@@ -379,7 +379,7 @@ export const updatePaymentNotice = async (req, res) => {
             const quantity = Number(item.quantity) || 1;
             const unitPrice = Number(item.unitPrice) || 0;
 
-            const service = await prisma.service.findUnique({
+            const service = await prisma.service.findFirst({
                 where: { id: item.serviceId },
                 select: { name: true, type: true }
             });
@@ -388,16 +388,16 @@ export const updatePaymentNotice = async (req, res) => {
             totalAmount += totalPrice;
 
             const ally = item.allyId
-                ? await prisma.ally.findUnique({ where: { id: item.allyId }, select: { internalCode: true } })
+                ? await prisma.ally.findFirst({ where: { id: item.allyId }, select: { internalCode: true } })
                 : null;
             const zone = item.zoneId
-                ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
+                ? await prisma.zone.findFirst({ where: { id: item.zoneId }, select: { name: true } })
                 : null;
             const shippingLine = item.shippingLineId
-                ? await prisma.shippingLine.findUnique({ where: { id: item.shippingLineId }, select: { name: true } })
+                ? await prisma.shippingLine.findFirst({ where: { id: item.shippingLineId }, select: { name: true } })
                 : null;
             const airLine = item.airLineId
-                ? await prisma.airLine.findUnique({ where: { id: item.airLineId }, select: { name: true } })
+                ? await prisma.airLine.findFirst({ where: { id: item.airLineId }, select: { name: true } })
                 : null;
 
             const parts = [];
@@ -489,7 +489,7 @@ export const createPaymentNotice = async (req, res) => {
         }
 
         // Verificar que el cliente existe
-        const client = await prisma.client.findUnique({ where: { id: clientId } });
+        const client = await prisma.client.findFirst({ where: { id: clientId } });
         if (!client) {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
@@ -507,7 +507,7 @@ export const createPaymentNotice = async (req, res) => {
             const unitPrice = Number(item.unitPrice) || 0;
 
             // Buscar nombres para la descripción enriquecida y obtener tipo de servicio
-            const service = await prisma.service.findUnique({
+            const service = await prisma.service.findFirst({
                 where: { id: item.serviceId },
                 select: { name: true, type: true }
             });
@@ -517,19 +517,19 @@ export const createPaymentNotice = async (req, res) => {
             totalAmount += totalPrice;
 
             const ally = item.allyId
-                ? await prisma.ally.findUnique({ where: { id: item.allyId }, select: { internalCode: true } })
+                ? await prisma.ally.findFirst({ where: { id: item.allyId }, select: { internalCode: true } })
                 : null;
 
             const zone = item.zoneId
-                ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
+                ? await prisma.zone.findFirst({ where: { id: item.zoneId }, select: { name: true } })
                 : null;
 
             const shippingLine = item.shippingLineId
-                ? await prisma.shippingLine.findUnique({ where: { id: item.shippingLineId }, select: { name: true } })
+                ? await prisma.shippingLine.findFirst({ where: { id: item.shippingLineId }, select: { name: true } })
                 : null;
 
             const airLine = item.airLineId
-                ? await prisma.airLine.findUnique({ where: { id: item.airLineId }, select: { name: true } })
+                ? await prisma.airLine.findFirst({ where: { id: item.airLineId }, select: { name: true } })
                 : null;
 
             // Construir descripción enriquecida: "Servicio · Aliado · Línea · Zona/Ruta"
@@ -562,7 +562,7 @@ export const createPaymentNotice = async (req, res) => {
         }
 
         // Obtener saldo a favor del cliente
-        const clientBal = await prisma.client.findUnique({
+        const clientBal = await prisma.client.findFirst({
             where: { id: clientId },
             select: { creditBalance: true }
         });

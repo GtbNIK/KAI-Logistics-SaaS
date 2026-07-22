@@ -234,11 +234,11 @@ export const createRate = async (req, res) => {
 
         // Verificar que existan las entidades relacionadas
         const [ally, originPorts, destPorts, country, shippingLine] = await Promise.all([
-            prisma.ally.findUnique({ where: { id: allyId } }),
+            prisma.ally.findFirst({ where: { id: allyId } }),
             prisma.port.findMany({ where: { id: { in: originPortIds } } }),
             prisma.port.findMany({ where: { id: { in: destinationPortIds } } }),
-            countryId ? prisma.country.findUnique({ where: { id: countryId } }) : null,
-            shippingLineId ? prisma.shippingLine.findUnique({ where: { id: shippingLineId } }) : null
+            countryId ? prisma.country.findFirst({ where: { id: countryId } }) : null,
+            shippingLineId ? prisma.shippingLine.findFirst({ where: { id: shippingLineId } }) : null
         ]);
 
         if (!ally) {
@@ -323,7 +323,7 @@ export const updateRate = async (req, res) => {
         } = req.body;
 
         // Verificar que la tarifa existe y no está eliminada
-        const existingRate = await prisma.rate.findUnique({
+        const existingRate = await prisma.rate.findFirst({
             where: { id }
         });
 
@@ -435,7 +435,7 @@ export const deleteRate = async (req, res) => {
         const { id } = req.params;
 
         // Verificar que la tarifa existe
-        const existingRate = await prisma.rate.findUnique({
+        const existingRate = await prisma.rate.findFirst({
             where: { id }
         });
 
@@ -506,7 +506,7 @@ export const toggleActive = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existingRate = await prisma.rate.findUnique({ where: { id } });
+        const existingRate = await prisma.rate.findFirst({ where: { id } });
         if (!existingRate || existingRate.deletedAt) {
             return res.status(404).json({ message: 'Tarifa no encontrada' });
         }

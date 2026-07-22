@@ -119,7 +119,7 @@ export const createDeliveryNote = async (req, res) => {
 		}
 
         // Verificar que el cliente exista
-        const client = await prisma.client.findUnique({ where: { id: clientId } });
+        const client = await prisma.client.findFirst({ where: { id: clientId } });
         if (!client) {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
@@ -159,7 +159,7 @@ export const updateDeliveryNote = async (req, res) => {
         const { id } = req.params;
 		const { clientId, deliveredTo, contactPhone, deliveryAddress, warehouseNumber, notes, items } = req.body;
 
-        const existing = await prisma.deliveryNote.findUnique({ where: { id } });
+        const existing = await prisma.deliveryNote.findFirst({ where: { id } });
         if (!existing || existing.deletedAt) {
             return res.status(404).json({ message: 'Nota de entrega no encontrada' });
         }
@@ -213,7 +213,7 @@ export const updateDeliveryNoteStatus = async (req, res) => {
             return res.status(400).json({ message: 'Estado no válido' });
         }
 
-        const existing = await prisma.deliveryNote.findUnique({ where: { id } });
+        const existing = await prisma.deliveryNote.findFirst({ where: { id } });
         if (!existing || existing.deletedAt) {
             return res.status(404).json({ message: 'Nota de entrega no encontrada' });
         }
@@ -261,7 +261,7 @@ export const deleteDeliveryNote = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existing = await prisma.deliveryNote.findUnique({
+        const existing = await prisma.deliveryNote.findFirst({
             where: { id }
         });
 

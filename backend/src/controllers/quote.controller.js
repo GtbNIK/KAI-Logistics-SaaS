@@ -122,7 +122,7 @@ export const createQuote = async (req, res) => {
             const unitPrice = parseFloat(item.unitPrice) || 0;
             
             // Obtener el tipo de servicio para aplicar reglas de pricing
-            const service = await prisma.service.findUnique({
+            const service = await prisma.service.findFirst({
                 where: { id: item.serviceId },
                 select: { type: true }
             });
@@ -215,7 +215,7 @@ export const updateQuote = async (req, res) => {
                 const unitPrice = parseFloat(item.unitPrice) || 0;
                 
                 // Obtener el tipo de servicio para aplicar reglas de pricing
-                const service = await prisma.service.findUnique({
+                const service = await prisma.service.findFirst({
                     where: { id: item.serviceId },
                     select: { type: true }
                 });
@@ -294,7 +294,7 @@ export const updateQuoteStatus = async (req, res) => {
             return res.status(400).json({ message: 'Estado inválido' });
         }
 
-        const quote = await prisma.quote.findUnique({ where: { id } });
+        const quote = await prisma.quote.findFirst({ where: { id } });
         if (!quote) return res.status(404).json({ message: 'Cotización no encontrada' });
 
         // Validaciones de transición (ej. no puedes pasar de REJECTED a DRAFT directamente sin lógica extra, etc)
