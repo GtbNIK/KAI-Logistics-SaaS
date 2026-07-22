@@ -1,9 +1,10 @@
 import prisma from '../config/database.js';
+import { getCurrentTenantId } from '../lib/tenantContext.js';
 
 // Cache en memoria para catálogo de zonas (TTL 5 minutos)
 const ZONES_CACHE_TTL = 5 * 60 * 1000;
 const zonesCache = new Map(); // key -> { data, expiresAt }
-const makeZonesKey = (params) => JSON.stringify(params);
+const makeZonesKey = (params) => JSON.stringify({ tenantId: getCurrentTenantId(), ...params });
 const getZonesCached = (key) => {
     const e = zonesCache.get(key);
     if (!e) return null;
@@ -13,7 +14,15 @@ const getZonesCached = (key) => {
 const setZonesCached = (key, data) => {
     zonesCache.set(key, { data, expiresAt: Date.now() + ZONES_CACHE_TTL });
 };
-const clearZonesCache = () => zonesCache.clear();
+const clearZonesCache = () => {
+    const tenantId = getCurrentTenantId();
+    for (const key of zonesCache.keys()) {
+        try {
+            const parsed = JSON.parse(key);
+            if (parsed.tenantId === tenantId) zonesCache.delete(key);
+        } catch { /* key invalida, ignorar */ }
+    }
+};
 
 // Generar código interno automático
 const generateInternalCode = async () => {

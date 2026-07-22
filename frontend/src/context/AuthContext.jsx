@@ -80,12 +80,14 @@ export const AuthProvider = ({ children }) => {
     const login = useCallback(async (email, password) => {
         const res = await api.post('/auth/login', { email, password });
         applySession(res.data);
+        window.dispatchEvent(new CustomEvent('kai:tenant-changed'));
         return res.data;
     }, [applySession]);
 
     const signup = useCallback(async (payload) => {
         const res = await api.post('/auth/signup', payload);
         applySession(res.data);
+        window.dispatchEvent(new CustomEvent('kai:tenant-changed'));
         return res.data;
     }, [applySession]);
 

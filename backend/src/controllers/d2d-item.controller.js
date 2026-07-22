@@ -1,8 +1,29 @@
 import prisma from '../config/database.js';
+import { getCurrentTenantId } from '../lib/tenantContext.js';
 
 // Cache con TTL para items D2D (catálogo estable)
 const D2D_ITEMS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-let D2D_ITEMS_CACHE = { data: null, timestamp: 0 };
+const d2dItemsCache = new Map(); // key -> { data, expiresAt }
+
+const makeD2dItemsKey = (params) => JSON.stringify({ tenantId: getCurrentTenantId(), ...params });
+const getD2dItemsCached = (key) => {
+    const e = d2dItemsCache.get(key);
+    if (!e) return null;
+    if (Date.now() > e.expiresAt) { d2dItemsCache.delete(key); return null; }
+    return e.data;
+};
+const setD2dItemsCached = (key, data) => {
+    d2dItemsCache.set(key, { data, expiresAt: Date.now() + D2D_ITEMS_CACHE_TTL });
+};
+const clearD2dItemsCache = () => {
+    const tenantId = getCurrentTenantId();
+    for (const key of d2dItemsCache.keys()) {
+        try {
+            const parsed = JSON.parse(key);
+            if (parsed.tenantId === tenantId) d2dItemsCache.delete(key);
+        } catch { /* key invalida, ignorar */ }
+    }
+};
 
 export const getD2DItems = async (req, res) => {
 	try {
@@ -10,8 +31,10 @@ export const getD2DItems = async (req, res) => {
 		const now = Date.now();
 
 		// Devolver cache si no hay búsqueda y el cache está fresco
-		if (!search && D2D_ITEMS_CACHE.data && (now - D2D_ITEMS_CACHE.timestamp < D2D_ITEMS_CACHE_TTL)) {
-			return res.json({ data: D2D_ITEMS_CACHE.data });
+		const cacheKey = makeD2dItemsKey({ search });
+		if (!search) {
+			const cached = getD2dItemsCached(cacheKey);
+			if (cached) return res.json({ data: cached });
 		}
 
 		const where = search
@@ -25,7 +48,7 @@ export const getD2DItems = async (req, res) => {
 
 		// Actualizar cache solo si no hay búsqueda
 		if (!search) {
-			D2D_ITEMS_CACHE = { data: items, timestamp: now };
+			setD2dItemsCached(cacheKey, items);
 		}
 
 		res.json({ data: items });
@@ -56,7 +79,7 @@ export const createD2DItem = async (req, res) => {
 		});
 
 		// Invalidar caché para que el nuevo item sea visible de inmediato
-		D2D_ITEMS_CACHE = { data: null, timestamp: 0 };
+		clearD2dItemsCache();
 
 		res.status(201).json(created);
 	} catch (error) {

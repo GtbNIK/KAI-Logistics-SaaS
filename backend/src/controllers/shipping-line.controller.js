@@ -1,10 +1,11 @@
 import prisma from '../config/database.js';
+import { getCurrentTenantId } from '../lib/tenantContext.js';
 
 // Cache simple en memoria para catálogos (TTL en ms)
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 const shippingLinesCache = new Map(); // key -> { data, expiresAt }
 
-const makeKey = (params) => JSON.stringify(params);
+const makeKey = (params) => JSON.stringify({ tenantId: getCurrentTenantId(), ...params });
 const getCached = (key) => {
     const entry = shippingLinesCache.get(key);
     if (!entry) return null;
@@ -17,7 +18,15 @@ const getCached = (key) => {
 const setCached = (key, data) => {
     shippingLinesCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL });
 };
-const clearCatalogCache = () => shippingLinesCache.clear();
+const clearCatalogCache = () => {
+    const tenantId = getCurrentTenantId();
+    for (const key of shippingLinesCache.keys()) {
+        try {
+            const parsed = JSON.parse(key);
+            if (parsed.tenantId === tenantId) shippingLinesCache.delete(key);
+        } catch { /* key invalida, ignorar */ }
+    }
+};
 
 export const getShippingLines = async (req, res) => {
     try {
