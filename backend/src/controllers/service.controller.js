@@ -3,13 +3,6 @@ import prisma from '../config/database.js';
 // Crear servicio
 export const createService = async (req, res) => {
     try {
-        // Solo ADMIN puede crear servicios
-        if (req.membership.role !== 'ADMIN') {
-            return res.status(403).json({ 
-                message: 'No tienes permisos para crear servicios' 
-            });
-        }
-
         const { code, name, type, notes } = req.body;
 
         // Verificar código único
@@ -145,13 +138,6 @@ export const getService = async (req, res) => {
 // Actualizar servicio
 export const updateService = async (req, res) => {
     try {
-        // Solo ADMIN puede actualizar servicios
-        if (req.membership.role !== 'ADMIN') {
-            return res.status(403).json({ 
-                message: 'No tienes permisos para actualizar servicios' 
-            });
-        }
-
         const { id } = req.params;
         const { code, name, type, notes } = req.body;
 
@@ -192,13 +178,6 @@ export const updateService = async (req, res) => {
 // Eliminar servicio (Soft Delete)
 export const deleteService = async (req, res) => {
     try {
-        // Solo ADMIN puede eliminar servicios
-        if (req.membership.role !== 'ADMIN') {
-            return res.status(403).json({ 
-                message: 'No tienes permisos para eliminar servicios' 
-            });
-        }
-
         const { id } = req.params;
 
         const service = await prisma.service.findFirst({ where: { id } });

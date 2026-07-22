@@ -299,6 +299,7 @@ const Settings = () => {
     // Estados usuarios
     const [users, setUsers] = useState([]);
     const [usersLoading, setUsersLoading] = useState(false);
+    const [userSearch, setUserSearch] = useState('');
 
     // Modales
     const [viewModal, setViewModal] = useState({ open: false, user: null });
@@ -357,6 +358,13 @@ const Settings = () => {
             setDeletingUser(false);
         }
     };
+
+    const filteredUsers = userSearch
+        ? users.filter(u =>
+            [u.name, u.email, u.position, u.role]
+                .some(val => val?.toLowerCase().includes(userSearch.toLowerCase()))
+        )
+        : users;
 
     if (loading && !settings) {
         return (
@@ -697,7 +705,9 @@ const Settings = () => {
                     )}
 
                     <EntityTable
-                        items={users}
+                        items={filteredUsers}
+                        search={userSearch}
+                        onSearchChange={setUserSearch}
                         columns={[
                             { header: 'Nombre', accessor: 'name' },
                             { header: 'Email', accessor: 'email' },

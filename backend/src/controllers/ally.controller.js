@@ -236,10 +236,6 @@ export const deleteAlly = async (req, res) => {
     try {
         const { id } = req.params;
         
-        if (req.membership.role !== 'ADMIN') {
-            return res.status(403).json({ message: 'Solo administradores pueden eliminar aliados' });
-        }
-
         // Soft delete: marcar como eliminado
         await prisma.ally.update({
             where: { id },
