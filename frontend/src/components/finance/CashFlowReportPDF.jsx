@@ -7,6 +7,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { dateToStringHelper } from '../../utils/dateHelpers';
 import { formatCurrency } from '../../utils/currency';
 import { DEFAULT_LOGO, DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_RIF } from '../../config/companyDefaults';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
 const FALLBACK_METHOD_KEY = '__NO_METHOD__';
 
 const hexToRgb = (hex) => {
@@ -33,35 +34,6 @@ const getFullAssetUrl = (path) => {
         return `${API_BASE}${path}`;
     }
     return `${API_BASE}/${path.replace(/^\//, '')}`;
-};
-
-const loadLogoAsPngDataUrl = async (url) => {
-    if (!url) return null;
-    const fullUrl = getFullAssetUrl(url);
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                const maxWidth = 500;
-                const maxHeight = 220;
-                const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
-                canvas.width = Math.max(1, Math.floor(img.width * scale));
-                canvas.height = Math.max(1, Math.floor(img.height * scale));
-                const ctx = canvas.getContext('2d');
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve({ dataUrl: canvas.toDataURL('image/png'), aspect: canvas.height / canvas.width });
-            } catch (error) {
-                reject(error);
-            }
-        };
-        img.onerror = reject;
-        img.src = fullUrl;
-    });
 };
 
 const buildMethodGroups = (ingresos, egresos, paymentMethodsMap) => {
@@ -136,11 +108,10 @@ const CashFlowReportPDF = ({
             const pageH = doc.internal.pageSize.getHeight();
 
             try {
-                const logoData = await loadLogoAsPngDataUrl(logoUrl);
-                if (logoData?.dataUrl) {
-                    const logoWidth = 46; // mm
-                    const logoHeight = Math.max(10, Math.min(18, logoWidth * (logoData.aspect || 0.28)));
-                    doc.addImage(logoData.dataUrl, 'PNG', 15, 12, logoWidth, logoHeight);
+                const fullLogoUrl = getFullAssetUrl(logoUrl);
+                const logo = await loadLogoForPdf(fullLogoUrl, 46, 18);
+                if (logo) {
+                    doc.addImage(logo.dataUrl, 'PNG', 15, 12, logo.widthMm, logo.heightMm);
                 }
             } catch (error) {
                 console.warn('Error loading logo for cash flow PDF:', error);

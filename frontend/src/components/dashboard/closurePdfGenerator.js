@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import dashboardService from '../../services/dashboard.service';
 import { dateToStringHelper, toVenezuelanFormat } from '../../utils/dateHelpers';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
 
 const DEFAULT_LOGO = '';
 const CANVAS_EXPORT_QUALITY = 0.8;
@@ -77,23 +78,15 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
 
         // --- Logo (escalado dinámico por proporción) ---
         try {
-            const logoUrl  = settings?.logoUrl || DEFAULT_LOGO;
-            const logoImg  = await loadImage(logoUrl);
-
-            const maxW = 40, maxH = 30;
-            const imgRatio = logoImg.width / logoImg.height;
-            const boxRatio = maxW / maxH;
-
-            let finalWidth  = maxW;
-            let finalHeight = maxH;
-            if (imgRatio > boxRatio) {
-                finalHeight = maxW / imgRatio;
-            } else {
-                finalWidth  = maxH * imgRatio;
+            const logoUrl = settings?.logoUrl || DEFAULT_LOGO;
+            if (!logoUrl) throw new Error('No logo URL');
+            const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+            const fullLogoUrl = logoUrl.startsWith('http') ? logoUrl : `${API_BASE}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
+            const logo = await loadLogoForPdf(fullLogoUrl, 40, 30);
+            if (logo) {
+                const yPos = 20 - (logo.heightMm / 2);
+                doc.addImage(logo.dataUrl, 'PNG', pageWidth - 14 - logo.widthMm, yPos, logo.widthMm, logo.heightMm);
             }
-
-            const yPos = 20 - (finalHeight / 2);
-            doc.addImage(logoImg, 'PNG', pageWidth - 14 - finalWidth, yPos, finalWidth, finalHeight);
         } catch (err) {
             console.warn('No se pudo cargar el logo para el PDF:', err);
         }

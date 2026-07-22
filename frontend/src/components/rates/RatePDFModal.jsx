@@ -5,7 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
 import { dateToStringHelper } from '../../utils/dateHelpers';
-import { resizePngDataUrl } from '../../utils/imageHelpers';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
 import api from '../../lib/api';
 import { DEFAULT_LOGO, DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_RIF, DEFAULT_PRIMARY_COLOR } from '../../config/companyDefaults';
 
@@ -134,7 +134,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 }
             }
 
-            // Logo (usar PNG para mantener transparencia) con tamaño dinámico
+            // Logo con dimensiones dinámicas (proporcional)
             try {
                 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
                 const fullLogoUrl = logoUrl.startsWith('http')
@@ -142,18 +142,10 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                     : (logoUrl.startsWith('/')
                         ? (typeof window !== 'undefined' ? `${window.location.origin}${logoUrl}` : logoUrl)
                         : `${API_BASE}/${logoUrl.replace(/^\//, '')}`);
-                const img = await new Promise((resolve, reject) => {
-                    const image = new Image();
-                    image.crossOrigin = 'anonymous';
-                    image.onload = () => resolve(image);
-                    image.onerror = reject;
-                    image.src = fullLogoUrl;
-                });
-                const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
-                const logoWidth = 50; // mm
-                const aspect = (img.naturalHeight || img.height) / (img.naturalWidth || img.width) || (13.5/50);
-                const logoHeight = Math.max(10, Math.min(18, logoWidth * aspect));
-                doc.addImage(logoPng, 'PNG', 15, 15, logoWidth, logoHeight);
+                const logo = await loadLogoForPdf(fullLogoUrl, 50, 18);
+                if (logo) {
+                    doc.addImage(logo.dataUrl, 'PNG', 15, 15, logo.widthMm, logo.heightMm);
+                }
             } catch (error) {
                 console.warn('Error loading logo:', error);
             }

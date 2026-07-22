@@ -130,11 +130,21 @@ export const convertFromQuote = async (req, res) => {
         const appliedCredit = Math.min(creditAvailable, Number(quote.totalAmount));
         const remainingAmount = Number(quote.totalAmount) - appliedCredit;
 
+        // Generar número secuencial del aviso de cobro por tenant
+        const lastNotice = await prisma.paymentNotice.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastNotice?.number || 0) + 1;
+
         // 2. Transacción de base de datos para asegurar integridad
         const result = await prisma.$transaction(async (tx) => {
             // A. Crear PaymentNotice y PaymentNoticeItems
             const paymentNotice = await tx.paymentNotice.create({
                 data: {
+                    number: nextNumber,
+                    tenantId: req.tenant.id,
                     quoteId: quote.id,
                     clientId: quote.clientId,
                     totalAmount: quote.totalAmount,
@@ -573,10 +583,20 @@ export const createPaymentNotice = async (req, res) => {
         const appliedCredit = Math.min(creditAvail, totalAmount);
         const remainingAmount = totalAmount - appliedCredit;
 
+        // Generar número secuencial del aviso de cobro por tenant
+        const lastNotice = await prisma.paymentNotice.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastNotice?.number || 0) + 1;
+
         // Transacción: crear PaymentNotice + Items + Receivable
         const result = await prisma.$transaction(async (tx) => {
             const paymentNotice = await tx.paymentNotice.create({
                 data: {
+                    number: nextNumber,
+                    tenantId: req.tenant.id,
                     clientId,
                     totalAmount,
                     currency: noticeCurrency,

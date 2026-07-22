@@ -4,6 +4,7 @@ import { X, Download, Loader2, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useSettings } from '../../context/SettingsContext';
 import { getCurrencySymbol } from '../../utils/currency';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
 
 const DEFAULT_LOGO = '';
 const DEFAULT_COMPANY_NAME = 'Import Services';
@@ -45,29 +46,6 @@ const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = 
     ctx.drawImage(img, 0, 0, outW, outH);
 
     return canvas.toDataURL('image/jpeg', quality);
-};
-
-const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
-    const srcW = img.naturalWidth || img.width;
-    const srcH = img.naturalHeight || img.height;
-
-    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
-    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
-    const scale = Math.min(scaleW, scaleH, 1);
-
-    const outW = Math.max(1, Math.floor(srcW * scale));
-    const outH = Math.max(1, Math.floor(srcH * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, outW, outH);
-
-    return canvas.toDataURL('image/png');
 };
 
 /**
@@ -126,21 +104,14 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
 
             // ── Logo ──
             try {
-                const logoImg = new Image();
-                logoImg.crossOrigin = 'anonymous';
-                await new Promise((resolve, reject) => {
-                    logoImg.onload = resolve;
-                    logoImg.onerror = reject;
-                    logoImg.src = logoUrl;
-                });
-                const logoPng = await resizePngDataUrl(logoImg, { maxWidth: 650, maxHeight: 300 });
-                const logoH = 18;
-                const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
-                const logoW = logoH * ratio;
-                const logoX = (pageWidth - logoW) / 2;
-                doc.addImage(logoPng, 'PNG', logoX, y, logoW, logoH);
-                y += logoH + 5;
-            } catch {
+                const logo = await loadLogoForPdf(logoUrl, pageWidth - 30, 18);
+                if (logo) {
+                    const logoX = (pageWidth - logo.widthMm) / 2;
+                    doc.addImage(logo.dataUrl, 'PNG', logoX, y, logo.widthMm, logo.heightMm);
+                    y += logo.heightMm + 5;
+                }
+            } catch (e) {
+                console.warn('Error loading logo:', e);
                 y += 5;
             }
 
