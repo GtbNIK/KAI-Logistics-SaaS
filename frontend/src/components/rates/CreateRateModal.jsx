@@ -56,6 +56,18 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
     // Cargar catálogos al abrir
     useEffect(() => {
         if (!isOpen) return;
+
+        const handleTenantChange = () => {
+            if (!isOpen) return;
+            setFormData(emptyForm);
+            setSaving(false);
+            setQuickCreateOpen(false);
+            setQuickCreateType(null);
+            loadCatalogs();
+        };
+
+        window.addEventListener('kai:tenant-changed', handleTenantChange);
+
         loadCatalogs();
         if (editMode && entityData) {
             setFormData({
@@ -77,6 +89,8 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
         } else {
             setFormData(emptyForm);
         }
+
+        return () => window.removeEventListener('kai:tenant-changed', handleTenantChange);
     }, [isOpen, editMode, entityData]);
 
     const loadCatalogs = async () => {
@@ -127,6 +141,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
     // Precios calculados
     const sale20HC = useMemo(() => {
         const cost = parseFloat(formData.cost20ft) || 0;
+        if (!cost) return 0;
         const bank = parseFloat(formData.bankFee) || 0;
         const yaho = parseFloat(formData.profitYaho) || 0;
         const is_ = parseFloat(formData.profitIS) || 0;
@@ -135,6 +150,7 @@ const CreateRateModal = ({ isOpen, onClose, onSuccess, editMode = false, entityD
 
     const sale40HC = useMemo(() => {
         const cost = parseFloat(formData.cost40ft) || 0;
+        if (!cost) return 0;
         const bank = parseFloat(formData.bankFee) || 0;
         const yaho = parseFloat(formData.profitYaho) || 0;
         const is_ = parseFloat(formData.profitIS) || 0;

@@ -96,6 +96,7 @@ export const AuthProvider = ({ children }) => {
         setTenantsList([]);
         setCurrentTenantSlug(null);
         try { localStorage.removeItem('sessionExpiresAt'); localStorage.removeItem('kai:currentTenantSlug'); } catch (e) { void e; }
+        window.dispatchEvent(new CustomEvent('kai:tenant-changed'));
     }, [setTenantsList, setCurrentTenantSlug]);
 
     const forceLogout = useCallback(() => {
@@ -104,6 +105,7 @@ export const AuthProvider = ({ children }) => {
         setTenantsList([]);
         setCurrentTenantSlug(null);
         try { localStorage.removeItem('sessionExpiresAt'); localStorage.removeItem('kai:currentTenantSlug'); } catch (e) { void e; }
+        window.dispatchEvent(new CustomEvent('kai:tenant-changed'));
     }, [setTenantsList, setCurrentTenantSlug]);
 
     const refreshSession = useCallback(async () => {
@@ -112,13 +114,16 @@ export const AuthProvider = ({ children }) => {
             setSessionExpiresAt(new Date(res.data.expiresAt));
             try { localStorage.setItem('sessionExpiresAt', res.data.expiresAt); } catch (e) { void e; }
         }
+        // Refrescar datos completos del usuario/tenant para mantener sincronía
+        await checkUser();
         return res.data;
-    }, []);
+    }, [checkUser]);
 
     const switchTenant = useCallback(async (tenantId) => {
         const res = await api.post('/auth/switch-tenant', { tenantId });
         if (res.data.tenant) setCurrentTenantSlug(res.data.tenant.slug);
         await checkUser();
+        window.dispatchEvent(new CustomEvent('kai:tenant-changed'));
         return res.data;
     }, [setCurrentTenantSlug, checkUser]);
 

@@ -1,9 +1,10 @@
 import prisma from '../config/database.js';
+import { getCurrentTenantId } from '../lib/tenantContext.js';
 
 // Cache en memoria para catálogo de puertos (TTL 5 minutos)
 const PORTS_CACHE_TTL = 5 * 60 * 1000;
 const portsCache = new Map(); // key -> { data, expiresAt }
-const makePortsKey = (params) => JSON.stringify(params);
+const makePortsKey = (params) => JSON.stringify({ tenantId: getCurrentTenantId(), ...params });
 const getPortsCached = (key) => {
     const e = portsCache.get(key);
     if (!e) return null;
@@ -13,7 +14,15 @@ const getPortsCached = (key) => {
 const setPortsCached = (key, data) => {
     portsCache.set(key, { data, expiresAt: Date.now() + PORTS_CACHE_TTL });
 };
-const clearPortsCache = () => portsCache.clear();
+const clearPortsCache = () => {
+    const tenantId = getCurrentTenantId();
+    for (const key of portsCache.keys()) {
+        try {
+            const parsed = JSON.parse(key);
+            if (parsed.tenantId === tenantId) portsCache.delete(key);
+        } catch { /* key invalida, ignorar */ }
+    }
+};
 
 const normalizeCode = (code) => String(code || '').trim().toUpperCase();
 

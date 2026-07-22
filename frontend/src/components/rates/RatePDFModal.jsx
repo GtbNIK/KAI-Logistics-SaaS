@@ -7,10 +7,7 @@ import { buildPortLookup, formatPortList } from '../../utils/locationFormatters'
 import { dateToStringHelper } from '../../utils/dateHelpers';
 import { resizePngDataUrl } from '../../utils/imageHelpers';
 import api from '../../lib/api';
-
-const DEFAULT_LOGO = '';
-const DEFAULT_COMPANY_NAME = 'ERP Logística';
-const DEFAULT_PRIMARY_COLOR = '#003366';
+import { DEFAULT_LOGO, DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_RIF, DEFAULT_PRIMARY_COLOR } from '../../config/companyDefaults';
 
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -103,6 +100,10 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
             }
         };
         fetchPorts();
+
+        const handleTenantChange = () => fetchPorts();
+        window.addEventListener('kai:tenant-changed', handleTenantChange);
+        return () => window.removeEventListener('kai:tenant-changed', handleTenantChange);
     }, [isOpen]);
 
     if (!isOpen) return null;

@@ -5,9 +5,15 @@ import prisma from '../config/database.js';
  * Para region='OTHER', fees y profits son opcionales (0 por defecto)
  */
 const calculateSalePrices = (cost20ft, cost40ft, bankFee = 0, profitYaho = 0, profitIS = 0) => {
-    const sale20HC = parseFloat(cost20ft) + parseFloat(bankFee || 0) + parseFloat(profitYaho || 0) + parseFloat(profitIS || 0);
-    const sale40HC = parseFloat(cost40ft) + parseFloat(bankFee || 0) + parseFloat(profitYaho || 0) + parseFloat(profitIS || 0);
-    
+    const c20 = parseFloat(cost20ft) || 0;
+    const c40 = parseFloat(cost40ft) || 0;
+    const sale20HC = c20
+        ? c20 + parseFloat(bankFee || 0) + parseFloat(profitYaho || 0) + parseFloat(profitIS || 0)
+        : 0;
+    const sale40HC = c40
+        ? c40 + parseFloat(bankFee || 0) + parseFloat(profitYaho || 0) + parseFloat(profitIS || 0)
+        : 0;
+
     return {
         sale20HC: parseFloat(sale20HC.toFixed(2)),
         sale40HC: parseFloat(sale40HC.toFixed(2))

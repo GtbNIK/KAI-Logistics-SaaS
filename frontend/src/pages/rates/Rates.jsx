@@ -93,6 +93,10 @@ const Rates = () => {
             }
         };
         loadCatalogs();
+
+        const handleTenantChange = () => loadCatalogs();
+        window.addEventListener('kai:tenant-changed', handleTenantChange);
+        return () => window.removeEventListener('kai:tenant-changed', handleTenantChange);
     }, []);
 
     const selectedAllyId = customFilters?.allyId || '';
