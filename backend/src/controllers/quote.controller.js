@@ -1,7 +1,7 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
-import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
+import { getScopeFilter, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP } from '../utils/scope.js';
 
 const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
 
@@ -190,16 +190,14 @@ export const updateQuote = async (req, res) => {
 
         const quoteCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : undefined;
 
-        const existingQuote = await prisma.quote.findUnique({ where: { id } });
+        const scopeFilter = getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Quote');
+        const existingQuote = await prisma.quote.findFirst({ where: { id, ...scopeFilter } });
 
         if (!existingQuote) {
             return res.status(404).json({ message: 'Cotización no encontrada' });
         }
 
-        // Verificar permisos y estado
-        if (req.user.role === 'SALES' && existingQuote.userId !== req.user.id) {
-            return res.status(403).json({ message: 'No tienes permiso para editar esta cotización' });
-        }
+        // Verificar estado
 
         if (existingQuote.status !== 'DRAFT') {
             return res.status(400).json({ message: 'Solo se pueden editar cotizaciones en borrador' });
@@ -330,16 +328,13 @@ export const updateQuoteStatus = async (req, res) => {
 export const deleteQuote = async (req, res) => {
     try {
         const { id } = req.params;
-        const quote = await prisma.quote.findUnique({ where: { id } });
+        const scopeFilter = getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Quote');
+        const quote = await prisma.quote.findFirst({ where: { id, ...scopeFilter } });
 
         if (!quote) return res.status(404).json({ message: 'Cotización no encontrada' });
 
         if (quote.status !== 'DRAFT') {
             return res.status(400).json({ message: 'Solo se pueden eliminar borradores' });
-        }
-
-        if (req.user.role === 'SALES' && quote.userId !== req.user.id) {
-            return res.status(403).json({ message: 'No tienes permiso' });
         }
 
         await prisma.quoteItem.deleteMany({ where: { quoteId: id } });

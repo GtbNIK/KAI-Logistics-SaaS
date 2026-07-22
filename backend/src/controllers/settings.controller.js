@@ -17,7 +17,7 @@ export const getSettings = async (req, res) => {
         /* HABILITAR ESTO SOLO SI NO QUIEREN QUE LOS USUARIOS CON ROL VENTAS VEAN LOS DATOS BANCARIOS DE LA EMPRESA
 
         // Si NO es admin, devolver solo datos de tema visual (lo mínimo necesario)
-        if (req.user.role !== 'ADMIN') {
+        if (req.membership.role !== 'ADMIN') {
             return res.json({
                 id: settings.id,
                 companyName: settings.companyName,

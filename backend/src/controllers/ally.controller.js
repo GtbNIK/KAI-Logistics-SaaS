@@ -236,7 +236,7 @@ export const deleteAlly = async (req, res) => {
     try {
         const { id } = req.params;
         
-        if (req.user.role !== 'ADMIN') {
+        if (req.membership.role !== 'ADMIN') {
             return res.status(403).json({ message: 'Solo administradores pueden eliminar aliados' });
         }
 

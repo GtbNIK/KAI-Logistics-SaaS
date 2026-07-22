@@ -71,6 +71,13 @@ Mientras tanto, se aplica filtro por `assignedToId` / `userId` / `vendedorId` / 
 
 Este workaround NO requiere migración de roles.
 
+### Pendientes del workaround actual
+
+- **Filtro "Por vendedor" en `Clients.jsx`**: El frontend tiene un filtro por `assignedToId` (líneas 272, 275) que está deshabilitado porque el modelo `Client` ahora usa la relación M:N `clientAssignments`. Para habilitarlo, se necesita:
+  1. Cambiar el query param en el frontend de `assignedToId` a un filtro basado en `clientAssignments`
+  2. Actualizar el backend `getClients` para aceptar un filtro por `clientAssignments.some({ userId })`
+  3. Esto requiere coordinar cambios en frontend y backend simultáneamente
+
 ## Riesgos de hacer el refactor en producción
 
 1. Migración de Memberships: siempre en transacción con backup, nunca un viernes
