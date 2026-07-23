@@ -156,6 +156,166 @@ const computeUsage = async (tenantId) => {
 };
 
 /**
+ * @route   POST /api/admin/tenants
+ * @desc    Crea un tenant nuevo con su usuario admin y configuración inicial
+ * @access  Private (super-admin)
+ *
+ * Body:
+ * - companyName: string (requerido)
+ * - email: string (requerido) — email del usuario admin/OWNER
+ * - password: string (requerido, min 6 chars)
+ * - name: string (requerido) — nombre del usuario admin
+ * - planKey: 'BASE' | 'PRO' (default BASE)
+ */
+export const createTenant = async (req, res) => {
+    try {
+        const { companyName, email, password, name, planKey = 'BASE' } = req.body || {};
+
+        if (!companyName || !email || !password || !name) {
+            return res.status(400).json({
+                message: 'companyName, email, password y name son requeridos.',
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                message: 'La contraseña debe tener al menos 6 caracteres.',
+            });
+        }
+
+        const plan = await prisma.plan.findUnique({ where: { key: planKey } });
+        if (!plan) {
+            return res.status(400).json({ message: `Plan "${planKey}" no existe.` });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Verificar que no exista un usuario con ese email ya asignado a un tenant
+        const existingUser = await prisma.user.findUnique({
+            where: { email: normalizedEmail },
+            include: { memberships: true },
+        });
+
+        if (existingUser && existingUser.memberships.length > 0) {
+            return res.status(409).json({
+                message: 'Ya existe un usuario con ese email en un tenant.',
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Generar slug único
+        const slugify = (text) => {
+            return text
+                .toString()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .substring(0, 40);
+        };
+
+        const generateUniqueSlug = async (baseName, tx) => {
+            let baseSlug = slugify(baseName);
+            if (!baseSlug) baseSlug = 'tenant';
+            let slug = baseSlug;
+            let counter = 1;
+            while (await tx.tenant.findUnique({ where: { slug } })) {
+                slug = `${baseSlug}-${counter}`;
+                counter++;
+            }
+            return slug;
+        };
+
+        const result = await prisma.$transaction(async (tx) => {
+            let user;
+
+            if (existingUser) {
+                user = await tx.user.update({
+                    where: { id: existingUser.id },
+                    data: {
+                        password: hashedPassword,
+                        name,
+                        isActive: true,
+                        lastLoginAt: new Date(),
+                    },
+                });
+            } else {
+                user = await tx.user.create({
+                    data: {
+                        email: normalizedEmail,
+                        password: hashedPassword,
+                        name,
+                        isActive: true,
+                        lastLoginAt: new Date(),
+                    },
+                });
+            }
+
+            const slug = await generateUniqueSlug(companyName, tx);
+            const now = new Date();
+            const trialEndsAt = new Date(now.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+
+            const tenant = await tx.tenant.create({
+                data: {
+                    slug,
+                    name: companyName.trim(),
+                    status: 'TRIAL',
+                    trialEndsAt,
+                    planId: plan.id,
+                    createdByUserId: user.id,
+                },
+            });
+
+            await tx.subscription.create({
+                data: {
+                    tenantId: tenant.id,
+                    planId: plan.id,
+                    status: 'TRIAL',
+                    startDate: now,
+                    currentPeriodStart: now,
+                    currentPeriodEnd: trialEndsAt,
+                    nextPaymentDueAt: trialEndsAt,
+                },
+            });
+
+            await tx.membership.create({
+                data: {
+                    userId: user.id,
+                    tenantId: tenant.id,
+                    role: 'OWNER',
+                    status: 'ACTIVE',
+                    joinedAt: now,
+                },
+            });
+
+            await tx.companySettings.create({
+                data: { tenantId: tenant.id },
+            });
+
+            return { tenant, user };
+        });
+
+        return res.status(201).json({
+            message: 'Tenant creado exitosamente.',
+            data: {
+                tenantId: result.tenant.id,
+                slug: result.tenant.slug,
+                name: result.tenant.name,
+                email: result.user.email,
+                trialEndsAt: result.tenant.trialEndsAt,
+            },
+        });
+    } catch (error) {
+        console.error('[createTenant] Error:', error);
+        return res.status(500).json({ message: 'Error al crear el tenant.' });
+    }
+};
+
+/**
  * @route   GET /api/admin/tenants
  * @desc    Lista todos los tenants con metricas de uso
  * @access  Private (super-admin)

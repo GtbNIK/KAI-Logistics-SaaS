@@ -5,6 +5,7 @@ import {
     adminGetMe,
     listTenants,
     getTenantDetail,
+    createTenant,
     activateTenant,
     suspendTenant,
     unsuspendTenant,
@@ -53,6 +54,7 @@ router.use(requireSuperAdmin);
 
 // Tenants
 router.get('/tenants', listTenants);
+router.post('/tenants', createTenant);
 router.get('/tenants/:id', getTenantDetail);
 router.post('/tenants/:id/activate', activateTenant);
 router.post('/tenants/:id/suspend', suspendTenant);

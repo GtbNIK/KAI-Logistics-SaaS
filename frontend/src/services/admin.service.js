@@ -14,6 +14,8 @@ const adminService = {
     // Tenants
     listTenants: (params = {}) =>
         api.get('/admin/tenants', { params }).then((r) => r.data),
+    createTenant: (data) =>
+        api.post('/admin/tenants', data).then((r) => r.data),
     getTenant: (id) => api.get(`/admin/tenants/${id}`).then((r) => r.data),
     activateTenant: (id) => api.post(`/admin/tenants/${id}/activate`).then((r) => r.data),
     suspendTenant: (id, reason) => api.post(`/admin/tenants/${id}/suspend`, { reason }).then((r) => r.data),

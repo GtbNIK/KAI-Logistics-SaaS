@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import adminService from '../../services/admin.service.js';
+import { X, Loader2, Plus } from 'lucide-react';
 
 const STATUS_COLORS = {
     TRIAL: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
@@ -31,6 +32,10 @@ export default function AdminTenants() {
         trialExpiringSoon: false,
     });
     const [actionLoading, setActionLoading] = useState(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [createForm, setCreateForm] = useState({ companyName: '', email: '', password: '', name: '', planKey: 'BASE' });
+    const [createLoading, setCreateLoading] = useState(false);
+    const [createError, setCreateError] = useState('');
 
     const load = async () => {
         try {
@@ -93,6 +98,26 @@ export default function AdminTenants() {
         }
     };
 
+    const handleCreateTenant = async (e) => {
+        e.preventDefault();
+        setCreateError('');
+        if (!createForm.companyName || !createForm.email || !createForm.password || !createForm.name) {
+            setCreateError('Todos los campos son requeridos.');
+            return;
+        }
+        try {
+            setCreateLoading(true);
+            await adminService.createTenant(createForm);
+            setShowCreateModal(false);
+            setCreateForm({ companyName: '', email: '', password: '', name: '', planKey: 'BASE' });
+            await load();
+        } catch (err) {
+            setCreateError(err.response?.data?.message || 'Error al crear el tenant.');
+        } finally {
+            setCreateLoading(false);
+        }
+    };
+
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
@@ -102,6 +127,13 @@ export default function AdminTenants() {
                         {tenants.length} tenant{tenants.length !== 1 ? 's' : ''} en el sistema
                     </p>
                 </div>
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                    <Plus size={16} />
+                    Crear Tenant
+                </button>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-4 flex flex-wrap gap-3">
@@ -249,6 +281,100 @@ export default function AdminTenants() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Modal Crear Tenant */}
+            {showCreateModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+                            <h2 className="text-lg font-bold text-white">Crear Tenant</h2>
+                            <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateTenant} className="p-6 space-y-4">
+                            {createError && (
+                                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm">
+                                    {createError}
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Nombre de la Empresa</label>
+                                <input
+                                    type="text"
+                                    value={createForm.companyName}
+                                    onChange={e => setCreateForm({ ...createForm, companyName: e.target.value })}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                                    placeholder="Empresa de Antonio, C.A."
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Nombre del Admin</label>
+                                <input
+                                    type="text"
+                                    value={createForm.name}
+                                    onChange={e => setCreateForm({ ...createForm, name: e.target.value })}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                                    placeholder="Antonio López"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Email del Admin</label>
+                                <input
+                                    type="email"
+                                    value={createForm.email}
+                                    onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                                    placeholder="antonio@empresa.com"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Contraseña</label>
+                                <input
+                                    type="password"
+                                    value={createForm.password}
+                                    onChange={e => setCreateForm({ ...createForm, password: e.target.value })}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                                    placeholder="Mínimo 6 caracteres"
+                                    required
+                                    minLength={6}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Plan</label>
+                                <select
+                                    value={createForm.planKey}
+                                    onChange={e => setCreateForm({ ...createForm, planKey: e.target.value })}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                                >
+                                    <option value="BASE">Plan Base ($49.99/mes)</option>
+                                    <option value="PRO">Plan Pro ($64.99/mes)</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={createLoading}
+                                    className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                    {createLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                                    {createLoading ? 'Creando...' : 'Crear Tenant'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
