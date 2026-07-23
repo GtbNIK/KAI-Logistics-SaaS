@@ -235,7 +235,8 @@ export const getDashboardSummary = async (req, res) => {
 
 export const getMonthlyReportData = async (req, res) => {
     try {
-        if (req.membership.role !== 'ADMIN') {
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
+        if (!isPrivileged) {
             return res.status(403).json({ message: 'No autorizado para emitir reportes' });
         }
 
