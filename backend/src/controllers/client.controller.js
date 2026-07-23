@@ -106,6 +106,13 @@ export const createClient = async (req, res) => {
             });
         }
 
+        // Calcular asignatarios antes de la transacción para usarlo dentro y fuera
+        const creatorRole = req.membership?.role;
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(creatorRole);
+        const finalAssigneeIds = isPrivileged
+            ? assigneeIds
+            : [...new Set([req.user.id, ...assigneeIds])];
+
         const client = await prisma.$transaction(async (tx) => {
             const internalCode = await generateInternalCode(tx);
 
@@ -117,7 +124,7 @@ export const createClient = async (req, res) => {
                     email,
                     phone: normalizedPhone,
                     address,
-                    deliveryAddress,
+                    deliveryAddress: deliveryAddress || null,
                     contactPerson,
                     referencePoint: referencePoint || null,
                     clientDetails: clientDetails || null,
@@ -125,13 +132,7 @@ export const createClient = async (req, res) => {
                 },
             });
 
-            // Auto-asignar al creador si no es OWNER/ADMIN
-            const creatorRole = req.membership?.role;
-            const isPrivileged = ['OWNER', 'ADMIN'].includes(creatorRole);
-            const finalAssigneeIds = isPrivileged
-                ? assigneeIds
-                : [...new Set([req.user.id, ...assigneeIds])];
-
+            // Asignar usuarios al cliente
             if (finalAssigneeIds.length > 0) {
                 await tx.clientAssignment.createMany({
                     data: finalAssigneeIds.map(userId => ({

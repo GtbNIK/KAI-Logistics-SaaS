@@ -547,13 +547,13 @@ model Client {
     tenantId  String
     internalCode String
     name      String
-    rifOrId   String?  // RIF o Cedula
+    rifOrId   String  // RIF o Cedula
     email     String
-    phone     String?  // Telefono
+    phone     String  // Telefono
     address   String
-    deliveryAddress String
+    deliveryAddress String?
     contactPerson  String
-    referencePoint String
+    referencePoint String?
 
     clientDetails    String?  // Descripcion de lo que hace o pide comunmente
     deactivationNote String?  @db.Text // Nota al desactivar
