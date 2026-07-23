@@ -53,7 +53,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
     );
     const providerOptions = useMemo(() =>
         canQuickCreateSvcProvider
-            ? [...baseProviderOptions, { value: 'NEW', label: '+ Agregar nuevo proveedor', isAction: true }]
+            ? [...baseProviderOptions, { value: 'NEW', label: '+ Agregar nuevo proveedor de Servicios', isAction: true }]
             : baseProviderOptions,
         [baseProviderOptions, canQuickCreateSvcProvider]
     );
@@ -156,7 +156,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
         const selectedEmployee = beneficiaryType === 'employee' ? employeeUserId : null;
 
         if (!selectedAlly && !selectedProvider && !selectedEmployee) {
-            return showError('Validación', 'Debe seleccionar un aliado, proveedor o empleado');
+            return showError('Validación', 'Debe seleccionar un aliado, un proveedor de servicios o un empleado');
         }
         if (!description.trim()) {
             return showError('Validación', 'La descripción es requerida');
@@ -241,7 +241,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                                 {isEdit ? 'Editar Cuenta por Pagar' : beneficiaryType === 'employee' ? 'Registrar Pago a Empleado' : 'Nueva Cuenta por Pagar'}
                             </h2>
                             <p className="text-xs text-slate-500">
-                                {isEdit ? 'Actualiza la información general' : beneficiaryType === 'employee' ? 'Registra un pago a un empleado' : 'Registra una deuda con un aliado o proveedor'}
+                                {isEdit ? 'Actualiza la información general' : beneficiaryType === 'employee' ? 'Registra un pago a un empleado' : 'Registra una deuda con un aliado o Proveedor de Servicios'}
                             </p>
                         </div>
                     </div>
@@ -274,7 +274,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                                     }`}
                                     onClick={() => { setBeneficiaryType('provider'); setAllyId(''); setEmployeeUserId(''); }}
                                 >
-                                    Proveedor
+                                    Servicio
                                 </button>
                                 <button type="button"
                                     className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
@@ -317,7 +317,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                                     }
                                     setSvcProviderId(opt?.value || '');
                                 }}
-                                placeholder="Seleccionar proveedor..."
+                                placeholder="Seleccionar proveedor de servicios..."
                                 isClearable
                                 styles={{
                                     ...selectStyles,
