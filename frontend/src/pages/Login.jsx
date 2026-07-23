@@ -104,12 +104,14 @@ export default function Login() {
                     </button>
                 </form>
 
+                {/* TODO: Habilitar cuando se implemente registro público de usuarios
                 <div className="mt-6 text-center text-sm text-slate-300">
                     ¿No tienes cuenta?{' '}
                     <Link to="/signup" className="text-blue-300 hover:text-blue-200 underline">
                         Crear cuenta gratis
                     </Link>
                 </div>
+                */}
             </div>
         </div>
     );

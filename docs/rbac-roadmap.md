@@ -90,3 +90,7 @@ Este workaround NO requiere migración de roles.
 - Trimestralmente
 - Cuando aparezca un nuevo cliente grande
 - Cuando haya bandwidth para un refactor de 1-2 sprints
+
+## Pendientes varios
+
+- **Registro público de usuarios**: El link "Crear cuenta gratis" en `Login.jsx` está deshabilitado. Solo el OWNER/ADMIN puede crear usuarios desde el panel. Evaluar si se habilita registro público cuando se necesite onboarding de clientes sin intervención manual.
