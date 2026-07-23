@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import prisma from '../config/database.js';
 import { generateSuperAdminToken } from '../middleware/auth.middleware.js';
 import { runWorkers, getWorkersStatus } from '../workers/index.js';
-import { PLANS, getPlanLimits } from '../config/plans.config.js';
+import { PLANS, getPlanLimits, TRIAL_DURATION_DAYS } from '../config/plans.config.js';
 
 const SESSION_MAX_AGE_MS = 60 * 60 * 1000;
 const COOKIE_OPTIONS = (isProduction) => ({
