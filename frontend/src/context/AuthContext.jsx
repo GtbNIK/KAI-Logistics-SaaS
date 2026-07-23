@@ -71,6 +71,12 @@ export const AuthProvider = ({ children }) => {
         try {
             const res = await api.get('/auth/me');
             applySession(res.data);
+            // Si /auth/me no devuelve expiresAt, restaurarlo desde localStorage
+            // para que el reloj de sesión funcione al recargar la página
+            if (!res.data.expiresAt) {
+                const stored = (() => { try { return localStorage.getItem('sessionExpiresAt'); } catch { return null; } })();
+                if (stored) setSessionExpiresAt(new Date(stored));
+            }
         } catch (e) { void e; setUser(null); setSessionExpiresAt(null); }
         finally { setLoading(false); }
     }, [applySession]);
