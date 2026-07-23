@@ -447,6 +447,30 @@ const Settings = () => {
                                     />
                                 </div>
                             </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Dirección de la Empresa <span className="text-slate-400 text-xs font-normal">(aparecerá en PDFs)</span></label>
+                                    <input
+                                        type="text"
+                                        name="companyAddress"
+                                        value={formData.companyAddress || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                        placeholder="Ej: NAGUANAGUA, Edo. Carabobo."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono de contacto de la empresa <span className="text-slate-400 text-xs font-normal">(aparecerá en PDFs)</span></label>
+                                    <input
+                                        type="text"
+                                        name="companyPhone"
+                                        value={formData.companyPhone || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                        placeholder="Ej: +58 412 123 4567"
+                                    />
+                                </div>
+                            </div>
                             <LogoDropzone
                                 currentUrl={pendingRemovals.removeLogo ? null : formData.logoUrl}
                                 file={pendingFiles.logo}

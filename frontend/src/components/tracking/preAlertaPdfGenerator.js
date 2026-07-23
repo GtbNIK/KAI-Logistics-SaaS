@@ -108,14 +108,18 @@ export const generatePreAlertaPdf = async (shipment, images = [], currentUser, s
     // ── Info de empresa (izquierda) ──
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('Import Services, C.A.', margin, y);
+    doc.text(settings?.companyName || 'Empresa', margin, y);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     y += 5;
-    doc.text('NAGUANAGUA, Edo. Carabobo.', margin, y);
-    y += 5;
-    doc.text('Ph +584120691515 / +584123334117', margin, y);
-    y += 5;
+    if (settings?.companyAddress) {
+        doc.text(settings.companyAddress, margin, y);
+        y += 5;
+    }
+    if (settings?.companyPhone) {
+        doc.text(`Ph ${settings.companyPhone}`, margin, y);
+        y += 5;
+    }
     if (currentUser?.email) {
         doc.text(currentUser.email, margin, y);
         y += 5;

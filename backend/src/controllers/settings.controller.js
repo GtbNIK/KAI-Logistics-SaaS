@@ -47,7 +47,7 @@ export const getSettings = async (req, res) => {
  */
 export const updateSettings = async (req, res) => {
     try {
-        const { companyName, rif, primaryColor, secondaryColor, headerText, footerText, logoUrl, paymentInfo } = req.body;
+        const { companyName, rif, primaryColor, secondaryColor, headerText, footerText, logoUrl, paymentInfo, companyAddress, companyPhone } = req.body;
         
         const existing = await prisma.companySettings.findFirst();
         
@@ -64,7 +64,9 @@ export const updateSettings = async (req, res) => {
             headerText,
             footerText,
             logoUrl,
-            paymentInfo
+            paymentInfo,
+            companyAddress,
+            companyPhone,
         };
 
         const hasFilesToUpload = Boolean(

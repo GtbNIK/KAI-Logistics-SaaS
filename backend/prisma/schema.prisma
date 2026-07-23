@@ -332,6 +332,8 @@ model CompanySettings {
     companyName String  @default("Mi Empresa")
     rif         String?
     logoUrl     String?
+    companyAddress String?
+    companyPhone   String?
 
     // Theme Customization
     primaryColor   String @default("#1E40AF") // Azul neutro
