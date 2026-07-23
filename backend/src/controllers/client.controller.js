@@ -125,9 +125,16 @@ export const createClient = async (req, res) => {
                 },
             });
 
-            if (assigneeIds.length > 0) {
+            // Auto-asignar al creador si no es OWNER/ADMIN
+            const creatorRole = req.membership?.role;
+            const isPrivileged = ['OWNER', 'ADMIN'].includes(creatorRole);
+            const finalAssigneeIds = isPrivileged
+                ? assigneeIds
+                : [...new Set([req.user.id, ...assigneeIds])];
+
+            if (finalAssigneeIds.length > 0) {
                 await tx.clientAssignment.createMany({
-                    data: assigneeIds.map(userId => ({
+                    data: finalAssigneeIds.map(userId => ({
                         clientId: created.id,
                         userId,
                     })),
@@ -137,8 +144,9 @@ export const createClient = async (req, res) => {
             return created;
         });
 
-        // Notificar a los usuarios asignados
-        for (const userId of assigneeIds) {
+        // Notificar a los usuarios asignados (excepto al creador)
+        for (const userId of finalAssigneeIds) {
+            if (userId === req.user.id) continue;
             await createNotification({
                 tenantId: req.tenant.id,
                 title: 'Cliente asignado',

@@ -124,8 +124,16 @@ export const createDeliveryNote = async (req, res) => {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
 
+        const lastDN = await prisma.deliveryNote.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastDN?.number || 0) + 1;
+
         const note = await prisma.deliveryNote.create({
             data: {
+                number: nextNumber,
                 clientId,
                 quoteId: quoteId || null,
                 deliveredTo: deliveredTo || null,

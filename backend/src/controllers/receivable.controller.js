@@ -448,8 +448,16 @@ export const registerPayment = async (req, res) => {
             });
 
             // 2. Crear recibo asociado (opcional pero recomendado en el schema actual)
+            const lastReceipt = await tx.paymentReceipt.findFirst({
+                where: { tenantId: req.tenant.id },
+                orderBy: { receiptNumber: 'desc' },
+                select: { receiptNumber: true }
+            });
+            const nextReceiptNumber = (lastReceipt?.receiptNumber || 0) + 1;
+
             const receipt = await tx.paymentReceipt.create({
                 data: {
+                    receiptNumber: nextReceiptNumber,
                     paymentTransactionId: payment.id,
                     clientId: receivable.clientId,
                     amount: paymentAmount,

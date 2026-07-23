@@ -228,6 +228,15 @@ vendedorId, currentLocation, arrivalDate,
             data.consolidadoTransitTime = consolidadoTransitTime ? parseInt(consolidadoTransitTime) : null;
         }
 
+        const lastShipment = await prisma.shipment.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastShipment?.number || 0) + 1;
+
+        data.number = nextNumber;
+
         const shipment = await prisma.shipment.create({
             data,
             include: {
