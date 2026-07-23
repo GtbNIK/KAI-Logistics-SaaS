@@ -94,3 +94,4 @@ Este workaround NO requiere migración de roles.
 ## Pendientes varios
 
 - **Registro público de usuarios**: El link "Crear cuenta gratis" en `Login.jsx` está deshabilitado. Solo el OWNER/ADMIN puede crear usuarios desde el panel. Evaluar si se habilita registro público cuando se necesite onboarding de clientes sin intervención manual.
+- **Gráficas por Cliente en PDF de cierre mensual**: La página 4 (Gráficas por Cliente) en `frontend/src/components/tracking/TrackingMonthlyClosePDF.jsx` está comentada. Solo se genera la página 3 (Gráficas por Vendedor). Habilitar cuando se optimice la generación de gráficas.

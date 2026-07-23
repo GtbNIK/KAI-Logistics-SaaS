@@ -300,6 +300,7 @@ export const generateMonthlyClosePDF = async ({ data, settings, chartsRef, chart
         }
     }
 
+    /* TODO: Habilitar cuando se optimicen las gráficas
     // ── Página 4: Gráficas por Cliente ──
     if (chartsByClientRef?.current) {
         doc.addPage();
@@ -323,6 +324,7 @@ export const generateMonthlyClosePDF = async ({ data, settings, chartsRef, chart
             doc.text('Las gráficas por cliente no pudieron ser generadas.', pageW / 2, 50, { align: 'center' });
         }
     }
+    */
 
     // Footer en todas las páginas
     const today = new Date().toLocaleDateString('es-VE');
