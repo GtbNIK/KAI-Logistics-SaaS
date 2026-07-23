@@ -5,11 +5,12 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { calculateItemSubtotal } from '../../utils/pricing';
-import axios from 'axios';
+import api from '../../lib/api';
 import { buildPortLookup, formatRouteDisplay, replaceRouteCodesWithNames } from '../../utils/locationFormatters';
 import { getCurrencySymbol } from '../../utils/currency';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
 
-const DEFAULT_LOGO = '/1.png';
+const DEFAULT_LOGO = '';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_COMPANY_SLOGAN = 'Soluciones logísticas integrales';
 const DEFAULT_PRIMARY_COLOR = '#003366';
@@ -42,34 +43,9 @@ const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = 
     return canvas.toDataURL('image/jpeg', quality);
 };
 
-const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
-    const srcW = img.naturalWidth || img.width;
-    const srcH = img.naturalHeight || img.height;
-
-    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
-    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
-    const scale = Math.min(scaleW, scaleH, 1);
-
-    const outW = Math.max(1, Math.floor(srcW * scale));
-    const outH = Math.max(1, Math.floor(srcH * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, outW, outH);
-
-    return canvas.toDataURL('image/png');
-};
-
 /**
  * Modal para vista previa y generación de PDF de aviso de cobro
  */
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
 const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
     const [generating, setGenerating] = useState(false);
     const [showNotes, setShowNotes] = useState(true);
@@ -81,7 +57,7 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
         if (!isOpen) return;
         const fetchPorts = async () => {
             try {
-                const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+                const res = await api.get('/ports?all=true');
                 setPortCatalog(res.data.data || res.data || []);
             } catch (error) {
                 console.error('Error loading ports for PaymentNotice PDF:', error);
@@ -180,17 +156,14 @@ const PaymentNoticePDFModal = ({ isOpen, onClose, notice }) => {
             }
 
             // ── Logo ──
-            const img = new window.Image();
-            img.crossOrigin = 'anonymous';
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = logoUrl;
-            });
-            const logoWidth = 50;
-            const logoHeight = 13.5;
-            const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
-            doc.addImage(logoPng, 'PNG', margin, yPos, logoWidth, logoHeight);
+            try {
+                const logo = await loadLogoForPdf(logoUrl, 50, 18);
+                if (logo) {
+                    doc.addImage(logo.dataUrl, 'PNG', margin, yPos, logo.widthMm, logo.heightMm);
+                }
+            } catch (e) {
+                console.warn('Error loading logo:', e);
+            }
 
             // ── Título ──
             doc.setFontSize(22);

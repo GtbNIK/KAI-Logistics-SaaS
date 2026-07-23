@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { useNavigate } from 'react-router-dom';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import dashboardService from '../services/dashboard.service';
 import { notificationService } from '../services/notification.service';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -207,6 +208,7 @@ const DateRangeModal = ({ onClose, onApply, primaryColor, initialFrom, initialTo
 
 const Dashboard = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const { settings } = useSettings();
     const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
@@ -268,7 +270,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         fetchSummary(startDate, endDate, chartRange);
-        if (user?.role === 'ADMIN') {
+        if (effectiveRole === 'ADMIN') {
             fetchNotifications();
             const now = new Date();
             if (isFirstDayOfMonth(now) || isLastDayOfMonth(now)) {
@@ -277,7 +279,7 @@ const Dashboard = () => {
                 }
             }
         }
-    }, [user?.role]);
+    }, [effectiveRole]);
 
     // Cuando el usuario cambia el switch al "último mes"
     const handleSwitchToCurrentMonth = () => {
@@ -449,7 +451,7 @@ const Dashboard = () => {
                         </button>
                     </div>
 
-                    {user?.role === 'ADMIN' && (
+                    {effectiveRole === 'ADMIN' && (
                         <ClosureReportButton dateRange={{ startDate, endDate }} chartRef={chartRef} donutChartRef={donutChartRef} metrics={metrics} />
                     )}
                 </div>
@@ -465,17 +467,17 @@ const Dashboard = () => {
             {!loading && (
                 <>
                     {/* ── Fila 1: KPIs y Actividad Reciente ── */}
-                    <div className={`grid gap-6 items-stretch ${user?.role === 'ADMIN' ? 'xl:grid-cols-[1fr_320px] 2xl:grid-cols-[1fr_360px]' : 'grid-cols-1'}`}>
+                    <div className={`grid gap-6 items-stretch ${effectiveRole === 'ADMIN' ? 'xl:grid-cols-[1fr_320px] 2xl:grid-cols-[1fr_360px]' : 'grid-cols-1'}`}>
                         {/* Columna Izquierda: KPIs */}
-                        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${user?.role === 'ADMIN' ? '2' : '3'} 2xl:grid-cols-${user?.role === 'ADMIN' ? '4' : '3'} gap-6`}>
+                        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${effectiveRole === 'ADMIN' ? '2' : '3'} 2xl:grid-cols-${effectiveRole === 'ADMIN' ? '4' : '3'} gap-6`}>
                             <DashboardInfoCard 
                                 delayClass="[animation-delay:100ms]"
-                                title={user?.role === 'ADMIN' ? "Cotizaciones Aprobadas" : "Tus Cotizaciones Aprobadas"} 
+                                title={effectiveRole === 'ADMIN' ? "Cotizaciones Aprobadas" : "Tus Cotizaciones Aprobadas"} 
                                 value={metrics.approvedQuotesCount} 
                                 icon={FileText} colorClass="bg-blue-500 text-blue-500"
                                 subtitle="En rango seleccionado"
                             />
-                            {user?.role === 'ADMIN' && (
+                            {effectiveRole === 'ADMIN' && (
                                 <DashboardInfoCard 
                                     delayClass="[animation-delay:200ms]"
                                     title="Ingresos CXC Cobradas" value={formatMoney(metrics.cxcPaidAmount)} 
@@ -485,12 +487,12 @@ const Dashboard = () => {
                             )}
                             <DashboardInfoCard 
                                 delayClass="[animation-delay:300ms]"
-                                title={user?.role === 'ADMIN' ? "Embarques Pendientes" : "Tus Embarques Pendientes"} 
+                                title={effectiveRole === 'ADMIN' ? "Embarques Pendientes" : "Tus Embarques Pendientes"} 
                                 value={metrics.pendingShipmentsCount} 
                                 icon={Ship} colorClass="bg-amber-500 text-amber-500"
                                 subtitle="En curso (No entregados)"
                             />
-                            {user?.role === 'ADMIN' ? (
+                            {effectiveRole === 'ADMIN' ? (
                                 <DashboardInfoCard 
                                     delayClass="[animation-delay:400ms]"
                                     title="CXP pendientes" value={formatMoney(metrics.cxpPendingAmount)} 
@@ -508,7 +510,7 @@ const Dashboard = () => {
                         </div>
 
                         {/* Columna Derecha: Panel de Actividad Reciente (solo ADMIN) */}
-                        {user?.role === 'ADMIN' && (
+                        {effectiveRole === 'ADMIN' && (
                             <div className="bg-white rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col overflow-hidden max-h-[800px] xl:max-h-none h-full animate-in fade-in-0 slide-in-from-right-4 fill-mode-backwards duration-700 [animation-delay:400ms]">
                                 <div className="px-6 py-5 border-b border-slate-100/60 bg-transparent flex items-center justify-between shrink-0">
                                     <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 tracking-wide">
@@ -555,7 +557,7 @@ const Dashboard = () => {
 
                     {/* ── Fila 2: Gráficas ──────────────────── */}
                     <div className={`grid gap-6 items-stretch ${
-                        user?.role === 'ADMIN' 
+                        effectiveRole === 'ADMIN' 
                             ? 'grid-cols-1 lg:grid-cols-[1fr_320px] 2xl:grid-cols-[1fr_400px]' 
                             : 'grid-cols-1'
                     }`}>
@@ -566,7 +568,7 @@ const Dashboard = () => {
                                     <div className="p-2 bg-slate-50 rounded-xl">
                                         <TrendingUp className="w-4 h-4 text-slate-500" strokeWidth={2.5} />
                                     </div>
-                                    {user?.role === 'ADMIN' ? "Cotizaciones Creadas" : "Tus Cotizaciones Creadas"}
+                                    {effectiveRole === 'ADMIN' ? "Cotizaciones Creadas" : "Tus Cotizaciones Creadas"}
                                 </h3>
                                 <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
                                     {CHART_RANGE_OPTIONS.map(opt => (
@@ -612,7 +614,7 @@ const Dashboard = () => {
                         </div>
 
                         {/* Donut: Distribución de servicios en Avisos de Cobro */}
-                        {user?.role === 'ADMIN' && (
+                        {effectiveRole === 'ADMIN' && (
                             <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col min-h-[480px] animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-backwards duration-700 [animation-delay:600ms]">
                                 <div className="flex justify-between items-center mb-5">
                                     <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
@@ -704,7 +706,7 @@ const Dashboard = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                         <PreviewTable 
                             delayClass="[animation-delay:700ms]"
-                            title={user?.role === 'ADMIN' ? "Últimas Notas de Entrega" : "Tus Últimas Notas de Entrega"}
+                            title={effectiveRole === 'ADMIN' ? "Últimas Notas de Entrega" : "Tus Últimas Notas de Entrega"}
                             icon={FileText} items={previews.latestDeliveryNotes} primaryColor={primaryColor}
                             onNavigate={() => navigate('/dashboard/nota-entrega')}
                             emptyMessage="Sin notas emitidas en este rango."
@@ -720,7 +722,7 @@ const Dashboard = () => {
                         />
                         <PreviewTable 
                             delayClass="[animation-delay:800ms]"
-                            title={user?.role === 'ADMIN' ? "Top Clientes" : "Tus Mejores Clientes"}
+                            title={effectiveRole === 'ADMIN' ? "Top Clientes" : "Tus Mejores Clientes"}
                             icon={Users} items={previews.topClients} primaryColor={primaryColor}
                             onNavigate={() => navigate('/dashboard/clientes')}
                             emptyMessage="No se han aprobado cotizaciones."
@@ -740,7 +742,7 @@ const Dashboard = () => {
                         />
                         <PreviewTable 
                             delayClass="[animation-delay:900ms]"
-                            title={user?.role === 'ADMIN' ? "Últimos Avisos de Cobro" : "Tus Últimos Avisos de Cobro"}
+                            title={effectiveRole === 'ADMIN' ? "Últimos Avisos de Cobro" : "Tus Últimos Avisos de Cobro"}
                             icon={FileText} items={previews.latestPaymentNotices} primaryColor={primaryColor}
                             onNavigate={() => navigate('/dashboard/aviso-cobro')}
                             emptyMessage="Sin avisos emitidos en este rango."

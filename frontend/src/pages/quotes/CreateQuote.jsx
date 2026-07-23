@@ -18,6 +18,8 @@ import airlineService from '../../services/airline.service';
 import QuotePDFModal from '../../components/quotes/QuotePDFModal';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 import DatePicker from '../../components/shared/DatePicker';
 import QuickCreateServiceModal from '../../components/shared/QuickCreateServiceModal';
 import QuickCreatePortModal from '../../components/shared/QuickCreatePortModal';
@@ -46,7 +48,7 @@ const QuoteItemRow = ({
     canRemove,
     onRateFound,
     onQuickCreate,
-    userRole,
+    canQuickCreate,
     currency,
 }) => {
     const [searchingRate, setSearchingRate] = useState(false);
@@ -201,7 +203,7 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Servicio</label>
                     <Select
-                        options={userRole === 'ADMIN' ? [...services, { value: 'NEW', label: '+ Crear nuevo servicio', isAction: true }] : services}
+                        options={canQuickCreate.Service ? [...services, { value: 'NEW', label: '+ Crear nuevo servicio', isAction: true }] : services}
                         value={services.find(s => s.value === item.serviceId)}
                         isLoading={loadingData}
                         placeholder="Servicio..."
@@ -256,7 +258,7 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Zona de Destino</label>
                     <Select
-                        options={userRole === 'ADMIN' ? [...zones, { value: 'NEW', label: '+ Crear nueva zona', isAction: true }] : zones}
+                        options={canQuickCreate.Zone ? [...zones, { value: 'NEW', label: '+ Crear nueva zona', isAction: true }] : zones}
                         value={zones.find(z => z.value === item.zoneId)}
                         isLoading={loadingData}
                         placeholder="Zona..."
@@ -289,7 +291,7 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Línea Naviera</label>
                     <Select
-                        options={userRole === 'ADMIN'
+                        options={canQuickCreate.ShippingLine
                             ? [...shippingLines, { value: 'NEW', label: '+ Agregar nueva naviera', isAction: true }]
                             : shippingLines
                         }
@@ -317,7 +319,7 @@ const QuoteItemRow = ({
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Línea Aérea</label>
                     <Select
-                        options={userRole === 'ADMIN'
+                        options={canQuickCreate.AirLine
                             ? [...airLines, { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
                             : airLines
                         }
@@ -346,7 +348,7 @@ const QuoteItemRow = ({
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Origen</label>
 						<Select
-							options={userRole === 'ADMIN' ? [...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }] : ports}
+							options={canQuickCreate.Port ? [...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }] : ports}
 							value={ports.find(p => p.label === item.originPort)}
 							isLoading={loadingData}
 							placeholder="Puerto..."
@@ -376,7 +378,7 @@ const QuoteItemRow = ({
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-500">Puerto Destino</label>
 						<Select
-							options={userRole === 'ADMIN' ? [...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }] : ports}
+							options={canQuickCreate.Port ? [...ports, { value: 'NEW', label: '+ Crear nuevo puerto', isAction: true }] : ports}
 							value={ports.find(p => p.label === item.destinationPort)}
 							isLoading={loadingData}
 							placeholder="Puerto..."
@@ -528,6 +530,13 @@ const CreateQuote = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { showError, showSuccess, showWarning } = useToast();
+    const canQuickCreate = {
+        Service: useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Service),
+        Zone: useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Zone),
+        ShippingLine: useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.ShippingLine),
+        AirLine: useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.AirLine),
+        Port: useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Port),
+    };
     
     const [loadingData, setLoadingData] = useState(false);
     const [clients, setClients] = useState([]);
@@ -713,7 +722,7 @@ const CreateQuote = () => {
                     const service = services.find(s => s.value === item.serviceId);
                     const quantity = parseFloat(item.quantity);
                     const unitPrice = parseFloat(item.unitPrice);
-                    const totalPrice = calculateItemSubtotal(service?.type, quantity, unitPrice);
+                    const totalPrice = calculateItemSubtotal(quantity, unitPrice, service?.type);
                     
                     return {
                         serviceId: item.serviceId,
@@ -812,7 +821,7 @@ const CreateQuote = () => {
                                     setQuickCreateType(type);
                                     setQuickCreateRowIndex(idx);
                                 }}
-								userRole={user?.role}
+								canQuickCreate={canQuickCreate}
 								currency={currency}
 							/>
 						))}

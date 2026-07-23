@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
+import { getScopeFilter, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP } from '../utils/scope.js';
 
 const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
 
@@ -10,12 +11,9 @@ export const getQuotes = async (req, res) => {
         const { page = 1, limit = 10, search, status, clientId, startDate, endDate } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const where = {};
-
-        // Filtro por rol (SALES solo ve sus propias cotizaciones)
-        if (req.user.role === 'SALES') {
-            where.userId = req.user.id;
-        }
+        const where = {
+            ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Quote'),
+        };
 
         // Búsqueda por número, cliente o vendedor
         if (search) {
@@ -73,15 +71,14 @@ export const getQuote = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const quote = await prisma.quote.findUnique({
-            where: { id },
+        const quote = await prisma.quote.findFirst({
+            where: {
+                id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Quote'),
+            },
             include: {
                 client: {
-                    include: {
-                        assignedUsers: {
-                            select: { id: true, name: true }
-                        }
-                    }
+                    select: { id: true, name: true, email: true, internalCode: true }
                 },
                 user: { select: { id: true, name: true } },
                 items: {
@@ -100,10 +97,6 @@ export const getQuote = async (req, res) => {
             return res.status(404).json({ message: 'Cotización no encontrada' });
         }
 
-        // Verificar permisos
-        if (req.user.role === 'SALES' && quote.userId !== req.user.id) {
-            return res.status(403).json({ message: 'No tienes permiso para ver esta cotización' });
-        }
         res.json(quote);
     } catch (error) {
         res.status(500).json({ message: 'Error al obtener la cotización' });
@@ -113,7 +106,7 @@ export const getQuote = async (req, res) => {
 // POST /api/quotes - Crear cotización
 export const createQuote = async (req, res) => {
     try {
-        const { clientId, validUntil, notes, items, currency } = req.body;
+        const { clientId, validUntil, notes, items, currency, showNotesToClient } = req.body;
         const userId = req.user.id;
 
         const quoteCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : 'USD';
@@ -124,12 +117,20 @@ export const createQuote = async (req, res) => {
 
         // Calcular totales
         let totalAmount = 0;
+
+        // Obtener el siguiente número de cotización
+        const lastQuote = await prisma.quote.findFirst({
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastQuote?.number || 0) + 1;
+
         const quoteItems = await Promise.all(items.map(async (item) => {
             const quantity = parseFloat(item.quantity) || 1;
             const unitPrice = parseFloat(item.unitPrice) || 0;
             
             // Obtener el tipo de servicio para aplicar reglas de pricing
-            const service = await prisma.service.findUnique({
+            const service = await prisma.service.findFirst({
                 where: { id: item.serviceId },
                 select: { type: true }
             });
@@ -138,6 +139,7 @@ export const createQuote = async (req, res) => {
             totalAmount += totalPrice;
 
             return {
+                tenantId: req.tenant.id,
                 serviceId: item.serviceId,
                 allyId: item.allyId || null,
                 zoneId: item.zoneId || null,
@@ -157,6 +159,7 @@ export const createQuote = async (req, res) => {
             data: {
                 clientId,
                 userId,
+                number: nextNumber,
                 currency: quoteCurrency,
                 validUntil: validUntil ? new Date(validUntil) : null,
                 notes,
@@ -197,16 +200,14 @@ export const updateQuote = async (req, res) => {
 
         const quoteCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : undefined;
 
-        const existingQuote = await prisma.quote.findUnique({ where: { id } });
+        const scopeFilter = getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Quote');
+        const existingQuote = await prisma.quote.findFirst({ where: { id, ...scopeFilter } });
 
         if (!existingQuote) {
             return res.status(404).json({ message: 'Cotización no encontrada' });
         }
 
-        // Verificar permisos y estado
-        if (req.user.role === 'SALES' && existingQuote.userId !== req.user.id) {
-            return res.status(403).json({ message: 'No tienes permiso para editar esta cotización' });
-        }
+        // Verificar estado
 
         if (existingQuote.status !== 'DRAFT') {
             return res.status(400).json({ message: 'Solo se pueden editar cotizaciones en borrador' });
@@ -224,7 +225,7 @@ export const updateQuote = async (req, res) => {
                 const unitPrice = parseFloat(item.unitPrice) || 0;
                 
                 // Obtener el tipo de servicio para aplicar reglas de pricing
-                const service = await prisma.service.findUnique({
+                const service = await prisma.service.findFirst({
                     where: { id: item.serviceId },
                     select: { type: true }
                 });
@@ -233,6 +234,7 @@ export const updateQuote = async (req, res) => {
                 totalAmount += totalPrice;
                 
                 return {
+                    tenantId: req.tenant.id,
                     serviceId: item.serviceId,
                     allyId: item.allyId || null,
                     zoneId: item.zoneId || null,
@@ -303,7 +305,7 @@ export const updateQuoteStatus = async (req, res) => {
             return res.status(400).json({ message: 'Estado inválido' });
         }
 
-        const quote = await prisma.quote.findUnique({ where: { id } });
+        const quote = await prisma.quote.findFirst({ where: { id } });
         if (!quote) return res.status(404).json({ message: 'Cotización no encontrada' });
 
         // Validaciones de transición (ej. no puedes pasar de REJECTED a DRAFT directamente sin lógica extra, etc)
@@ -337,16 +339,13 @@ export const updateQuoteStatus = async (req, res) => {
 export const deleteQuote = async (req, res) => {
     try {
         const { id } = req.params;
-        const quote = await prisma.quote.findUnique({ where: { id } });
+        const scopeFilter = getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Quote');
+        const quote = await prisma.quote.findFirst({ where: { id, ...scopeFilter } });
 
         if (!quote) return res.status(404).json({ message: 'Cotización no encontrada' });
 
         if (quote.status !== 'DRAFT') {
             return res.status(400).json({ message: 'Solo se pueden eliminar borradores' });
-        }
-
-        if (req.user.role === 'SALES' && quote.userId !== req.user.id) {
-            return res.status(403).json({ message: 'No tienes permiso' });
         }
 
         await prisma.quoteItem.deleteMany({ where: { quoteId: id } });

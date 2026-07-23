@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MapPin, Anchor } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import zoneService from '../../services/zone.service';
 import { zoneConfig } from '../../config/zoneConfig.jsx';
 import portService from '../../services/port.service';
@@ -32,6 +33,7 @@ const adaptedPortService = {
 
 const Zones = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [detailItem, setDetailItem] = useState(null);
 	const [portDetailItem, setPortDetailItem] = useState(null);
 	const [activeTab, setActiveTab] = useState('zones');
@@ -194,7 +196,7 @@ const Zones = () => {
                     <p className="text-slate-500 text-sm mt-1">Administra las zonas y el catálogo de puertos</p>
                 </div>
                 
-                {user?.role === 'ADMIN' && (
+                {effectiveRole === 'ADMIN' && (
 					<button
 						onClick={() => (activeTab === 'ports' ? openCreatePortForm() : openCreateForm())}
 						className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
@@ -248,8 +250,8 @@ const Zones = () => {
 					onToggleStatus={openToggleConfirm}
 					entityName={zoneConfig.entityName}
 					entityNamePlural={zoneConfig.entityNamePlural}
-					canDelete={user?.role === 'ADMIN'}
-					showToggle={user?.role === 'ADMIN'}
+					canDelete={effectiveRole === 'ADMIN'}
+					showToggle={effectiveRole === 'ADMIN'}
 					showStatusFilter={true}
 					codeColor={zoneConfig.codeColor}
 				/>
@@ -273,8 +275,8 @@ const Zones = () => {
 					onToggleStatus={openTogglePortConfirm}
 					entityName={portConfig.entityName}
 					entityNamePlural={portConfig.entityNamePlural}
-					canDelete={user?.role === 'ADMIN'}
-					showToggle={user?.role === 'ADMIN'}
+					canDelete={effectiveRole === 'ADMIN'}
+					showToggle={effectiveRole === 'ADMIN'}
 					showStatusFilter={true}
 					codeColor={portConfig.codeColor}
 				/>

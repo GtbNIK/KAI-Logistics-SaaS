@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -13,13 +14,11 @@ export const getDeliveryNotes = async (req, res) => {
     try {
         const { search = '', page = 1, limit = 10, status } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        const isSales = req.user.role === 'SALES';
 
         const where = { deletedAt: null };
-
-        // Filtrar por clientes asignados si es vendedor
-        if (isSales) {
-            where.client = { assignedUsers: { some: { id: req.user.id } } };
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
+        if (!isPrivileged) {
+            where.client = { clientAssignments: { some: { userId: req.user.id } } };
         }
 
         // Filtro por estado
@@ -37,9 +36,9 @@ export const getDeliveryNotes = async (req, res) => {
                 ]
             };
 
-            if (isSales) {
+            if (!isPrivileged) {
                 where.AND = [
-                    { client: { assignedUsers: { some: { id: req.user.id } } } },
+                    { client: { clientAssignments: { some: { userId: req.user.id } } } },
                     searchConditions
                 ];
                 delete where.client;
@@ -79,10 +78,13 @@ export const getDeliveryNoteById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const note = await prisma.deliveryNote.findUnique({
-            where: { id },
+        const note = await prisma.deliveryNote.findFirst({
+            where: {
+                id,
+                ...(['OWNER', 'ADMIN'].includes(req.membership.role) ? {} : { client: { clientAssignments: { some: { userId: req.user.id } } } }),
+            },
             include: {
-                client: { include: { assignedUsers: { select: { id: true } } } },
+                client: { select: { name: true, rifOrId: true } },
                 quote: { select: { number: true } },
                 items: true,
             }
@@ -90,11 +92,6 @@ export const getDeliveryNoteById = async (req, res) => {
 
         if (!note || note.deletedAt) {
             return res.status(404).json({ message: 'Nota de entrega no encontrada' });
-        }
-
-        // Restricción SALES
-        if (req.user.role === 'SALES' && !note.client.assignedUsers.some(u => u.id === req.user.id)) {
-            return res.status(403).json({ message: 'No tienes acceso a esta nota de entrega' });
         }
 
         res.json(note);
@@ -122,13 +119,21 @@ export const createDeliveryNote = async (req, res) => {
 		}
 
         // Verificar que el cliente exista
-        const client = await prisma.client.findUnique({ where: { id: clientId } });
+        const client = await prisma.client.findFirst({ where: { id: clientId } });
         if (!client) {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
 
+        const lastDN = await prisma.deliveryNote.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastDN?.number || 0) + 1;
+
         const note = await prisma.deliveryNote.create({
             data: {
+                number: nextNumber,
                 clientId,
                 quoteId: quoteId || null,
                 deliveredTo: deliveredTo || null,
@@ -138,6 +143,7 @@ export const createDeliveryNote = async (req, res) => {
                 notes: notes || null,
                 items: {
                     create: items.map(item => ({
+						tenantId: req.tenant.id,
 						d2dItemId: item.d2dItemId || null,
                         description: item.description,
                         quantity: item.quantity,
@@ -162,7 +168,7 @@ export const updateDeliveryNote = async (req, res) => {
         const { id } = req.params;
 		const { clientId, deliveredTo, contactPhone, deliveryAddress, warehouseNumber, notes, items } = req.body;
 
-        const existing = await prisma.deliveryNote.findUnique({ where: { id } });
+        const existing = await prisma.deliveryNote.findFirst({ where: { id } });
         if (!existing || existing.deletedAt) {
             return res.status(404).json({ message: 'Nota de entrega no encontrada' });
         }
@@ -186,6 +192,7 @@ export const updateDeliveryNote = async (req, res) => {
                     notes: notes ?? existing.notes,
                     items: {
                         create: (items || []).map(item => ({
+							tenantId: req.tenant.id,
 							d2dItemId: item.d2dItemId || null,
                             description: item.description,
                             quantity: item.quantity,
@@ -216,7 +223,7 @@ export const updateDeliveryNoteStatus = async (req, res) => {
             return res.status(400).json({ message: 'Estado no válido' });
         }
 
-        const existing = await prisma.deliveryNote.findUnique({ where: { id } });
+        const existing = await prisma.deliveryNote.findFirst({ where: { id } });
         if (!existing || existing.deletedAt) {
             return res.status(404).json({ message: 'Nota de entrega no encontrada' });
         }
@@ -264,7 +271,7 @@ export const deleteDeliveryNote = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existing = await prisma.deliveryNote.findUnique({
+        const existing = await prisma.deliveryNote.findFirst({
             where: { id }
         });
 

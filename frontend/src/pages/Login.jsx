@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -13,10 +16,13 @@ export default function Login() {
         e.preventDefault();
         setError('');
         try {
+            setLoading(true);
             await login(email, password);
             navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || 'Error al iniciar sesión');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -36,13 +42,11 @@ export default function Login() {
                 
                 {/* Logo & Header */}
                 <div className="flex flex-col items-center mb-8">
-                    <img 
-                        src="/2.png" 
-                        alt="Import Services Logo" 
-                        className="h-20 mb-4 drop-shadow-md"
-                    />
-                    <div className="text-center text-white">
-                        <h1 className="text-2xl font-bold tracking-wide">ERP - Import Services</h1>
+                    <div className="h-16 w-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+                        <span className="text-sm font-bold text-slate-300">KAI</span>
+                    </div>
+                    <div className="text-center text-white mt-3">
+                        <h1 className="text-2xl font-bold tracking-wide">KAI Logistics</h1>
                         <p className="text-blue-200 text-sm font-light tracking-widest uppercase mt-1">
                             Inicio de Sesión
                         </p>
@@ -71,23 +75,43 @@ export default function Login() {
 
                     <div className="space-y-1">
                         <label className="text-blue-100 text-xs font-medium ml-1">Contraseña</label>
-                        <input
-                            type="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent transition-all backdrop-blur-sm"
-                            required
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 pr-12 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent transition-all backdrop-blur-sm"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(prev => !prev)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full py-3 px-4 bg-secondary hover:bg-orange-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-orange-500/30 transition-all duration-300 transform hover:-translate-y-0.5"
+                        disabled={loading}
+                        className="w-full py-3 px-4 bg-secondary hover:bg-orange-600 disabled:bg-orange-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-orange-500/30 transition-all duration-300 transform hover:-translate-y-0.5 disabled:transform-none"
                     >
-                        Entrar
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </button>
                 </form>
+
+                {/* TODO: Habilitar cuando se implemente registro público de usuarios
+                <div className="mt-6 text-center text-sm text-slate-300">
+                    ¿No tienes cuenta?{' '}
+                    <Link to="/signup" className="text-blue-300 hover:text-blue-200 underline">
+                        Crear cuenta gratis
+                    </Link>
+                </div>
+                */}
             </div>
         </div>
     );

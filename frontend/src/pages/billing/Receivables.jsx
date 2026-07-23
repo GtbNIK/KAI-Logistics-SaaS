@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, Plus, Trash2, Edit } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
@@ -13,8 +14,6 @@ import { receivableConfig } from '../../config/receivableConfig';
 import ReceivableDetailModal from '../../components/billing/ReceivableDetailModal';
 import RegisterPaymentModal from '../../components/billing/RegisterPaymentModal';
 import CreateReceivableModal from '../../components/billing/CreateReceivableModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // ─── Hook de datos ────────────────────────────────────────────────────────────
 const useReceivables = () => {
@@ -40,7 +39,7 @@ const useReceivables = () => {
         try {
             const params = new URLSearchParams({ page, limit: 10, search: debouncedSearch });
             if (statusFilter) params.append('status', statusFilter);
-            const res = await axios.get(`${API_URL}/receivables?${params}`);
+            const res = await api.get(`/receivables?${params}`);
             setItems(res.data.data || []);
             setTotalItems(res.data.meta?.total || 0);
             setTotalPages(res.data.meta?.totalPages || 1);
@@ -69,6 +68,7 @@ const Receivables = () => {
     const [toDelete, setToDelete] = useState(null);
     const [editingReceivable, setEditingReceivable] = useState(null);
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const { showSuccess, showError } = useToast();
     const {
         items, loading, page, setPage, totalPages, totalItems,
@@ -81,7 +81,7 @@ const Receivables = () => {
     }, 0);
 
     // Auto-open modal if URL contains ?id=
-    useAutoOpenModal(setViewingReceivable, id => axios.get(`${API_URL}/receivables/${id}`));
+    useAutoOpenModal(setViewingReceivable, id => api.get(`/receivables/${id}`));
 
     const handleRegisterPayment = (r) => {
         setViewingReceivable(null);
@@ -125,7 +125,7 @@ const Receivables = () => {
                 )}
             </div>
 
-            {user?.role === 'ADMIN' && (
+            {effectiveRole === 'ADMIN' && (
                 <div className="flex justify-end">
                     <button
                         onClick={() => setCreatingReceivable(true)}

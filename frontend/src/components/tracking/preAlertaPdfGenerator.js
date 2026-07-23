@@ -6,7 +6,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { loadImage, resizeImage, compressImageFile } from '../../utils/imageHelpers';
+import { loadImage, loadLogoForPdf, compressImageFile } from '../../utils/imageHelpers';
 
 const formatNumber = (n, decimals = 2) => {
     if (n === null || n === undefined || n === '') return '';
@@ -72,12 +72,14 @@ export const generatePreAlertaPdf = async (shipment, images = [], currentUser, s
 
     // ── Logo ──
     try {
-        const logoUrl = settings?.logoUrl || '/1.png';
-        const logoImg = await loadImage(logoUrl);
-        const logoBase64 = await resizeImage(logoImg, { maxWidth: 1200, maxHeight: 600, format: 'png' });
-        const logoWidthMm = 45;
-        const logoHeightMm = logoWidthMm * (logoImg.height / logoImg.width);
-        doc.addImage(logoBase64, 'PNG', margin, y, logoWidthMm, logoHeightMm);
+        const logoUrl = settings?.logoUrl || '';
+        if (!logoUrl) throw new Error('No logo URL');
+        const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+        const fullLogoUrl = logoUrl.startsWith('http') ? logoUrl : `${API_BASE}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
+        const logo = await loadLogoForPdf(fullLogoUrl, 45, 16);
+        if (logo) {
+            doc.addImage(logo.dataUrl, 'PNG', margin, y, logo.widthMm, logo.heightMm);
+        }
     } catch (e) {
         console.warn('No se pudo cargar el logo:', e);
     }
@@ -106,14 +108,18 @@ export const generatePreAlertaPdf = async (shipment, images = [], currentUser, s
     // ── Info de empresa (izquierda) ──
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('Import Services, C.A.', margin, y);
+    doc.text(settings?.companyName || 'Empresa', margin, y);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     y += 5;
-    doc.text('NAGUANAGUA, Edo. Carabobo.', margin, y);
-    y += 5;
-    doc.text('Ph +584120691515 / +584123334117', margin, y);
-    y += 5;
+    if (settings?.companyAddress) {
+        doc.text(settings.companyAddress, margin, y);
+        y += 5;
+    }
+    if (settings?.companyPhone) {
+        doc.text(`Ph ${settings.companyPhone}`, margin, y);
+        y += 5;
+    }
     if (currentUser?.email) {
         doc.text(currentUser.email, margin, y);
         y += 5;

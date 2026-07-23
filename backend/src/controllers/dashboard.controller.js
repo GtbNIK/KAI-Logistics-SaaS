@@ -5,8 +5,9 @@ import { getCashFlow } from './cash-flow.controller.js';
 
 export const getDashboardSummary = async (req, res) => {
     try {
-        const userRole = req.user.role;
+        const userRole = req.membership.role;
         const userId = req.user.id;
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(userRole);
 
         const now = new Date();
 
@@ -86,7 +87,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            paymentNoticesQuery.where.client = { assignedUsers: { some: { id: userId } } };
+            paymentNoticesQuery.where.client = { clientAssignments: { some: { userId } } };
         }
         const latestPaymentNotices = await prisma.paymentNotice.findMany(paymentNoticesQuery);
 
@@ -98,7 +99,7 @@ export const getDashboardSummary = async (req, res) => {
             take: 5
         };
         if (userRole === 'SALES') {
-            deliveryNotesQuery.where.client = { assignedUsers: { some: { id: userId } } };
+            deliveryNotesQuery.where.client = { clientAssignments: { some: { userId } } };
         }
         const latestDeliveryNotes = await prisma.deliveryNote.findMany(deliveryNotesQuery);
 
@@ -234,7 +235,8 @@ export const getDashboardSummary = async (req, res) => {
 
 export const getMonthlyReportData = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') {
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
+        if (!isPrivileged) {
             return res.status(403).json({ message: 'No autorizado para emitir reportes' });
         }
 
@@ -281,7 +283,8 @@ export const getMonthlyReportData = async (req, res) => {
                     select: {
                         number: true,
                         ally: { select: { name: true } },
-                        svcProvider: { select: { name: true } }
+                        svcProvider: { select: { name: true } },
+                        employeeUser: { select: { name: true, position: true } }
                     }
                 }
             }
@@ -301,7 +304,7 @@ export const getMonthlyReportData = async (req, res) => {
                 typeStr: 'EGRESO (CXP)',
                 recordDate: t.date,
                 accountNumber: t.payable?.number ? `CXP-${t.payable.number}` : 'N/A',
-                counterparty: t.payable?.ally?.name || t.payable?.svcProvider?.name || 'N/A'
+                counterparty: t.payable?.ally?.name || t.payable?.svcProvider?.name || (t.payable?.employeeUser ? `${t.payable.employeeUser.name} (${t.payable.employeeUser.position || 'Empleado'})` : 'N/A')
             }))
         ].sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
 

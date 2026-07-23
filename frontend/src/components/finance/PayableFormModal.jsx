@@ -1,15 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Receipt, X, Loader2, Wallet } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
-import { useAuth } from '../../context/AuthContext';
 import { getTodayLocal } from '../../utils/dateHelpers';
 import authService from '../../services/auth.service';
 import QuickCreateSvcProviderModal from '../shared/QuickCreateSvcProviderModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 
 const selectStyles = {
     control: (base) => ({ ...base, borderRadius: '0.5rem', borderColor: '#e2e8f0', minHeight: '40px', '&:hover': { borderColor: '#3b82f6' } }),
@@ -18,7 +17,7 @@ const selectStyles = {
 };
 
 const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, defaultEmployeeId }) => {
-    const { user } = useAuth();
+    const canQuickCreateSvcProvider = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.SvcProvider);
     const [allies, setAllies] = useState([]);
     const [svcProviders, setSvcProviders] = useState([]);
     const [users, setUsers] = useState([]);
@@ -53,17 +52,23 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
         [svcProviders]
     );
     const providerOptions = useMemo(() =>
-        user?.role === 'ADMIN'
-            ? [...baseProviderOptions, { value: 'NEW', label: '+ Agregar nuevo proveedor', isAction: true }]
+        canQuickCreateSvcProvider
+            ? [...baseProviderOptions, { value: 'NEW', label: '+ Agregar nuevo proveedor de Servicios', isAction: true }]
             : baseProviderOptions,
-        [baseProviderOptions, user]
+        [baseProviderOptions, canQuickCreateSvcProvider]
     );
 
     const userOptions = useMemo(() =>
         (users || []).filter(u => u.isActive !== false).map(u => ({
             value: u.id,
             label: `${u.name}${u.position ? ' — ' + u.position : ''}`,
-            subLabel: u.position || (u.role === 'ADMIN' ? 'Administrador' : 'Ventas')
+            subLabel: u.position || ({
+                OWNER: 'Administrador',
+                ADMIN: 'Administrador',
+                SALES: 'Ventas',
+                OPERATOR: 'Operador',
+                VIEWER: 'Visor',
+            })[u.role] || ''
         })),
         [users]
     );
@@ -74,8 +79,8 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
         const fetchAll = async () => {
             try {
                 const [aRes, pRes, uRes] = await Promise.all([
-                    axios.get(`${API_URL}/allies?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/svc-providers?all=true`, { withCredentials: true }),
+                    api.get('/allies?all=true'),
+                    api.get('/svc-providers?all=true'),
                     authService.getUsers(),
                 ]);
                 setAllies(aRes.data.data || []);
@@ -151,7 +156,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
         const selectedEmployee = beneficiaryType === 'employee' ? employeeUserId : null;
 
         if (!selectedAlly && !selectedProvider && !selectedEmployee) {
-            return showError('Validación', 'Debe seleccionar un aliado, proveedor o empleado');
+            return showError('Validación', 'Debe seleccionar un aliado, un proveedor de servicios o un empleado');
         }
         if (!description.trim()) {
             return showError('Validación', 'La descripción es requerida');
@@ -185,7 +190,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
             };
 
             if (isEdit) {
-                await axios.put(`${API_URL}/payables/${payable.id}`, payload, { withCredentials: true });
+                await api.put(`/payables/${payable.id}`, payload);
                 showSuccess('Cuenta actualizada', 'La cuenta por pagar se actualizó correctamente');
                 onSuccess?.();
                 onClose?.();
@@ -193,12 +198,12 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
             }
 
             // Crear la cuenta por pagar
-            const res = await axios.post(`${API_URL}/payables`, payload);
+            const res = await api.post('/payables', payload);
             const newPayable = res.data.data || res.data;
 
             // Si es pago a empleado y modo "Ya pagado", crear el abono inmediatamente
             if (beneficiaryType === 'employee' && paymentMode === 'paid' && newPayable?.id) {
-                await axios.post(`${API_URL}/payables/${newPayable.id}/payments`, {
+                await api.post(`/payables/${newPayable.id}/payments`, {
                     amount: parseFloat(amount),
                     method: paymentMethod,
                     reference: paymentReference.trim() || undefined,
@@ -236,7 +241,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                                 {isEdit ? 'Editar Cuenta por Pagar' : beneficiaryType === 'employee' ? 'Registrar Pago a Empleado' : 'Nueva Cuenta por Pagar'}
                             </h2>
                             <p className="text-xs text-slate-500">
-                                {isEdit ? 'Actualiza la información general' : beneficiaryType === 'employee' ? 'Registra un pago a un empleado' : 'Registra una deuda con un aliado o proveedor'}
+                                {isEdit ? 'Actualiza la información general' : beneficiaryType === 'employee' ? 'Registra un pago a un empleado' : 'Registra una deuda con un aliado o Proveedor de Servicios'}
                             </p>
                         </div>
                     </div>
@@ -269,7 +274,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                                     }`}
                                     onClick={() => { setBeneficiaryType('provider'); setAllyId(''); setEmployeeUserId(''); }}
                                 >
-                                    Proveedor
+                                    Servicio
                                 </button>
                                 <button type="button"
                                     className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
@@ -312,7 +317,7 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                                     }
                                     setSvcProviderId(opt?.value || '');
                                 }}
-                                placeholder="Seleccionar proveedor..."
+                                placeholder="Seleccionar proveedor de servicios..."
                                 isClearable
                                 styles={{
                                     ...selectStyles,

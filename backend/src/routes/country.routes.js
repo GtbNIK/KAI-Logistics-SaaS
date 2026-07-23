@@ -1,10 +1,12 @@
 import express from 'express';
 import { getCountries, createCountry } from '../controllers/country.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 
 const router = express.Router();
 
-router.use(verifyToken);
+router.use(verifyToken, tenantResolver(), requireMembership);
 
 /**
  * @route   GET /api/countries
@@ -18,6 +20,6 @@ router.get('/', getCountries);
  * @desc    Crear un nuevo país
  * @access  Private (ADMIN only)
  */
-router.post('/', authorize('ADMIN'), createCountry);
+router.post('/', authorize('OWNER', 'ADMIN'), createCountry);
 
 export default router;

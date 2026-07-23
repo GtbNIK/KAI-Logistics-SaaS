@@ -52,7 +52,12 @@ const useSessionTimer = (sessionExpiresAt, onExpired) => {
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     };
 
-    return { secondsLeft, formattedTime: formatTime(secondsLeft), showWarning, dismissWarning };
+    const resetWarning = () => {
+        setShowWarning(false);
+        setWarningDismissed(false);
+    };
+
+    return { secondsLeft, formattedTime: formatTime(secondsLeft), showWarning, dismissWarning, resetWarning };
 };
 
 export default useSessionTimer;

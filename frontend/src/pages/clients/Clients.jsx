@@ -1,6 +1,7 @@
 import { UserPlus, FileUp, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import clientService from '../../services/client.service';
 import { clientConfig } from '../../config/clientConfig.jsx';
 import useEntityCRUD from '../../hooks/useEntityCRUD';
@@ -11,7 +12,7 @@ import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ConfirmToggleModal from '../../components/modals/ConfirmToggleModal';
 import ImportExcelModal from '../../components/modals/ImportExcelModal';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../lib/api';
 
 // Adaptar servicio para el hook
 const adaptedService = {
@@ -24,23 +25,24 @@ const adaptedService = {
 
 const Clients = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [users, setUsers] = useState([]);
     const [configWithUsers, setConfigWithUsers] = useState(clientConfig);
     
     // Cargar usuarios para el selector de asignación
     useEffect(() => {
-        if (user?.role !== 'ADMIN') {
+        if (effectiveRole !== 'ADMIN') {
             return;
         }
         const fetchUsers = async () => {
             try {
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/users`);
+                const response = await api.get('/auth/users');
                 const userOptions = response.data.users
-                    .filter(u => u.role !== 'ADMIN')
+                    .filter(u => !['OWNER', 'ADMIN'].includes(u.role))
                     .map(u => ({
                         value: u.id,
-                        label: `${u.name} (${u.role})`
+                        label: u.position ? `${u.name} — ${u.position}` : u.name
                     }));
                 
                 // Actualizar clientConfig con los usuarios cargados
@@ -51,7 +53,7 @@ const Clients = () => {
                             return {
                                 ...section,
                                 fields: section.fields.map(field => 
-                                    field.name === 'assignedToIds' 
+                                    field.name === 'assignedUserIds' 
                                         ? { ...field, options: userOptions }
                                         : field
                                 )
@@ -67,11 +69,11 @@ const Clients = () => {
             }
         };
         fetchUsers();
-    }, [user?.role]);
+    }, [effectiveRole]);
 
     const sectionsForUser = configWithUsers.formSections.filter(section => {
         if (!section.showForRoles) return true;
-        return section.showForRoles.includes(user?.role);
+        return section.showForRoles.includes(effectiveRole);
     });
     
     // Hook genérico con toda la lógica CRUD
@@ -206,7 +208,7 @@ const Clients = () => {
                 
                 {/* Botones de acción - ADMIN y SALES pueden crear clientes */}
                 <div className="flex gap-3">
-                    {(user?.role === 'ADMIN') && (
+                    {(effectiveRole === 'ADMIN') && (
                         <button 
                             onClick={handleExportExcel}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95"
@@ -216,7 +218,7 @@ const Clients = () => {
                             Exportar
                         </button>
                     )}
-                    {(user?.role === 'ADMIN') && (
+                    {(effectiveRole === 'ADMIN') && (
                         <button 
                             onClick={() => setIsImportOpen(true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
@@ -226,7 +228,7 @@ const Clients = () => {
                             Importar
                         </button>
                     )}
-                    {(user?.role === 'SALES' || user?.role === 'ADMIN') && (
+                    {(effectiveRole === 'SALES' || effectiveRole === 'ADMIN') && (
                         <button 
                             onClick={openCreateForm}
                             className="bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-95"
@@ -258,12 +260,12 @@ const Clients = () => {
                 onToggleStatus={openToggleConfirm}
                 entityName={clientConfig.entityName}
                 entityNamePlural={clientConfig.entityNamePlural}
-                canDelete={user?.role === 'ADMIN'}
-                canEdit={user?.role === 'ADMIN' || user?.role === 'SALES'}
-                showToggle={user?.role === 'ADMIN'}
+                canDelete={effectiveRole === 'ADMIN'}
+                canEdit={effectiveRole === 'ADMIN' || effectiveRole === 'SALES'}
+                showToggle={effectiveRole === 'ADMIN'}
                 codeColor={clientConfig.codeColor}
                 extraFilters={
-                    user?.role === 'ADMIN' && users.length > 0 && (
+                    effectiveRole === 'ADMIN' && users.length > 0 && (
                         <div className="flex flex-col">
                             <span className="text-xs font-bold text-slate-500 mb-1">Por vendedor:</span>
                             <select

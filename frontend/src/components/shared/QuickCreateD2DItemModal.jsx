@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Loader2, Package } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const QuickCreateD2DItemModal = ({ isOpen, onClose, onSuccess }) => {
     const [loading, setLoading] = useState(false);
@@ -15,7 +13,7 @@ const QuickCreateD2DItemModal = ({ isOpen, onClose, onSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await axios.post(`${API_URL}/d2d-items`, { description: description.trim() }, { withCredentials: true });
+            const response = await api.post('/d2d-items', { description: description.trim() });
             const result = response.data;
             showSuccess('¡Éxito!', 'Item D2D creado correctamente');
             onSuccess({ value: result.id, label: result.description, data: result });

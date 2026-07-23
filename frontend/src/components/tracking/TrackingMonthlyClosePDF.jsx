@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 export const MONTHS_ES = [
@@ -35,43 +36,10 @@ const getFullAssetUrl = (path) => {
     return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
-const loadLogoAsPngDataUrl = async (url) => {
-    if (!url) return null;
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            try {
-                const w = img.naturalWidth || img.width;
-                const h = img.naturalHeight || img.height;
-                const aspect = h / w;
-                const MAX_W = 500;
-                const MAX_H = 250;
-                const scale = Math.min(MAX_W / w, MAX_H / h, 1);
-                const outW = Math.max(1, Math.floor(w * scale));
-                const outH = Math.max(1, Math.floor(h * scale));
-                const canvas = document.createElement('canvas');
-                canvas.width = outW;
-                canvas.height = outH;
-                const ctx = canvas.getContext('2d');
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.clearRect(0, 0, outW, outH);
-                ctx.drawImage(img, 0, 0, outW, outH);
-                resolve({ dataUrl: canvas.toDataURL('image/png'), aspect });
-            } catch { resolve(null); }
-        };
-        img.onerror = () => resolve(null);
-        img.src = getFullAssetUrl(url);
-    });
-};
-
 // ─── PDF: header por página ───────────────────────────────────────────────────
 const addPageHeader = (doc, logoData, companyName, title, rgb, pageW) => {
     if (logoData?.dataUrl) {
-        const logoWidth = 35;
-        const logoHeight = Math.max(8, Math.min(16, logoWidth * (logoData.aspect || 0.4)));
-        doc.addImage(logoData.dataUrl, 'PNG', 12, 7, logoWidth, logoHeight);
+        doc.addImage(logoData.dataUrl, 'PNG', 12, 7, logoData.widthMm, logoData.heightMm);
     }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(17);
@@ -90,12 +58,15 @@ const addPageHeader = (doc, logoData, companyName, title, rgb, pageW) => {
 export const generateMonthlyClosePDF = async ({ data, settings, chartsRef, chartsByClientRef }) => {
     const companyName = settings?.companyName || 'ERP Logística';
     const primaryColor = settings?.primaryColor || '#0ea5e9';
-    const logoUrl = settings?.logoUrl || '/1.png';
+    const logoUrl = settings?.logoUrl || '';
     const rgb = hexToRgb(primaryColor);
     const monthLabel = getMonthLabel(data.month);
 
     let logoData = null;
-    try { logoData = await loadLogoAsPngDataUrl(logoUrl); } catch { logoData = null; }
+    try {
+        const logo = await loadLogoForPdf(logoUrl, 35, 16);
+        logoData = logo;
+    } catch { logoData = null; }
 
     const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4', compress: true });
     const pageW = doc.internal.pageSize.getWidth();
@@ -329,6 +300,7 @@ export const generateMonthlyClosePDF = async ({ data, settings, chartsRef, chart
         }
     }
 
+    /* TODO: Habilitar cuando se optimicen las gráficas
     // ── Página 4: Gráficas por Cliente ──
     if (chartsByClientRef?.current) {
         doc.addPage();
@@ -352,6 +324,7 @@ export const generateMonthlyClosePDF = async ({ data, settings, chartsRef, chart
             doc.text('Las gráficas por cliente no pudieron ser generadas.', pageW / 2, 50, { align: 'center' });
         }
     }
+    */
 
     // Footer en todas las páginas
     const today = new Date().toLocaleDateString('es-VE');

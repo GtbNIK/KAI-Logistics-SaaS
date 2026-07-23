@@ -1,8 +1,29 @@
 import prisma from '../config/database.js';
+import { getCurrentTenantId } from '../lib/tenantContext.js';
 
 // Cache con TTL para catálogos que cambian raramente
 const AIRLINES_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-let AIRLINES_CACHE = { data: null, timestamp: 0 };
+const airlinesCache = new Map(); // key -> { data, expiresAt }
+
+const makeAirLinesKey = (params) => JSON.stringify({ tenantId: getCurrentTenantId(), ...params });
+const getAirLinesCached = (key) => {
+    const e = airlinesCache.get(key);
+    if (!e) return null;
+    if (Date.now() > e.expiresAt) { airlinesCache.delete(key); return null; }
+    return e.data;
+};
+const setAirLinesCached = (key, data) => {
+    airlinesCache.set(key, { data, expiresAt: Date.now() + AIRLINES_CACHE_TTL });
+};
+const clearAirLinesCache = () => {
+    const tenantId = getCurrentTenantId();
+    for (const key of airlinesCache.keys()) {
+        try {
+            const parsed = JSON.parse(key);
+            if (parsed.tenantId === tenantId) airlinesCache.delete(key);
+        } catch { /* key invalida, ignorar */ }
+    }
+};
 
 export const getAirLines = async (req, res) => {
     try {
@@ -10,8 +31,10 @@ export const getAirLines = async (req, res) => {
         const now = Date.now();
 
         // Devolver cache si no hay búsqueda ni banderas y el cache está fresco
-        if (!search && !all && includeInactive !== 'true' && AIRLINES_CACHE.data && (now - AIRLINES_CACHE.timestamp < AIRLINES_CACHE_TTL)) {
-            return res.json({ data: AIRLINES_CACHE.data });
+        const cacheKey = makeAirLinesKey({ search, all, includeInactive });
+        if (!search && !all && includeInactive !== 'true') {
+            const cached = getAirLinesCached(cacheKey);
+            if (cached) return res.json({ data: cached });
         }
         const where = (all || includeInactive === 'true') ? {} : { isActive: true };
         if (search) {
@@ -26,7 +49,7 @@ export const getAirLines = async (req, res) => {
         });
         // Actualizar cache solo si no hay filtros/banderas
         if (!search && !all && includeInactive !== 'true') {
-            AIRLINES_CACHE = { data: lines, timestamp: now };
+            setAirLinesCached(cacheKey, lines);
         }
         res.json({ data: lines });
     } catch (error) {
@@ -42,13 +65,14 @@ export const createAirLine = async (req, res) => {
         if (!finalName) {
             return res.status(400).json({ message: 'El nombre es obligatorio' });
         }
-        const existing = await prisma.airLine.findUnique({ where: { name: finalName } });
+        const existing = await prisma.airLine.findFirst({ where: { name: finalName } });
         if (existing) {
             return res.status(400).json({ message: 'Ya existe una línea aérea con ese nombre' });
         }
         const line = await prisma.airLine.create({
             data: { name: finalName, code: code?.trim() || null }
         });
+        clearAirLinesCache();
         res.status(201).json(line);
     } catch (error) {
         console.error('Error createAirLine:', error);
@@ -68,6 +92,7 @@ export const updateAirLine = async (req, res) => {
                 ...(isActive !== undefined && { isActive }),
             }
         });
+        clearAirLinesCache();
         res.json(line);
     } catch (error) {
         console.error('Error updateAirLine:', error);
@@ -78,12 +103,13 @@ export const updateAirLine = async (req, res) => {
 export const toggleAirLineStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const line = await prisma.airLine.findUnique({ where: { id } });
+        const line = await prisma.airLine.findFirst({ where: { id } });
         if (!line) return res.status(404).json({ message: 'Línea aérea no encontrada' });
         const updated = await prisma.airLine.update({
             where: { id },
             data: { isActive: !line.isActive }
         });
+        clearAirLinesCache();
         res.json(updated);
     } catch (error) {
         console.error('Error toggleAirLineStatus:', error);
@@ -97,6 +123,7 @@ export const deleteAirLine = async (req, res) => {
             where: { id: req.params.id },
             data: { isActive: false }
         });
+        clearAirLinesCache();
         res.json({ message: 'Línea aérea desactivada' });
     } catch (error) {
         console.error('Error deleteAirLine:', error);

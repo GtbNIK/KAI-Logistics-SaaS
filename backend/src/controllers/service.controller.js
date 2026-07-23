@@ -3,17 +3,10 @@ import prisma from '../config/database.js';
 // Crear servicio
 export const createService = async (req, res) => {
     try {
-        // Solo ADMIN puede crear servicios
-        if (req.user.role !== 'ADMIN') {
-            return res.status(403).json({ 
-                message: 'No tienes permisos para crear servicios' 
-            });
-        }
-
         const { code, name, type, notes } = req.body;
 
         // Verificar código único
-        const existingService = await prisma.service.findUnique({
+        const existingService = await prisma.service.findFirst({
             where: { code: code.toUpperCase() }
         });
 
@@ -109,9 +102,9 @@ export const getServices = async (req, res) => {
 export const getService = async (req, res) => {
     try {
         const { id } = req.params;
-        const isSales = req.user.role === 'SALES';
+        const isSales = req.membership.role === 'SALES';
         
-        const service = await prisma.service.findUnique({
+        const service = await prisma.service.findFirst({
             where: { id },
             include: {
                 rates: {
@@ -145,24 +138,17 @@ export const getService = async (req, res) => {
 // Actualizar servicio
 export const updateService = async (req, res) => {
     try {
-        // Solo ADMIN puede actualizar servicios
-        if (req.user.role !== 'ADMIN') {
-            return res.status(403).json({ 
-                message: 'No tienes permisos para actualizar servicios' 
-            });
-        }
-
         const { id } = req.params;
         const { code, name, type, notes } = req.body;
 
-        const existingService = await prisma.service.findUnique({ where: { id } });
+        const existingService = await prisma.service.findFirst({ where: { id } });
         if (!existingService) {
             return res.status(404).json({ message: 'Servicio no encontrado' });
         }
 
         // Verificar código único si cambió
         if (code && code.toUpperCase() !== existingService.code) {
-            const duplicate = await prisma.service.findUnique({
+            const duplicate = await prisma.service.findFirst({
                 where: { code: code.toUpperCase() }
             });
             if (duplicate) {
@@ -192,16 +178,9 @@ export const updateService = async (req, res) => {
 // Eliminar servicio (Soft Delete)
 export const deleteService = async (req, res) => {
     try {
-        // Solo ADMIN puede eliminar servicios
-        if (req.user.role !== 'ADMIN') {
-            return res.status(403).json({ 
-                message: 'No tienes permisos para eliminar servicios' 
-            });
-        }
-
         const { id } = req.params;
 
-        const service = await prisma.service.findUnique({ where: { id } });
+        const service = await prisma.service.findFirst({ where: { id } });
         if (!service) {
             return res.status(404).json({ message: 'Servicio no encontrado' });
         }
@@ -224,7 +203,7 @@ export const toggleServiceStatus = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const service = await prisma.service.findUnique({ where: { id } });
+        const service = await prisma.service.findFirst({ where: { id } });
         if (!service) {
             return res.status(404).json({ message: 'Servicio no encontrado' });
         }

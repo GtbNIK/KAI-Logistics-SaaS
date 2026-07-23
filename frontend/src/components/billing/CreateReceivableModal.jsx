@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TrendingUp, X, Plus, Wallet } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import CurrencySelect from '../shared/CurrencySelect';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
     const [clients, setClients] = useState([]);
@@ -33,7 +31,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
 
     useEffect(() => {
         if (!isOpen) return;
-        axios.get(`${API_URL}/clients?all=true`, { withCredentials: true })
+        api.get('/clients?all=true')
             .then(res => setClients(res.data.data || []))
             .catch(() => {});
     }, [isOpen]);
@@ -62,7 +60,7 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
             setCreditBalance(0);
             return;
         }
-        axios.get(`${API_URL}/clients/${clientId}/receivables-summary`, { withCredentials: true })
+        api.get(`/clients/${clientId}/receivables-summary`)
             .then(res => setCreditBalance(res.data.creditBalance || 0))
             .catch(() => setCreditBalance(0));
     }, [clientId, isEdit]);
@@ -82,10 +80,10 @@ const CreateReceivableModal = ({ isOpen, onClose, onSuccess, receivable }) => {
             };
 
             if (isEdit) {
-                await axios.put(`${API_URL}/receivables/${receivable.id}`, payload, { withCredentials: true });
+                await api.put(`/receivables/${receivable.id}`, payload);
                 showSuccess('Actualizada', 'La cuenta por cobrar se actualizó correctamente');
             } else {
-                await axios.post(`${API_URL}/receivables`, payload, { withCredentials: true });
+                await api.post('/receivables', payload);
                 showSuccess('Creada', 'Cuenta por cobrar creada correctamente');
             }
 

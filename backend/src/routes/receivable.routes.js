@@ -9,58 +9,19 @@ import {
     updateReceivable
 } from '../controllers/receivable.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 
 const router = express.Router();
 
-router.use(verifyToken);
+router.use(verifyToken, tenantResolver(), requireMembership);
 
-/**
- * @route   POST /api/receivables
- * @desc    Crear una cuenta por cobrar manual
- * @access  Private (ADMIN)
- */
-router.post('/', authorize('ADMIN'), createReceivable);
-
-/**
- * @route   GET /api/receivables
- * @desc    Obtener lista de cuentas por cobrar
- * @access  Private
- */
-router.get('/', authorize('ADMIN'), getReceivables);
-
-/**
- * @route   GET /api/receivables/:id
- * @desc    Obtener detalles de cuenta por cobrar
- * @access  Private
- */
-router.get('/:id', authorize('ADMIN'), getReceivableById);
-
-/**
- * @route   PUT /api/receivables/:id
- * @desc    Actualizar una cuenta por cobrar
- * @access  Private (ADMIN)
- */
-router.put('/:id', authorize('ADMIN'), updateReceivable);
-
-/**
- * @route   POST /api/receivables/:id/payments
- * @desc    Registrar un pago a una cuenta por cobrar
- * @access  Private (idealmente admin o ventas con permisos)
- */
-router.post('/:id/payments', authorize('ADMIN'), registerPayment);
-
-/**
- * @route   DELETE /api/receivables/:id/payments/:paymentId
- * @desc    Eliminar un pago específico de una cuenta por cobrar
- * @access  Private (ADMIN)
- */
-router.delete('/:id/payments/:paymentId', authorize('ADMIN'), deleteReceivablePayment);
-
-/**
- * @route   DELETE /api/receivables/:id
- * @desc    Eliminar una cuenta por cobrar y sus pagos asociados
- * @access  Private (ADMIN)
- */
-router.delete('/:id', authorize('ADMIN'), deleteReceivable);
+router.post('/', authorize('OWNER', 'ADMIN'), createReceivable);
+router.get('/', authorize('OWNER', 'ADMIN'), getReceivables);
+router.get('/:id', authorize('OWNER', 'ADMIN'), getReceivableById);
+router.put('/:id', authorize('OWNER', 'ADMIN'), updateReceivable);
+router.post('/:id/payments', authorize('OWNER', 'ADMIN'), registerPayment);
+router.delete('/:id/payments/:paymentId', authorize('OWNER', 'ADMIN'), deleteReceivablePayment);
+router.delete('/:id', authorize('OWNER', 'ADMIN'), deleteReceivable);
 
 export default router;

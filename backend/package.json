@@ -5,7 +5,9 @@
   "description": "Backend ERP Import Services",
   "main": "src/server.js",
   "scripts": {
-    "build": "prisma generate && prisma db push --accept-data-loss",
+    "build": "prisma generate && prisma migrate deploy",
+    "build:reset": "prisma generate && prisma migrate reset --force --skip-seed",
+    "build:seed": "node prisma/seed.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "migrate:dev": "prisma migrate dev",
@@ -33,8 +35,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
+    "node-cron": "^4.6.0",
     "pg": "^8.16.3",
-    "pg-boss": "^12.14.0",
     "react-international-phone": "^4.8.0"
   },
   "devDependencies": {

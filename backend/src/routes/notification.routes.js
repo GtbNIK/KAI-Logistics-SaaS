@@ -1,5 +1,7 @@
 import express from 'express';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 import {
     getUnreadNotifications,
     markAsRead,
@@ -8,11 +10,11 @@ import {
 
 const router = express.Router();
 
-router.use(verifyToken);
+router.use(verifyToken, tenantResolver(), requireMembership);
 
 // Notificaciones son por usuario, pero ambos roles pueden leerlas
-router.get('/unread', authorize('ADMIN', 'SALES'), getUnreadNotifications);
-router.put('/mark-all-read', authorize('ADMIN', 'SALES'), markAllAsRead);
-router.put('/:id/read', authorize('ADMIN', 'SALES'), markAsRead);
+router.get('/unread', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getUnreadNotifications);
+router.put('/mark-all-read', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), markAllAsRead);
+router.put('/:id/read', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), markAsRead);
 
 export default router;

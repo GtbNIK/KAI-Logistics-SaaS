@@ -8,52 +8,19 @@ import {
     deletePaymentNotice
 } from '../controllers/payment-notice.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
+import { enforcePlanLimits } from '../middleware/enforcePlanLimits.js';
 
 const router = express.Router();
 
-// Todas las rutas de ventas/facturación requieren autenticación
-router.use(verifyToken);
+router.use(verifyToken, tenantResolver(), requireMembership);
 
-/**
- * @route   POST /api/payment-notices/from-quote/:id
- * @desc    Convertir cotización en Aviso de Cobro
- * @access  Private
- */
-router.post('/from-quote/:id', authorize('ADMIN', 'SALES'), convertFromQuote);
-
-/**
- * @route   POST /api/payment-notices
- * @desc    Crear un Aviso de Cobro directamente (sin cotización)
- * @access  Private
- */
-router.post('/', authorize('ADMIN', 'SALES'), createPaymentNotice);
-
-/**
- * @route   GET /api/payment-notices
- * @desc    Obtener lista de avisos de cobro
- * @access  Private
- */
+router.post('/from-quote/:id', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), convertFromQuote);
+router.post('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), enforcePlanLimits('documentsMonth'), createPaymentNotice);
 router.get('/', getPaymentNotices);
-
-/**
- * @route   GET /api/payment-notices/:id
- * @desc    Obtener un aviso de cobro específico
- * @access  Private
- */
 router.get('/:id', getPaymentNoticeById);
-
-/**
- * @route   PUT /api/payment-notices/:id
- * @desc    Actualizar un aviso de cobro existente
- * @access  Private (ADMIN only)
- */
-router.put('/:id', authorize('ADMIN'), updatePaymentNotice);
-
-/**
- * @route   DELETE /api/payment-notices/:id
- * @desc    Eliminar aviso de cobro y su cuenta por cobrar
- * @access  Private (ADMIN only)
- */
-router.delete('/:id', authorize('ADMIN'), deletePaymentNotice);
+router.put('/:id', authorize('OWNER', 'ADMIN'), updatePaymentNotice);
+router.delete('/:id', authorize('OWNER', 'ADMIN'), deletePaymentNotice);
 
 export default router;

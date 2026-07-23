@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 /**
  * @route   GET /api/payables
@@ -10,7 +11,9 @@ export const getPayables = async (req, res) => {
         const { status, search = '', page = 1, limit = 10, beneficiaryId, employeeOnly, all } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const where = {};
+        const where = {
+            ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Payable'),
+        };
         if (status) where.status = status;
         if (employeeOnly === 'true') {
             where.employeeUserId = { not: null };
@@ -54,7 +57,7 @@ const [payables, total] = await Promise.all([
                         ally: { select: { id: true, name: true } },
                         svcProvider: { select: { id: true, name: true } },
                     }),
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                     payments: { orderBy: { date: 'desc' } }
                 },
                 orderBy: { createdAt: 'desc' },
@@ -85,12 +88,15 @@ const [payables, total] = await Promise.all([
 export const getPayableById = async (req, res) => {
     try {
         const { id } = req.params;
-        const payable = await prisma.payable.findUnique({
-            where: { id },
+        const payable = await prisma.payable.findFirst({
+            where: {
+                id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Payable'),
+            },
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -130,8 +136,17 @@ export const createPayable = async (req, res) => {
             return res.status(400).json({ message: 'El monto debe ser mayor a 0' });
         }
 
+        // Generar numero secuencial por tenant
+        const lastPayable = await prisma.payable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true },
+        });
+        const nextNumber = (lastPayable?.number || 0) + 1;
+
         const payable = await prisma.payable.create({
             data: {
+                number: nextNumber,
                 allyId: allyId || null,
                 svcProviderId: svcProviderId || null,
                 employeeUserId: employeeUserId || null,
@@ -148,7 +163,7 @@ export const createPayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                 payments: true
             }
         });
@@ -170,7 +185,7 @@ export const createPayable = async (req, res) => {
 export const updatePayable = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma.payable.findUnique({ where: { id } });
+        const existing = await prisma.payable.findFirst({ where: { id } });
 
         if (!existing) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
@@ -244,7 +259,7 @@ export const updatePayable = async (req, res) => {
             include: {
                 ally: { select: { id: true, name: true } },
                 svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                 payments: { orderBy: { date: 'desc' } }
             }
         });
@@ -275,7 +290,7 @@ export const registerPayablePayment = async (req, res) => {
             return res.status(400).json({ message: 'El método de pago es requerido' });
         }
 
-        const payable = await prisma.payable.findUnique({ where: { id } });
+        const payable = await prisma.payable.findFirst({ where: { id } });
 
         if (!payable) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
@@ -321,7 +336,7 @@ export const registerPayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });
@@ -359,7 +374,7 @@ export const registerPayablePayment = async (req, res) => {
 export const deletePayable = async (req, res) => {
     try {
         const { id } = req.params;
-        const payable = await prisma.payable.findUnique({ where: { id }, include: { payments: true } });
+        const payable = await prisma.payable.findFirst({ where: { id }, include: { payments: true } });
 
         if (!payable) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
@@ -381,12 +396,12 @@ export const deletePayablePayment = async (req, res) => {
     try {
         const { id, paymentId } = req.params;
 
-        const payable = await prisma.payable.findUnique({ where: { id } });
+        const payable = await prisma.payable.findFirst({ where: { id } });
         if (!payable) {
             return res.status(404).json({ message: 'Cuenta por pagar no encontrada' });
         }
 
-        const payment = await prisma.payableTransaction.findUnique({
+        const payment = await prisma.payableTransaction.findFirst({
             where: { id: paymentId }
         });
 
@@ -418,7 +433,7 @@ export const deletePayablePayment = async (req, res) => {
                 include: {
                     ally: { select: { id: true, name: true } },
                     svcProvider: { select: { id: true, name: true } },
-                    employeeUser: { select: { id: true, name: true, position: true, role: true } },
+                    employeeUser: { select: { id: true, name: true, position: true, memberships: { where: { tenantId: req.tenant.id }, select: { role: true }, take: 1 } } },
                     payments: { orderBy: { date: 'desc' } }
                 }
             });

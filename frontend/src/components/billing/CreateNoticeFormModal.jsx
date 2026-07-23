@@ -1,22 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Receipt, X, Plus, Trash2, Check, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import Select from 'react-select';
 import { useToast } from '../../context/ToastContext';
-import { useAuth } from '../../context/AuthContext';
 import QuickCreateServiceModal from '../shared/QuickCreateServiceModal';
 import QuickCreateShippingLineModal from '../shared/QuickCreateShippingLineModal';
 import QuickCreatePortModal from '../shared/QuickCreatePortModal';
 import QuickCreateAirLineModal from '../shared/QuickCreateAirLineModal';
 import QuickCreateZoneModal from '../shared/QuickCreateZoneModal';
+import { useCanQuickCreate } from '../../hooks/useCanQuickCreate';
+import { QUICK_CREATE_ALLOWED_ROLES } from '../../config/quickCreateRoles';
 import shippingLineService from '../../services/shippingLine.service';
 import airlineService from '../../services/airline.service';
 import { calculateItemSubtotal } from '../../utils/pricing';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import CurrencySelect from '../shared/CurrencySelect';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Tipos de servicio que usan zona (los demás usan ruta con puertos)
 const ZONE_SERVICE_TYPES = ['DOOR_TO_DOOR', 'WAREHOUSE', 'CUSTOMS', 'OTHER'];
@@ -67,7 +66,11 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
     const [items, setItems] = useState([emptyItem()]);
     const [currency, setCurrency] = useState('USD');
     const [saving, setSaving] = useState(false);
-    const { user } = useAuth();
+    const canQuickCreateService = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Service);
+    const canQuickCreateZone = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Zone);
+    const canQuickCreatePort = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.Port);
+    const canQuickCreateShippingLine = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.ShippingLine);
+    const canQuickCreateAirLine = useCanQuickCreate(QUICK_CREATE_ALLOWED_ROLES.AirLine);
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const [quickCreateType, setQuickCreateType] = useState(null);
     const [currentItemIndex, setCurrentItemIndex] = useState(null);
@@ -91,10 +94,10 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
         [services]
     );
     const serviceOptions = useMemo(() => (
-        user?.role === 'ADMIN'
+        canQuickCreateService
             ? [...baseServiceOptions, { value: 'NEW', label: '+ Agregar nuevo servicio', isAction: true }]
             : baseServiceOptions
-    ), [baseServiceOptions, user]);
+    ), [baseServiceOptions, canQuickCreateService]);
 
     const allyOptions = useMemo(() =>
         (allies || []).filter(a => a.isActive !== false).map(a => ({ value: a.id, label: a.name })),
@@ -103,18 +106,40 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
 
     const zoneOptions = useMemo(() => {
         const base = (zones || []).filter(z => z.isActive !== false).map(z => ({ value: z.id, label: z.name }));
-        return user?.role === 'ADMIN'
+        return canQuickCreateZone
             ? [...base, { value: 'NEW_ZONE', label: '+ Agregar nueva zona', isAction: true }]
             : base;
-    }, [zones, user]);
+    }, [zones, canQuickCreateZone]);
 
     // Puertos: solo mostrar el nombre (sin código)
     const portOptions = useMemo(() => {
         const base = (ports || []).filter(p => p.isActive !== false).map(p => ({ value: p.code, label: p.name }));
-        return user?.role === 'ADMIN'
+        return canQuickCreatePort
             ? [...base, { value: 'NEW_PORT', label: '+ Agregar nuevo puerto', isAction: true }]
             : base;
-    }, [ports, user]);
+    }, [ports, canQuickCreatePort]);
+
+    const baseShippingLineOptions = useMemo(() =>
+        shippingLines.map(s => ({ value: s.id, label: s.name })),
+        [shippingLines]
+    );
+    const shippingLineOptions = useMemo(() =>
+        canQuickCreateShippingLine
+            ? [...baseShippingLineOptions, { value: 'NEW', label: '+ Agregar nueva naviera', isAction: true }]
+            : baseShippingLineOptions,
+        [baseShippingLineOptions, canQuickCreateShippingLine]
+    );
+
+    const baseAirLineOptions = useMemo(() =>
+        airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })),
+        [airLines]
+    );
+    const airLineOptions = useMemo(() =>
+        canQuickCreateAirLine
+            ? [...baseAirLineOptions, { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
+            : baseAirLineOptions,
+        [baseAirLineOptions, canQuickCreateAirLine]
+    );
 
     // ── Carga de catálogos al abrir ──
     useEffect(() => {
@@ -123,11 +148,11 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
         const fetchAll = async () => {
             try {
                 const [cRes, sRes, aRes, zRes, pRes, slRes, alRes] = await Promise.all([
-                    axios.get(`${API_URL}/clients?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/services?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/allies?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/zones?all=true`, { withCredentials: true }),
-                    axios.get(`${API_URL}/ports?all=true`, { withCredentials: true }),
+                    api.get('/clients?all=true'),
+                    api.get('/services?all=true'),
+                    api.get('/allies?all=true'),
+                    api.get('/zones?all=true'),
+                    api.get('/ports?all=true'),
                     shippingLineService.getShippingLines(),
                     airlineService.getAirLines()
                 ]);
@@ -223,6 +248,9 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
         if (!clientId) return showError('Validación', 'Selecciona un cliente');
         if (items.some(i => !i.serviceId)) return showError('Validación', 'Todos los items deben tener un servicio seleccionado');
         if (items.some(i => !i.unitPrice || Number(i.unitPrice) <= 0)) return showError('Validación', 'Todos los items deben tener un precio válido');
+        if (items.some(i => i.serviceId && isZoneService(i.serviceId) && !i.zoneId)) return showError('Validación', 'Todos los items con servicio de zona deben tener una zona seleccionada');
+        if (items.some(i => i.serviceId && !isZoneService(i.serviceId) && !i.originPort)) return showError('Validación', 'Todos los items con ruta deben tener un puerto de origen');
+        if (items.some(i => i.serviceId && !isZoneService(i.serviceId) && !i.destinationPort)) return showError('Validación', 'Todos los items con ruta deben tener un puerto de destino');
 
         const payload = {
             clientId,
@@ -244,10 +272,10 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
         setSaving(true);
         try {
             if (noticeToEdit) {
-                await axios.put(`${API_URL}/payment-notices/${noticeToEdit.id}`, payload, { withCredentials: true });
+                await api.put(`/payment-notices/${noticeToEdit.id}`, payload);
                 showSuccess('¡Actualizado!', 'Aviso de Cobro actualizado exitosamente');
             } else {
-                await axios.post(`${API_URL}/payment-notices`, payload, { withCredentials: true });
+                await api.post('/payment-notices', payload);
                 showSuccess('¡Creado!', 'Aviso de Cobro creado exitosamente');
             }
             onSuccess?.();
@@ -392,10 +420,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                                     <div>
                                                         <label className="text-xs text-slate-500 mb-1 block">Línea Naviera <span className="text-slate-300">(opcional)</span></label>
                                                         <Select
-                                                            options={user?.role === 'ADMIN'
-                                                                ? [...shippingLines.map(s => ({ value: s.id, label: s.name })), { value: 'NEW', label: '+ Agregar nueva naviera', isAction: true }]
-                                                                : shippingLines.map(s => ({ value: s.id, label: s.name }))
-                                                            }
+                                                            options={shippingLineOptions}
                                                             value={shippingLines.map(s => ({ value: s.id, label: s.name })).find(o => o.value === item.shippingLineId) || null}
                                                             placeholder="Seleccionar naviera..."
                                                             onChange={(opt) => {
@@ -420,10 +445,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                                     <div>
                                                         <label className="text-xs text-slate-500 mb-1 block">Línea Aérea <span className="text-slate-300">(opcional)</span></label>
                                                         <Select
-                                                            options={user?.role === 'ADMIN'
-                                                                ? [...airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })), { value: 'NEW', label: '+ Agregar nueva aerolínea', isAction: true }]
-                                                                : airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name }))
-                                                            }
+                                                            options={airLineOptions}
                                                             value={airLines.map(a => ({ value: a.id, label: a.code ? `${a.code} — ${a.name}` : a.name })).find(o => o.value === item.airLineId) || null}
                                                             placeholder="Seleccionar aerolínea..."
                                                             onChange={(opt) => {
@@ -452,7 +474,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                         {item.serviceId && (
                                             showZone ? (
                                                 <div>
-                                                    <label className="text-xs text-slate-500 mb-1 block">Zona <span className="text-slate-300">(opcional)</span></label>
+                                                    <label className="text-xs text-slate-500 mb-1 block">Zona <span className="text-red-500">*</span></label>
                                                     <Select
                                                         options={zoneOptions}
                                                         value={zoneOptions.find(o => o.value === item.zoneId) || null}
@@ -478,7 +500,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                             ) : (
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Origen</label>
+                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Origen <span className="text-red-500">*</span></label>
                                                         <Select
                                                             options={portOptions}
                                                             value={portOptions.find(o => o.value === item.originPort) || null}
@@ -502,7 +524,7 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Destino</label>
+                                                        <label className="text-xs text-slate-500 mb-1 block">Puerto Destino <span className="text-red-500">*</span></label>
                                                         <Select
                                                             options={portOptions}
                                                             value={portOptions.find(o => o.value === item.destinationPort) || null}
@@ -653,8 +675,3 @@ const CreateNoticeFormModal = ({ isOpen, onClose, onSuccess, noticeToEdit = null
 };
 
 export default CreateNoticeFormModal;
- 
-// Quick create modal montado junto al formulario
-// Nota: se monta dentro del mismo portal del modal principal, pero su overlay detiene la propagación
-// para no cerrar el modal padre.
-CreateNoticeFormModal.QuickCreate = () => null;

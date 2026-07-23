@@ -3,9 +3,7 @@ import { Ship, Plane, X, Hash, Package, ArrowRight, AlertTriangle } from 'lucide
 import rateService from '../../services/rate.service';
 import { toDateString, toVenezuelanFormat } from '../../utils/dateHelpers';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../../lib/api';
 
 const LineDetailModal = ({ isOpen, onClose, item, type }) => {
     const [tariffRates, setTariffRates] = useState([]);
@@ -16,7 +14,7 @@ const LineDetailModal = ({ isOpen, onClose, item, type }) => {
 
     const fetchPorts = useCallback(async () => {
         try {
-            const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+            const res = await api.get('/ports?all=true');
             setPortCatalog(res.data.data || res.data || []);
         } catch (error) {
             console.error('Error loading ports for Line detail:', error);
