@@ -283,7 +283,8 @@ export const getMonthlyReportData = async (req, res) => {
                     select: {
                         number: true,
                         ally: { select: { name: true } },
-                        svcProvider: { select: { name: true } }
+                        svcProvider: { select: { name: true } },
+                        employeeUser: { select: { name: true, position: true } }
                     }
                 }
             }
@@ -303,7 +304,7 @@ export const getMonthlyReportData = async (req, res) => {
                 typeStr: 'EGRESO (CXP)',
                 recordDate: t.date,
                 accountNumber: t.payable?.number ? `CXP-${t.payable.number}` : 'N/A',
-                counterparty: t.payable?.ally?.name || t.payable?.svcProvider?.name || 'N/A'
+                counterparty: t.payable?.ally?.name || t.payable?.svcProvider?.name || (t.payable?.employeeUser ? `${t.payable.employeeUser.name} (${t.payable.employeeUser.position || 'Empleado'})` : 'N/A')
             }))
         ].sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
 

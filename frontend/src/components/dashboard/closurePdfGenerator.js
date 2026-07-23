@@ -254,7 +254,7 @@ export const generateClosurePdf = async (settings, showSuccess, showError, setLo
 
         autoTable(doc, {
             startY: tableHeadingY + 5,
-            head: [['#', 'Fecha', 'Tipo', 'Cliente / Proveedor', 'Nro. Cuenta', 'Método', 'Monto', 'Referencia']],
+            head: [['#', 'Fecha', 'Tipo', 'Cliente / Servicio / Empleado', 'Nro. Cuenta', 'Método', 'Monto', 'Referencia']],
             body: tableData,
             theme: 'striped',
             headStyles:  { fillColor: rgbColor, textColor: 255, fontStyle: 'bold' },
