@@ -161,7 +161,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                 { text: `, RIF: ${companyRif}, hacemos constar que hemos recibido conforme de `, style: 'normal' },
                 { text: clientName || 'N/A', style: 'bold' },
                 { text: `, la cantidad de `, style: 'normal' },
-                { text: `${currencySymbol}${amountFormatted}.`, style: 'bold' },
+                { text: `${currencySymbol}${amountFormatted}`, style: 'bold' },
                 { text: ` mediante `, style: 'normal' },
                 { text: paymentMethodLabel, style: 'bold' },
                 { text: `.`, style: 'normal' }
