@@ -202,15 +202,13 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        {p.method === 'CASH_USD' && (
-                                                            <button
-                                                                onClick={() => setReceiptPayment(p)}
-                                                                className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                                                                title="Generar Recibo de Pago"
-                                                            >
-                                                                <Printer size={16} />
-                                                            </button>
-                                                        )}
+                                                        <button
+                                                            onClick={() => setReceiptPayment(p)}
+                                                            className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                                                            title="Generar Recibo de Pago"
+                                                        >
+                                                            <Printer size={16} />
+                                                        </button>
                                                         <button
                                                             onClick={() => setPaymentToDelete(p)}
                                                             className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -238,6 +236,8 @@ const ReceivableDetailModal = ({ receivable, onClose, onRegisterPayment, onPayme
                 clientName={client?.name}
                 receivableNumber={r.number}
                 currency={r.currency || 'USD'}
+                paymentMethodLabel={paymentMethods.find(m => m.value === receiptPayment?.method)?.label || receiptPayment?.method || 'N/A'}
+                pendingBalance={pendingBalance}
             />
 
             <ConfirmDeleteModal
