@@ -290,7 +290,7 @@ const CashFlow = () => {
                     icon={TrendingUp}
                     colorClass="text-emerald-600"
                     bgClass="bg-emerald-50"
-                    subtitle={`Estimado: ${formatCurrency(summary.estimatedIngresos, 'USD')}`}
+                    subtitle={`Estimado en el rango de fechas: ${formatCurrency(summary.estimatedIngresos, 'USD')}`}
                 />
                 <KpiCard
                     title="Total Egresos"
@@ -298,7 +298,7 @@ const CashFlow = () => {
                     icon={TrendingDown}
                     colorClass="text-rose-600"
                     bgClass="bg-rose-50"
-                    subtitle={`Estimado: ${formatCurrency(summary.estimatedEgresos, 'USD')}`}
+                    subtitle={`Estimado en el rango de fechas: ${formatCurrency(summary.estimatedEgresos, 'USD')}`}
                 />
                 <KpiCard
                     title="Balance Neto"
