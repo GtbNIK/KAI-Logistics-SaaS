@@ -50,9 +50,9 @@ const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = 
 
 /**
  * Modal para generar y previsualizar el recibo de pago PDF
- * Solo aplica para pagos con método CASH_USD (Efectivo USD)
+ * Aplica para cualquier método de pago en CxC
  */
-const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivableNumber, currency = 'USD' }) => {
+const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivableNumber, currency = 'USD', paymentMethodLabel = 'N/A', pendingBalance = 0 }) => {
     const [generating, setGenerating] = useState(false);
     const { settings: companySettings } = useSettings();
     const currencySymbol = getCurrencySymbol(currency);
@@ -65,6 +65,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
     const primaryColor = companySettings?.primaryColor || DEFAULT_PRIMARY_COLOR;
     const primaryRgb = hexToRgb(primaryColor);
     const receiptBgUrl = companySettings?.receiptBgUrl || null;
+    const companyLocation = companySettings?.location || '';
 
     const paymentAmount = parseFloat(payment.amount) || 0;
     const paymentDate = new Date(payment.date || payment.createdAt);
@@ -142,7 +143,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(50, 50, 50);
-            doc.text(`Valencia, ${formattedDate}`, margin, y);
+            doc.text(`${companyLocation}, ${formattedDate}`, margin, y);
             y += 12;
 
             // ── Cuerpo del recibo ──
@@ -160,7 +161,10 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                 { text: `, RIF: ${companyRif}, hacemos constar que hemos recibido conforme de `, style: 'normal' },
                 { text: clientName || 'N/A', style: 'bold' },
                 { text: `, la cantidad de `, style: 'normal' },
-                { text: `${currencySymbol}${amountFormatted}.`, style: 'bold' }
+                { text: `${currencySymbol}${amountFormatted}`, style: 'bold' },
+                { text: ` mediante `, style: 'normal' },
+                { text: paymentMethodLabel, style: 'bold' },
+                { text: `.`, style: 'normal' }
             ];
 
             // Renderizar texto con fragmentos mixtos bold/normal usando splitTextToSize
@@ -174,8 +178,22 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                 y += lineHeight;
             }
 
-            y += 15;
+            y += 8;
 
+            // ── Saldo pendiente en la cuenta ──
+            const pendingFormatted = parseFloat(pendingBalance).toLocaleString('en-US', { minimumFractionDigits: 2 });
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(40, 40, 40);
+            if (pendingBalance > 0) {
+                doc.text(`Saldo pendiente en cuenta: ${currencySymbol}${pendingFormatted}`, margin, y);
+            } else {
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 128, 0);
+                doc.text('Cuenta saldada — Sin saldo pendiente.', margin, y);
+            }
+            y += 15;
+            
             // ── Línea de firma: Recibido por ──
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
@@ -205,7 +223,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
             doc.line(margin, footerY, pageWidth - margin, footerY);
             doc.setFontSize(7);
             doc.setTextColor(150, 150, 150);
-            doc.text('Este recibo es un comprobante de pago en efectivo USD.', pageWidth / 2, footerY + 5, { align: 'center' });
+            doc.text(`Método de pago: ${paymentMethodLabel}`, pageWidth / 2, footerY + 5, { align: 'center' });
 
             // ── Guardar ──
             const receiptNum = payment.receipt?.receiptNumber || 'S-N';
@@ -256,7 +274,7 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500">Método</span>
-                            <span className="text-slate-700">Efectivo USD</span>
+                            <span className="text-slate-700">{paymentMethodLabel}</span>
                         </div>
                         {payment.reference && (
                             <div className="flex justify-between text-sm">
@@ -269,6 +287,19 @@ const PaymentReceiptPDFModal = ({ isOpen, onClose, payment, clientName, receivab
                     <p className="text-xs text-slate-400 text-center">
                         Se generará un PDF con el formato de recibo oficial de la empresa.
                     </p>
+                    {pendingBalance > 0 ? (
+                        <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-2 text-center">
+                            <p className="text-xs text-amber-600">
+                                Saldo pendiente en cuenta: <span className="font-bold">{currencySymbol}{parseFloat(pendingBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="bg-green-50 border border-green-100 rounded-lg px-4 py-2 text-center">
+                            <p className="text-xs text-green-600 font-semibold">
+                                Cuenta saldada — Sin saldo pendiente
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}

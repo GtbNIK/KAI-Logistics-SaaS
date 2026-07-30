@@ -60,11 +60,28 @@ export const getCashFlow = async (req, res) => {
         const totalIngresos = ingresos.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
         const totalEgresos  = egresos.reduce((s, t)  => s + parseFloat(t.amount || 0), 0);
 
+        // ── Estimados: todas las CXC/CXP creadas en el rango (sin importar status) ─
+        const [estimatedReceivables, estimatedPayables] = await Promise.all([
+            prisma.receivable.aggregate({
+                where: { createdAt: dateFilter },
+                _sum: { totalAmount: true }
+            }),
+            prisma.payable.aggregate({
+                where: { createdAt: dateFilter },
+                _sum: { amount: true }
+            })
+        ]);
+
+        const estimatedIngresos = parseFloat(estimatedReceivables._sum.totalAmount || 0);
+        const estimatedEgresos  = parseFloat(estimatedPayables._sum.amount || 0);
+
         res.json({
             summary: {
                 totalIngresos,
                 totalEgresos,
-                balance: totalIngresos - totalEgresos
+                balance: totalIngresos - totalEgresos,
+                estimatedIngresos,
+                estimatedEgresos
             },
             ingresos,
             egresos
