@@ -1,9 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { PhoneInput } from 'react-international-phone';
+import { PhoneNumberUtil } from 'google-libphonenumber';
 import 'react-international-phone/style.css';
+
+const phoneUtil = PhoneNumberUtil.getInstance();
+
+/**
+ * Valida si un número de teléfono es válido según estándares internacionales
+ * @param {string} phone - Número de teléfono a validar
+ * @returns {boolean} True si es válido, false en caso contrario
+ */
+const isPhoneValid = (phone) => {
+    try {
+        return phoneUtil.isValidNumber(phoneUtil.parseAndKeepRawInput(phone));
+    } catch {
+        return false;
+    }
+};
 
 /**
  * Modal de formulario genérico para crear/editar cualquier entidad
@@ -34,10 +50,19 @@ const EntityFormModal = ({
     const [showPasswords, setShowPasswords] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
+    const phoneInputRef = useRef(null);
 
-    // Inicializar formData cuando abre el modal
+    // Mantener la referencia más reciente de sections sin re-disparar el efecto de inicialización
+    const sectionsRef = useRef(sections);
+    sectionsRef.current = sections;
+
+    // Inicializar formData solo cuando se abre el modal o cambia la entidad.
+    // No depende de `sections` porque los padres pueden recrear el array en cada
+    // render (ej. .filter()), lo que borraba los datos escritos al mostrar un toast.
     useEffect(() => {
         if (isOpen) {
+            const sections = sectionsRef.current;
             if (editMode && entityData) {
                 // Poblar con datos existentes
                 const initialData = {};
@@ -67,8 +92,9 @@ const EntityFormModal = ({
                 setFormData(initialData);
             }
             setError('');
+            setFieldErrors({});
         }
-    }, [isOpen, editMode, entityData, sections]);
+    }, [isOpen, editMode, entityData]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -82,12 +108,53 @@ const EntityFormModal = ({
             ...prev,
             [name]: newValue
         }));
+        // Limpiar error del campo si el usuario empieza a escribir
+        if (fieldErrors[name]) {
+            setFieldErrors(prev => {
+                const next = { ...prev };
+                delete next[name];
+                return next;
+            });
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
         setError('');
+
+        // Validar campos phone requeridos
+        const phoneFields = sections.flatMap(s => s.fields).filter(f => f.type === 'phone' && f.required);
+        const newFieldErrors = {};
+        let hasErrors = false;
+        let firstErrorField = null;
+        phoneFields.forEach(field => {
+            const value = (formData[field.name] || '').trim();
+            // Contar dígitos: si solo quedó el código de país (ej. "+58") no hay número real
+            const digitCount = (value.match(/\d/g) || []).length;
+            // Validar con google-libphonenumber
+            if (!value || digitCount < 7 || !isPhoneValid(value)) {
+                newFieldErrors[field.name] = !value || digitCount < 7
+                    ? 'Este campo es obligatorio'
+                    : 'Número de teléfono inválido';
+                hasErrors = true;
+                if (!firstErrorField) firstErrorField = field;
+            }
+        });
+        if (hasErrors) {
+            setFieldErrors(newFieldErrors);
+            toast.showError('Campo requerido', 'Por favor complete el campo de teléfono');
+            // Hacer focus al campo teléfono con error
+            setTimeout(() => {
+                if (phoneInputRef.current) {
+                    const input = phoneInputRef.current.querySelector('input[type="tel"]');
+                    if (input) input.focus();
+                }
+            }, 100);
+            return;
+        }
+        setFieldErrors({});
+
+        setLoading(true);
 
         try {
             const capitalizedName = entityName.charAt(0).toUpperCase() + entityName.slice(1);
@@ -206,17 +273,19 @@ const EntityFormModal = ({
                                                 )}
                                             </div>
                                         ) : field.type === 'phone' ? (
-                                            <div className="phone-input-container w-full">
-                                                {/* No renderizar PhoneInput hasta que formData tenga valor en modo edición */}
-                                                {(!editMode || formData[field.name]) ? (
+                                            <div className="phone-input-container w-full" ref={phoneInputRef}>
+                                                {/* Mostrar skeleton solo mientras formData no se ha inicializado.
+                                                    No depende del valor del campo: si el usuario borra el número,
+                                                    el PhoneInput (y su selector de país) debe seguir montado. */}
+                                                {(Object.keys(formData).length > 0) ? (
                                                     <PhoneInput
                                                         defaultCountry="ve"
                                                         disabled={field.disabled}
                                                         value={formData[field.name] || ''}
                                                         onChange={phone => handleChange({ target: { name: field.name, value: phone, type: 'text' } })}
-                                                        inputClassName="!w-full !py-2 !h-auto !bg-slate-50 border border-slate-200 !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all"
+                                                        inputClassName={`!w-full !py-2 !h-auto !bg-slate-50 border !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all ${fieldErrors[field.name] ? '!border-red-500' : 'border-slate-200'}`}
                                                         countrySelectorStyleProps={{
-                                                            buttonClassName: "!bg-slate-50 border border-slate-200 !rounded-l-xl !px-3 !h-10"
+                                                            buttonClassName: `!bg-slate-50 border !rounded-l-xl !px-3 !h-10 ${fieldErrors[field.name] ? '!border-red-500' : 'border-slate-200'}`
                                                         }}
                                                     />
                                                 ) : (
@@ -266,6 +335,9 @@ const EntityFormModal = ({
                                         )}
                                         {field.hint && (
                                             <p className="text-xs text-slate-400 mt-1">{field.hint}</p>
+                                        )}
+                                        {fieldErrors[field.name] && (
+                                            <p className="text-xs text-red-500 mt-1">{fieldErrors[field.name]}</p>
                                         )}
                                     </div>
                                 ))}
