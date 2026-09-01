@@ -16,7 +16,7 @@ const phoneUtil = PhoneNumberUtil.getInstance();
 const isPhoneValid = (phone) => {
     try {
         return phoneUtil.isValidNumber(phoneUtil.parseAndKeepRawInput(phone));
-    } catch (error) {
+    } catch {
         return false;
     }
 };
@@ -53,9 +53,16 @@ const EntityFormModal = ({
     const [fieldErrors, setFieldErrors] = useState({});
     const phoneInputRef = useRef(null);
 
-    // Inicializar formData cuando abre el modal
+    // Mantener la referencia más reciente de sections sin re-disparar el efecto de inicialización
+    const sectionsRef = useRef(sections);
+    sectionsRef.current = sections;
+
+    // Inicializar formData solo cuando se abre el modal o cambia la entidad.
+    // No depende de `sections` porque los padres pueden recrear el array en cada
+    // render (ej. .filter()), lo que borraba los datos escritos al mostrar un toast.
     useEffect(() => {
         if (isOpen) {
+            const sections = sectionsRef.current;
             if (editMode && entityData) {
                 // Poblar con datos existentes
                 const initialData = {};
@@ -87,7 +94,7 @@ const EntityFormModal = ({
             setError('');
             setFieldErrors({});
         }
-    }, [isOpen, editMode, entityData, sections]);
+    }, [isOpen, editMode, entityData]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -121,10 +128,14 @@ const EntityFormModal = ({
         let hasErrors = false;
         let firstErrorField = null;
         phoneFields.forEach(field => {
-            const value = formData[field.name] || '';
+            const value = (formData[field.name] || '').trim();
+            // Contar dígitos: si solo quedó el código de país (ej. "+58") no hay número real
+            const digitCount = (value.match(/\d/g) || []).length;
             // Validar con google-libphonenumber
-            if (!value || !isPhoneValid(value)) {
-                newFieldErrors[field.name] = !value ? 'Este campo es obligatorio' : 'Número de teléfono inválido';
+            if (!value || digitCount < 7 || !isPhoneValid(value)) {
+                newFieldErrors[field.name] = !value || digitCount < 7
+                    ? 'Este campo es obligatorio'
+                    : 'Número de teléfono inválido';
                 hasErrors = true;
                 if (!firstErrorField) firstErrorField = field;
             }

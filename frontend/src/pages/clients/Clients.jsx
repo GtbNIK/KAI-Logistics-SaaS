@@ -11,7 +11,7 @@ import ClientDetailModal from '../../components/clients/ClientDetailModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import ConfirmToggleModal from '../../components/modals/ConfirmToggleModal';
 import ImportExcelModal from '../../components/modals/ImportExcelModal';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../lib/api';
 
 // Adaptar servicio para el hook
@@ -71,10 +71,12 @@ const Clients = () => {
         fetchUsers();
     }, [effectiveRole]);
 
-    const sectionsForUser = configWithUsers.formSections.filter(section => {
+    // Memoizado para que la referencia sea estable entre renders
+    // (evita que el modal reinicie el formulario al mostrar un toast)
+    const sectionsForUser = useMemo(() => configWithUsers.formSections.filter(section => {
         if (!section.showForRoles) return true;
         return section.showForRoles.includes(effectiveRole);
-    });
+    }), [configWithUsers, effectiveRole]);
     
     // Hook genérico con toda la lógica CRUD
     const {
