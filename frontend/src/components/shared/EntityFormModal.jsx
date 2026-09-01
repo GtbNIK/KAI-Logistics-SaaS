@@ -3,7 +3,23 @@ import { createPortal } from 'react-dom';
 import { X, Save, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { PhoneInput } from 'react-international-phone';
+import { PhoneNumberUtil } from 'google-libphonenumber';
 import 'react-international-phone/style.css';
+
+const phoneUtil = PhoneNumberUtil.getInstance();
+
+/**
+ * Valida si un número de teléfono es válido según estándares internacionales
+ * @param {string} phone - Número de teléfono a validar
+ * @returns {boolean} True si es válido, false en caso contrario
+ */
+const isPhoneValid = (phone) => {
+    try {
+        return phoneUtil.isValidNumber(phoneUtil.parseAndKeepRawInput(phone));
+    } catch (error) {
+        return false;
+    }
+};
 
 /**
  * Modal de formulario genérico para crear/editar cualquier entidad
@@ -34,6 +50,7 @@ const EntityFormModal = ({
     const [showPasswords, setShowPasswords] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
 
     // Inicializar formData cuando abre el modal
     useEffect(() => {
@@ -67,6 +84,7 @@ const EntityFormModal = ({
                 setFormData(initialData);
             }
             setError('');
+            setFieldErrors({});
         }
     }, [isOpen, editMode, entityData, sections]);
 
@@ -82,12 +100,39 @@ const EntityFormModal = ({
             ...prev,
             [name]: newValue
         }));
+        // Limpiar error del campo si el usuario empieza a escribir
+        if (fieldErrors[name]) {
+            setFieldErrors(prev => {
+                const next = { ...prev };
+                delete next[name];
+                return next;
+            });
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
         setError('');
+
+        // Validar campos phone requeridos
+        const phoneFields = sections.flatMap(s => s.fields).filter(f => f.type === 'phone' && f.required);
+        const newFieldErrors = {};
+        let hasErrors = false;
+        phoneFields.forEach(field => {
+            const value = formData[field.name] || '';
+            // Validar con google-libphonenumber
+            if (!value || !isPhoneValid(value)) {
+                newFieldErrors[field.name] = !value ? 'Este campo es obligatorio' : 'Número de teléfono inválido';
+                hasErrors = true;
+            }
+        });
+        if (hasErrors) {
+            setFieldErrors(newFieldErrors);
+            return;
+        }
+        setFieldErrors({});
+
+        setLoading(true);
 
         try {
             const capitalizedName = entityName.charAt(0).toUpperCase() + entityName.slice(1);
@@ -214,9 +259,9 @@ const EntityFormModal = ({
                                                         disabled={field.disabled}
                                                         value={formData[field.name] || ''}
                                                         onChange={phone => handleChange({ target: { name: field.name, value: phone, type: 'text' } })}
-                                                        inputClassName="!w-full !py-2 !h-auto !bg-slate-50 border border-slate-200 !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all"
+                                                        inputClassName={`!w-full !py-2 !h-auto !bg-slate-50 border !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all ${fieldErrors[field.name] ? '!border-red-500' : 'border-slate-200'}`}
                                                         countrySelectorStyleProps={{
-                                                            buttonClassName: "!bg-slate-50 border border-slate-200 !rounded-l-xl !px-3 !h-10"
+                                                            buttonClassName: `!bg-slate-50 border !rounded-l-xl !px-3 !h-10 ${fieldErrors[field.name] ? '!border-red-500' : 'border-slate-200'}`
                                                         }}
                                                     />
                                                 ) : (
@@ -266,6 +311,9 @@ const EntityFormModal = ({
                                         )}
                                         {field.hint && (
                                             <p className="text-xs text-slate-400 mt-1">{field.hint}</p>
+                                        )}
+                                        {fieldErrors[field.name] && (
+                                            <p className="text-xs text-red-500 mt-1">{fieldErrors[field.name]}</p>
                                         )}
                                     </div>
                                 ))}
