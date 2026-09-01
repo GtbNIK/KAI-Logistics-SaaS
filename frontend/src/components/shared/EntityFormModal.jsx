@@ -274,8 +274,10 @@ const EntityFormModal = ({
                                             </div>
                                         ) : field.type === 'phone' ? (
                                             <div className="phone-input-container w-full" ref={phoneInputRef}>
-                                                {/* No renderizar PhoneInput hasta que formData tenga valor en modo edición */}
-                                                {(!editMode || formData[field.name]) ? (
+                                                {/* Mostrar skeleton solo mientras formData no se ha inicializado.
+                                                    No depende del valor del campo: si el usuario borra el número,
+                                                    el PhoneInput (y su selector de país) debe seguir montado. */}
+                                                {(Object.keys(formData).length > 0) ? (
                                                     <PhoneInput
                                                         defaultCountry="ve"
                                                         disabled={field.disabled}
