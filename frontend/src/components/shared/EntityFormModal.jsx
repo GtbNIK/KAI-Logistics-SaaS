@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
@@ -51,6 +51,7 @@ const EntityFormModal = ({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
+    const phoneInputRef = useRef(null);
 
     // Inicializar formData cuando abre el modal
     useEffect(() => {
@@ -118,16 +119,26 @@ const EntityFormModal = ({
         const phoneFields = sections.flatMap(s => s.fields).filter(f => f.type === 'phone' && f.required);
         const newFieldErrors = {};
         let hasErrors = false;
+        let firstErrorField = null;
         phoneFields.forEach(field => {
             const value = formData[field.name] || '';
             // Validar con google-libphonenumber
             if (!value || !isPhoneValid(value)) {
                 newFieldErrors[field.name] = !value ? 'Este campo es obligatorio' : 'Número de teléfono inválido';
                 hasErrors = true;
+                if (!firstErrorField) firstErrorField = field;
             }
         });
         if (hasErrors) {
             setFieldErrors(newFieldErrors);
+            toast.showError('Campo requerido', 'Por favor complete el campo de teléfono');
+            // Hacer focus al campo teléfono con error
+            setTimeout(() => {
+                if (phoneInputRef.current) {
+                    const input = phoneInputRef.current.querySelector('input[type="tel"]');
+                    if (input) input.focus();
+                }
+            }, 100);
             return;
         }
         setFieldErrors({});
@@ -251,7 +262,7 @@ const EntityFormModal = ({
                                                 )}
                                             </div>
                                         ) : field.type === 'phone' ? (
-                                            <div className="phone-input-container w-full">
+                                            <div className="phone-input-container w-full" ref={phoneInputRef}>
                                                 {/* No renderizar PhoneInput hasta que formData tenga valor en modo edición */}
                                                 {(!editMode || formData[field.name]) ? (
                                                     <PhoneInput
