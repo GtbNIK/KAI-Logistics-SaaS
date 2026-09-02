@@ -30,6 +30,9 @@ export const TenantProvider = ({ children }) => {
     }, [currentTenantSlug]);
 
     const setCurrentTenantSlug = useCallback((slug) => {
+        // Sincronizar el header SIEMPRE en el mismo tick del cambio, para que
+        // ninguna peticion en vuelo salga con el slug del tenant anterior
+        setTenantHeader(slug);
         setCurrentTenantSlugState(slug);
         try {
             if (slug) {

@@ -99,6 +99,18 @@ export const SettingsProvider = ({ children }) => {
         }
     }, [user]);
 
+    // Al cambiar de tenant activo, recargar los settings del nuevo tenant
+    // (la referencia de `user` puede no cambiar en switchTenant, por eso escuchamos el evento)
+    useEffect(() => {
+        const handleTenantChange = () => {
+            if (user) {
+                fetchSettings();
+            }
+        };
+        window.addEventListener('kai:tenant-changed', handleTenantChange);
+        return () => window.removeEventListener('kai:tenant-changed', handleTenantChange);
+    }, [user]);
+
     return (
         <SettingsContext.Provider value={{ settings, loading, updateSettings, refreshSettings: fetchSettings }}>
             {children}

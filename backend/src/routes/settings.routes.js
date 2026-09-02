@@ -3,11 +3,13 @@ import { getSettings, updateSettings } from '../controllers/settings.controller.
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 import { tenantResolver } from '../middleware/tenantResolver.js';
 import { requireMembership } from '../middleware/requireMembership.js';
+import { verifyTenantSession } from '../middleware/verifyTenantSession.js';
 import upload from '../config/upload.js';
 
 const router = Router();
 
-router.use(verifyToken, tenantResolver(), requireMembership);
+// Cross-check: el tenant del header debe coincidir con el del JWT (evita fugas multi-tenant)
+router.use(verifyToken, tenantResolver(), verifyTenantSession, requireMembership);
 
 router.get('/', getSettings);
 
