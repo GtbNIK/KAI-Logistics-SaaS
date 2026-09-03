@@ -10,6 +10,7 @@ import {
 } from '../controllers/client.controller.js';
 import { verifyToken } from '../middleware/auth.middleware.js';
 import { tenantResolver } from '../middleware/tenantResolver.js';
+import { verifyTenantSession } from '../middleware/verifyTenantSession.js';
 import { requireMembership } from '../middleware/requireMembership.js';
 import { authorize } from '../middleware/auth.middleware.js';
 
@@ -21,7 +22,7 @@ const router = express.Router();
  * 2. tenantResolver (lee X-Tenant-Slug)
  * 3. requireMembership (user pertenece al tenant)
  */
-router.use(verifyToken, tenantResolver(), requireMembership);
+router.use(verifyToken, tenantResolver(), verifyTenantSession, requireMembership);
 
 /**
  * @route   POST /api/clients

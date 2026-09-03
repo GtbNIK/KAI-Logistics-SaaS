@@ -10,11 +10,12 @@ import {
 } from '../controllers/receivable.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 import { tenantResolver } from '../middleware/tenantResolver.js';
+import { verifyTenantSession } from '../middleware/verifyTenantSession.js';
 import { requireMembership } from '../middleware/requireMembership.js';
 
 const router = express.Router();
 
-router.use(verifyToken, tenantResolver(), requireMembership);
+router.use(verifyToken, tenantResolver(), verifyTenantSession, requireMembership);
 
 router.post('/', authorize('OWNER', 'ADMIN'), createReceivable);
 router.get('/', authorize('OWNER', 'ADMIN'), getReceivables);

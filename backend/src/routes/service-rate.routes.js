@@ -2,11 +2,12 @@ import express from 'express';
 import * as rateController from '../controllers/service-rate.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 import { tenantResolver } from '../middleware/tenantResolver.js';
+import { verifyTenantSession } from '../middleware/verifyTenantSession.js';
 import { requireMembership } from '../middleware/requireMembership.js';
 
 const router = express.Router();
 
-router.use(verifyToken, tenantResolver(), requireMembership);
+router.use(verifyToken, tenantResolver(), verifyTenantSession, requireMembership);
 
 // Buscar tarifa específica (usado por el cotizador)
 router.get('/find', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), rateController.findRate);

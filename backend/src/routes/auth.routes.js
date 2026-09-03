@@ -14,6 +14,7 @@ import {
 } from '../controllers/auth.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
 import { tenantResolver } from '../middleware/tenantResolver.js';
+import { verifyTenantSession } from '../middleware/verifyTenantSession.js';
 import { requireMembership } from '../middleware/requireMembership.js';
 import { enforcePlanLimits } from '../middleware/enforcePlanLimits.js';
 
@@ -75,34 +76,34 @@ router.post('/switch-tenant', verifyToken, switchTenant);
  * @desc    Lista de usuarios del tenant activo
  * @access  Private (OWNER, ADMIN)
  */
-router.get('/users', verifyToken, tenantResolver(), requireMembership, authorize('OWNER', 'ADMIN'), getUsers);
+router.get('/users', verifyToken, tenantResolver(), verifyTenantSession, requireMembership, authorize('OWNER', 'ADMIN'), getUsers);
 
 /**
  * @route   POST /api/auth/register
  * @desc    Crear usuario dentro del tenant activo
  * @access  Private (OWNER)
  */
-router.post('/register', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), enforcePlanLimits('users'), register);
+router.post('/register', verifyToken, tenantResolver(), verifyTenantSession, requireMembership, authorize('OWNER'), enforcePlanLimits('users'), register);
 
 /**
  * @route   PUT /api/auth/users/:id
  * @desc    Actualizar datos de un usuario
  * @access  Private (OWNER)
  */
-router.put('/users/:id', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), updateUser);
+router.put('/users/:id', verifyToken, tenantResolver(), verifyTenantSession, requireMembership, authorize('OWNER'), updateUser);
 
 /**
  * @route   DELETE /api/auth/users/:id
  * @desc    Desactivar usuario
  * @access  Private (OWNER)
  */
-router.delete('/users/:id', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), deleteUser);
+router.delete('/users/:id', verifyToken, tenantResolver(), verifyTenantSession, requireMembership, authorize('OWNER'), deleteUser);
 
 /**
  * @route   POST /api/auth/users/:id/reset-password
  * @desc    Resetear contraseña de un usuario
  * @access  Private (OWNER)
  */
-router.post('/users/:id/reset-password', verifyToken, tenantResolver(), requireMembership, authorize('OWNER'), resetPassword);
+router.post('/users/:id/reset-password', verifyToken, tenantResolver(), verifyTenantSession, requireMembership, authorize('OWNER'), resetPassword);
 
 export default router;
