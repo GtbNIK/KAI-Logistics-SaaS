@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { supabase, BACKGROUNDS_BUCKET, LOGOS_BUCKET } from '../lib/supabase.js';
+import { uploadTenantFile, deleteTenantFile } from '../services/storage.service.js';
 
 /**
  * Obtener la configuración de la empresa
@@ -103,61 +104,61 @@ export const updateSettings = async (req, res) => {
         if (req.files) {
             // Logo de la empresa
             if (req.files.logo?.[0]) {
-                await deleteOldLogoFromStorage(existing.logoUrl, req.tenant.id);
-                data.logoUrl = await uploadToStorage(req.files.logo[0], 'logo', LOGOS_BUCKET, req.tenant.id);
+                await deleteTenantFile(existing.logoUrl, { tenantId: req.tenant.id, bucket: LOGOS_BUCKET });
+                data.logoUrl = await uploadTenantFile(req.files.logo[0], { tenantId: req.tenant.id, prefix: 'logo', bucket: LOGOS_BUCKET });
             }
 
             // Fondo de cotización
             if (req.files.quoteBg?.[0]) {
                 // Borrar archivo anterior si existe
-                await deleteOldFileFromStorage(existing.quoteBgUrl, req.tenant.id);
-                data.quoteBgUrl = await uploadToStorage(req.files.quoteBg[0], 'quote', BACKGROUNDS_BUCKET, req.tenant.id);
+                await deleteTenantFile(existing.quoteBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
+                data.quoteBgUrl = await uploadTenantFile(req.files.quoteBg[0], { tenantId: req.tenant.id, prefix: 'quote', bucket: BACKGROUNDS_BUCKET });
             }
             // Fondo de aviso de cobro
             if (req.files.noticeBg?.[0]) {
-                await deleteOldFileFromStorage(existing.noticeBgUrl, req.tenant.id);
-                data.noticeBgUrl = await uploadToStorage(req.files.noticeBg[0], 'notice', BACKGROUNDS_BUCKET, req.tenant.id);
+                await deleteTenantFile(existing.noticeBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
+                data.noticeBgUrl = await uploadTenantFile(req.files.noticeBg[0], { tenantId: req.tenant.id, prefix: 'notice', bucket: BACKGROUNDS_BUCKET });
             }
             // Fondo de nota de entrega
             if (req.files.deliveryNoteBg?.[0]) {
-                await deleteOldFileFromStorage(existing.deliveryNoteBgUrl, req.tenant.id);
-                data.deliveryNoteBgUrl = await uploadToStorage(req.files.deliveryNoteBg[0], 'delivery-note', BACKGROUNDS_BUCKET, req.tenant.id);
+                await deleteTenantFile(existing.deliveryNoteBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
+                data.deliveryNoteBgUrl = await uploadTenantFile(req.files.deliveryNoteBg[0], { tenantId: req.tenant.id, prefix: 'delivery-note', bucket: BACKGROUNDS_BUCKET });
             }
             // Fondo de recibo de pago
             if (req.files.receiptBg?.[0]) {
-                await deleteOldFileFromStorage(existing.receiptBgUrl, req.tenant.id);
-                data.receiptBgUrl = await uploadToStorage(req.files.receiptBg[0], 'receipt', BACKGROUNDS_BUCKET, req.tenant.id);
+                await deleteTenantFile(existing.receiptBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
+                data.receiptBgUrl = await uploadTenantFile(req.files.receiptBg[0], { tenantId: req.tenant.id, prefix: 'receipt', bucket: BACKGROUNDS_BUCKET });
             }
             // Fondo de tarifas
             if (req.files.rateBg?.[0]) {
-                await deleteOldFileFromStorage(existing.rateBgUrl, req.tenant.id);
-                data.rateBgUrl = await uploadToStorage(req.files.rateBg[0], 'rate', BACKGROUNDS_BUCKET, req.tenant.id);
+                await deleteTenantFile(existing.rateBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
+                data.rateBgUrl = await uploadTenantFile(req.files.rateBg[0], { tenantId: req.tenant.id, prefix: 'rate', bucket: BACKGROUNDS_BUCKET });
             }
         }
 
         // Comprobar si se solicita eliminar una imagen (sin reemplazar)
         if (req.body.removeLogo === 'true') {
-            await deleteOldLogoFromStorage(existing.logoUrl, req.tenant.id);
+            await deleteTenantFile(existing.logoUrl, { tenantId: req.tenant.id, bucket: LOGOS_BUCKET });
             data.logoUrl = null;
         }
         if (req.body.removeQuoteBg === 'true') {
-            await deleteOldFileFromStorage(existing.quoteBgUrl, req.tenant.id);
+            await deleteTenantFile(existing.quoteBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
             data.quoteBgUrl = null;
         }
         if (req.body.removeNoticeBg === 'true') {
-            await deleteOldFileFromStorage(existing.noticeBgUrl, req.tenant.id);
+            await deleteTenantFile(existing.noticeBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
             data.noticeBgUrl = null;
         }
         if (req.body.removeDeliveryNoteBg === 'true') {
-            await deleteOldFileFromStorage(existing.deliveryNoteBgUrl, req.tenant.id);
+            await deleteTenantFile(existing.deliveryNoteBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
             data.deliveryNoteBgUrl = null;
         }
         if (req.body.removeReceiptBg === 'true') {
-            await deleteOldFileFromStorage(existing.receiptBgUrl, req.tenant.id);
+            await deleteTenantFile(existing.receiptBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
             data.receiptBgUrl = null;
         }
         if (req.body.removeRateBg === 'true') {
-            await deleteOldFileFromStorage(existing.rateBgUrl, req.tenant.id);
+            await deleteTenantFile(existing.rateBgUrl, { tenantId: req.tenant.id, bucket: BACKGROUNDS_BUCKET });
             data.rateBgUrl = null;
         }
 
@@ -175,135 +176,9 @@ export const updateSettings = async (req, res) => {
 };
 
 /**
- * Extrae el path relativo del archivo dentro del bucket desde una URL publica de Supabase.
- * Ej: https://xxx.supabase.co/storage/v1/object/public/backgrounds/tenants/1/logo-1.png
- *     -> "tenants/1/logo-1.png"
- * Devuelve null si la URL no corresponde al bucket indicado.
- */
-function extractStoragePath(fileUrl, bucketName) {
-    try {
-        const url = new URL(fileUrl);
-        const marker = `/object/public/${bucketName}/`;
-        const idx = url.pathname.indexOf(marker);
-        if (idx === -1) return null;
-        return decodeURIComponent(url.pathname.substring(idx + marker.length));
-    } catch {
-        return null;
-    }
-}
-
-/**
- * Sube un archivo a Supabase Storage bajo el namespace del tenant activo.
- * Ruta final: tenants/{tenantId}/{prefix}-{timestamp}.{ext}
- */
-async function uploadToStorage(file, prefix, bucketName, tenantId) {
-    if (!supabase) {
-        throw new Error('Supabase Storage no está configurado');
-    }
-
-    try {
-        const timestamp = Date.now();
-        const fileExt = file.originalname.split('.').pop();
-        // Namespace por tenant: aísla los archivos y permite restringir borrados al propio tenant
-        const fileName = `tenants/${tenantId}/${prefix}-${timestamp}.${fileExt}`;
-
-        const { data, error } = await supabase.storage
-            .from(bucketName)
-            .upload(fileName, file.buffer, {
-                contentType: file.mimetype,
-                upsert: false
-            });
-
-        if (error) {
-            console.error('Error uploading to Supabase:', error);
-            throw error;
-        }
-
-        // Obtener URL pública
-        const { data: publicUrlData } = supabase.storage
-            .from(bucketName)
-            .getPublicUrl(fileName);
-
-        return publicUrlData.publicUrl;
-    } catch (err) {
-        console.error('Error uploading file:', err);
-        throw new Error('Error al subir imagen al storage');
-    }
-}
-
-/**
- * Elimina un logo antiguo de Supabase Storage (bucket logos).
- * Solo borra archivos del propio tenant (namespace "tenants/{tenantId}/")
- * o archivos legacy planos (sin carpeta), que vienen de la fila del tenant activo.
- */
-async function deleteOldLogoFromStorage(fileUrl, tenantId) {
-    if (!supabase || !fileUrl) return;
-    try {
-        if (fileUrl.includes('supabase.co')) {
-            const filePath = extractStoragePath(fileUrl, LOGOS_BUCKET);
-            if (!filePath) return;
-
-            // Archivos con namespace: solo borrar si pertenecen al tenant activo
-            const isTenantScoped = filePath.startsWith(`tenants/${tenantId}/`);
-            // Archivos legacy planos (formato "logo-{ts}.{ext}" sin carpeta)
-            const isLegacyFlat = !filePath.includes('/');
-            if (!isTenantScoped && !isLegacyFlat) {
-                console.warn('Se omitió el borrado de un archivo fuera del namespace del tenant activo:', filePath);
-                return;
-            }
-
-            const { error } = await supabase.storage
-                .from(LOGOS_BUCKET)
-                .remove([filePath]);
-
-            if (error) {
-                console.warn('No se pudo eliminar logo antiguo de Supabase:', error.message);
-            }
-        }
-    } catch (err) {
-        console.warn('No se pudo eliminar logo antiguo:', err.message);
-    }
-}
-
-/**
- * Elimina un archivo antiguo de Supabase Storage.
- * Solo borra archivos del propio tenant (namespace "tenants/{tenantId}/")
- * o archivos legacy planos (sin carpeta), que vienen de la fila del tenant activo.
- */
-async function deleteOldFileFromStorage(fileUrl, tenantId) {
-    if (!supabase || !fileUrl) return;
-    try {
-        // Si es URL de Supabase, extraer el path relativo al bucket
-        if (fileUrl.includes('supabase.co')) {
-            const filePath = extractStoragePath(fileUrl, BACKGROUNDS_BUCKET);
-            if (!filePath) return;
-
-            // Archivos con namespace: solo borrar si pertenecen al tenant activo
-            const isTenantScoped = filePath.startsWith(`tenants/${tenantId}/`);
-            // Archivos legacy planos (formato "{prefix}-{ts}.{ext}" sin carpeta)
-            const isLegacyFlat = !filePath.includes('/');
-            if (!isTenantScoped && !isLegacyFlat) {
-                console.warn('Se omitió el borrado de un archivo fuera del namespace del tenant activo:', filePath);
-                return;
-            }
-
-            const { error } = await supabase.storage
-                .from(BACKGROUNDS_BUCKET)
-                .remove([filePath]);
-
-            if (error) {
-                console.warn('No se pudo eliminar archivo de Supabase:', error.message);
-            }
-        }
-    } catch (err) {
-        console.warn('No se pudo eliminar archivo antiguo:', err.message);
-    }
-}
-
-/**
  * @deprecated Función legacy para eliminar archivos del disco local
  */
 function deleteOldFile(fileUrl) {
-    // Ya no se usa - los archivos ahora están en Supabase Storage
-    console.log('deleteOldFile es deprecated, use deleteOldFileFromStorage');
+    // Ya no se usa - los archivos ahora están en el storage service
+    console.log('deleteOldFile es deprecated, use deleteTenantFile de services/storage.service.js');
 }
