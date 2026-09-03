@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import settingsService from '../services/settings.service';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
@@ -111,8 +111,14 @@ export const SettingsProvider = ({ children }) => {
         return () => window.removeEventListener('kai:tenant-changed', handleTenantChange);
     }, [user]);
 
+    // Memoizar el value para no re-renderizar a todos los consumidores en cada render del provider
+    const value = useMemo(
+        () => ({ settings, loading, updateSettings, refreshSettings: fetchSettings }),
+        [settings, loading]
+    );
+
     return (
-        <SettingsContext.Provider value={{ settings, loading, updateSettings, refreshSettings: fetchSettings }}>
+        <SettingsContext.Provider value={value}>
             {children}
         </SettingsContext.Provider>
     );
