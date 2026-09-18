@@ -3,6 +3,19 @@ import { createNotification } from './notification.controller.js';
 import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 /**
+ * Convierte un valor opcional a Decimal válido o null.
+ * Usado para las medidas de carga (largo, ancho, alto, CBM, kilos).
+ * @param {*} value - Valor recibido del request body
+ * @returns {number|null} Número >= 0 o null si viene vacío
+ */
+const parseOptionalMeasure = (value) => {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number(value);
+    if (Number.isNaN(parsed) || parsed < 0) return null;
+    return parsed;
+};
+
+/**
  * @route   GET /api/payables
  * @desc    Obtener lista de cuentas por pagar
  */
@@ -118,7 +131,7 @@ export const getPayableById = async (req, res) => {
  */
 export const createPayable = async (req, res) => {
     try {
-        const { allyId, svcProviderId, employeeUserId, description, amount, dueDate, relatedOperationId, invoiceNr, currency } = req.body;
+        const { allyId, svcProviderId, employeeUserId, description, amount, dueDate, relatedOperationId, invoiceNr, currency, lengthCm, widthCm, heightCm, cbm, weightKg } = req.body;
         const recCurrency = currency && ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'].includes(currency) ? currency : 'USD';
 
         if (!allyId && !svcProviderId && !employeeUserId) {
@@ -158,7 +171,13 @@ export const createPayable = async (req, res) => {
                 status: 'PENDING',
                 dueDate: dueDate ? new Date(dueDate) : null,
                 relatedOperationId: relatedOperationId || null,
-                invoiceNr: invoiceNr?.toString().trim() || null
+                invoiceNr: invoiceNr?.toString().trim() || null,
+                // Medidas de carga (opcionales)
+                lengthCm: parseOptionalMeasure(lengthCm),
+                widthCm: parseOptionalMeasure(widthCm),
+                heightCm: parseOptionalMeasure(heightCm),
+                cbm: parseOptionalMeasure(cbm),
+                weightKg: parseOptionalMeasure(weightKg)
             },
             include: {
                 ally: { select: { id: true, name: true } },
@@ -200,7 +219,12 @@ export const updatePayable = async (req, res) => {
             dueDate,
             relatedOperationId,
             invoiceNr,
-            currency
+            currency,
+            lengthCm,
+            widthCm,
+            heightCm,
+            cbm,
+            weightKg
         } = req.body;
 
         const nextAllyId = allyId !== undefined ? allyId : existing.allyId;
@@ -254,7 +278,13 @@ export const updatePayable = async (req, res) => {
                 status: newStatus,
                 dueDate: dueDate === undefined ? existing.dueDate : (dueDate ? new Date(dueDate) : null),
                 relatedOperationId: relatedOperationId !== undefined ? relatedOperationId : existing.relatedOperationId,
-                invoiceNr: invoiceNr !== undefined ? (invoiceNr?.toString().trim() || null) : existing.invoiceNr
+                invoiceNr: invoiceNr !== undefined ? (invoiceNr?.toString().trim() || null) : existing.invoiceNr,
+                // Medidas de carga (opcionales): si no se envían, se conservan las actuales
+                lengthCm: lengthCm !== undefined ? parseOptionalMeasure(lengthCm) : existing.lengthCm,
+                widthCm: widthCm !== undefined ? parseOptionalMeasure(widthCm) : existing.widthCm,
+                heightCm: heightCm !== undefined ? parseOptionalMeasure(heightCm) : existing.heightCm,
+                cbm: cbm !== undefined ? parseOptionalMeasure(cbm) : existing.cbm,
+                weightKg: weightKg !== undefined ? parseOptionalMeasure(weightKg) : existing.weightKg
             },
             include: {
                 ally: { select: { id: true, name: true } },

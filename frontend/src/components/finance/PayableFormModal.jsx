@@ -42,6 +42,13 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
     const [paymentReference, setPaymentReference] = useState('');
     const [paymentDate, setPaymentDate] = useState(getTodayLocal());
 
+    // Medidas de carga (opcionales)
+    const [lengthCm, setLengthCm] = useState('');
+    const [widthCm, setWidthCm] = useState('');
+    const [heightCm, setHeightCm] = useState('');
+    const [cbm, setCbm] = useState('');
+    const [weightKg, setWeightKg] = useState('');
+
     const allyOptions = useMemo(() =>
         (allies || []).filter(a => a.isActive !== false).map(a => ({ value: a.id, label: a.name })),
         [allies]
@@ -106,6 +113,11 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
         setPaymentMethod('TRANSFER');
         setPaymentReference('');
         setPaymentDate(getTodayLocal());
+        setLengthCm('');
+        setWidthCm('');
+        setHeightCm('');
+        setCbm('');
+        setWeightKg('');
     };
 
     useEffect(() => {
@@ -139,6 +151,11 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
             setAmount(payable.amount ? Number(payable.amount).toString() : '');
             setDueDate(payable.dueDate ? new Date(payable.dueDate).toISOString().slice(0, 10) : '');
             setInvoiceNr(payable.invoiceNr || '');
+            setLengthCm(payable.lengthCm != null ? Number(payable.lengthCm).toString() : '');
+            setWidthCm(payable.widthCm != null ? Number(payable.widthCm).toString() : '');
+            setHeightCm(payable.heightCm != null ? Number(payable.heightCm).toString() : '');
+            setCbm(payable.cbm != null ? Number(payable.cbm).toString() : '');
+            setWeightKg(payable.weightKg != null ? Number(payable.weightKg).toString() : '');
         } else {
             resetForm();
             if (defaultEmployeeId) {
@@ -165,6 +182,15 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
             return showError('Validación', 'El monto debe ser mayor a 0');
         }
 
+        // Medidas opcionales: solo se validan si el usuario ingresó un valor
+        const measures = { lengthCm, widthCm, heightCm, cbm, weightKg };
+        const hasInvalidMeasure = Object.values(measures).some(
+            v => v !== '' && (Number.isNaN(parseFloat(v)) || parseFloat(v) < 0)
+        );
+        if (hasInvalidMeasure) {
+            return showError('Validación', 'Las medidas deben ser números mayores o iguales a 0');
+        }
+
         if (dueDate) {
             const today = getTodayLocal();
             const selectedDate = new Date(dueDate);
@@ -186,7 +212,13 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                 amount: parseFloat(amount),
                 currency: 'USD',
                 dueDate: dueDate || null,
-                invoiceNr: invoiceNr.trim() || null
+                invoiceNr: invoiceNr.trim() || null,
+                // Medidas de carga (opcionales)
+                lengthCm: lengthCm === '' ? null : parseFloat(lengthCm),
+                widthCm: widthCm === '' ? null : parseFloat(widthCm),
+                heightCm: heightCm === '' ? null : parseFloat(heightCm),
+                cbm: cbm === '' ? null : parseFloat(cbm),
+                weightKg: weightKg === '' ? null : parseFloat(weightKg)
             };
 
             if (isEdit) {
@@ -480,6 +512,77 @@ const PayableFormModal = ({ isOpen, onClose, onSuccess, payable, defaultType, de
                                 onChange={e => setDueDate(e.target.value)}
                                 className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50"
                             />
+                        </div>
+                    </div>
+
+                    {/* Medidas de carga (opcionales) */}
+                    <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Medidas <span className="normal-case font-normal text-slate-400">(opcionales)</span>
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-slate-700">Largo (cm)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={lengthCm}
+                                    onChange={e => setLengthCm(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-slate-700">Ancho (cm)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={widthCm}
+                                    onChange={e => setWidthCm(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-slate-700">Alto (cm)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={heightCm}
+                                    onChange={e => setHeightCm(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-slate-700">CBM <span className="text-slate-400">(m³)</span></label>
+                                <input
+                                    type="number"
+                                    step="0.001"
+                                    min="0"
+                                    value={cbm}
+                                    onChange={e => setCbm(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                    placeholder="0.000"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-slate-700">Kilos (kg)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={weightKg}
+                                    onChange={e => setWeightKg(e.target.value)}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                    placeholder="0"
+                                />
+                            </div>
                         </div>
                     </div>
 
