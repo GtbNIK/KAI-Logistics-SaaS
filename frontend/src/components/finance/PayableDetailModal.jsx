@@ -47,6 +47,10 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
         return dueDate < todayDate;
     })() : false;
 
+    // Medidas de carga (opcionales): la sección solo se muestra si hay al menos un valor
+    const hasMeasures = p.lengthCm != null || p.widthCm != null || p.heightCm != null || p.cbm != null || p.weightKg != null;
+    const formatMeasure = (value, unit) => (value != null ? `${Number(value)} ${unit}` : '—');
+
     const handleDeletePayment = async () => {
         if (!paymentToDelete) return;
         setDeletingPayment(true);
@@ -121,6 +125,35 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
                             </span>
                         </div>
                     </div>
+
+                    {/* Medidas de carga (solo se muestra si hay datos) */}
+                    {hasMeasures && (
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                            <p className="text-xs font-semibold text-slate-500 mb-2">Medidas</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                <div>
+                                    <p className="text-[11px] text-slate-400 mb-0.5">Largo</p>
+                                    <p className="text-sm text-slate-700 font-medium">{formatMeasure(p.lengthCm, 'cm')}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] text-slate-400 mb-0.5">Ancho</p>
+                                    <p className="text-sm text-slate-700 font-medium">{formatMeasure(p.widthCm, 'cm')}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] text-slate-400 mb-0.5">Alto</p>
+                                    <p className="text-sm text-slate-700 font-medium">{formatMeasure(p.heightCm, 'cm')}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] text-slate-400 mb-0.5">CBM</p>
+                                    <p className="text-sm text-slate-700 font-medium">{p.cbm != null ? Number(p.cbm) : '—'} m³</p>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] text-slate-400 mb-0.5">Kilos</p>
+                                    <p className="text-sm text-slate-700 font-medium">{formatMeasure(p.weightKg, 'kg')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Cards de montos */}
                     <div className="grid grid-cols-3 gap-3">

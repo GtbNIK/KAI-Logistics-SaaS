@@ -671,7 +671,14 @@ model Payable {
   relatedOperationId String? // Optional link to PaymentNotice or Service
   
   dueDate         DateTime?
-  
+
+  // Medidas de la carga (opcionales)
+  lengthCm        Decimal?      @db.Decimal(10, 2)
+  widthCm         Decimal?      @db.Decimal(10, 2)
+  heightCm        Decimal?      @db.Decimal(10, 2)
+  cbm             Decimal?      @db.Decimal(10, 3)
+  weightKg        Decimal?      @db.Decimal(10, 2)
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   deletedAt       DateTime?
