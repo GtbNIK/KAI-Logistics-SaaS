@@ -380,7 +380,7 @@ const QuoteViewModal = ({ quote, onClose, onConvertSuccess, portsCatalog = [] })
                             <span>Vendedor Asignado</span>
                         </div>
                         <p className="font-semibold text-slate-800">
-                            {(q.client?.assignedTo?.name) || (q.user?.name) || 'N/A'}
+                            {q.user?.name || 'N/A'}
                         </p>
                     </div>
                 </div>

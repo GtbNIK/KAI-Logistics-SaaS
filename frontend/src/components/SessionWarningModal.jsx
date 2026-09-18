@@ -1,7 +1,7 @@
-import { AlertTriangle, LogOut } from 'lucide-react';
+import { AlertTriangle, LogOut, Clock } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-const SessionWarningModal = ({ isOpen, onClose, onLogout, minutesLeft }) => {
+const SessionWarningModal = ({ isOpen, onClose, onLogout, onExtendSession, minutesLeft }) => {
     if (!isOpen || typeof document === 'undefined') return null;
 
     const modal = (
@@ -30,20 +30,31 @@ const SessionWarningModal = ({ isOpen, onClose, onLogout, minutesLeft }) => {
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm"
-                    >
-                        Entendido
-                    </button>
-                    <button
-                        onClick={onLogout}
-                        className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all active:scale-95 text-sm"
-                    >
-                        <LogOut size={16} />
-                        Cerrar Sesión Ahora
-                    </button>
+                <div className="px-6 py-4 border-t border-slate-100 flex flex-col gap-2">
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={onClose}
+                            className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm"
+                        >
+                            Entendido
+                        </button>
+                        <button
+                            onClick={onLogout}
+                            className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all active:scale-95 text-sm"
+                        >
+                            <LogOut size={16} />
+                            Cerrar Sesión Ahora
+                        </button>
+                    </div>
+                    {onExtendSession ? (
+                        <button
+                            onClick={onExtendSession}
+                            className="w-full bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all active:scale-95 text-sm"
+                        >
+                            <Clock size={16} />
+                            Extender Sesión (1 hora más)
+                        </button>
+                    ) : null}
                 </div>
             </div>
         </div>

@@ -16,3 +16,6 @@ export const supabase = supabaseUrl && supabaseKey
 
 // Bucket name for background images
 export const BACKGROUNDS_BUCKET = 'backgrounds';
+
+// Bucket name for company logos
+export const LOGOS_BUCKET = 'logos';

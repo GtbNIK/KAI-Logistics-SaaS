@@ -1,10 +1,14 @@
 import express from 'express';
-import { authorize } from '../middleware/auth.middleware.js';
+import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 import { getD2DItems, createD2DItem } from '../controllers/d2d-item.controller.js';
 
 const router = express.Router();
 
-router.get('/', authorize('ADMIN', 'SALES'), getD2DItems);
-router.post('/', authorize('ADMIN'), createD2DItem);
+router.use(verifyToken, tenantResolver(), requireMembership);
+
+router.get('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getD2DItems);
+router.post('/', authorize('OWNER', 'ADMIN'), createD2DItem);
 
 export default router;

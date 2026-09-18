@@ -1,14 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, DollarSign, Clock, AlertCircle, Wallet, History, ChevronRight, ChevronLeft, X, RefreshCw, CreditCard, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import authService from '../../services/auth.service';
 import EmployeeStatStrip from './EmployeeStatStrip';
 import EmployeeHistoryPanel from './EmployeeHistoryPanel';
 import RegisterPayablePaymentModal from './RegisterPayablePaymentModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const formatDate = (d) => {
     if (!d) return '';
@@ -64,7 +62,7 @@ const EmployeePayrollGrid = ({ onRegisterPayment }) => {
         try {
             const [uResult, pResult] = await Promise.allSettled([
                 authService.getUsers(),
-                axios.get(`${API_URL}/payables?employeeOnly=true&all=true`, { withCredentials: true }),
+                api.get('/payables?employeeOnly=true&all=true'),
             ]);
             const allUsers = uResult.status === 'fulfilled' ? (uResult.value.users || []) : [];
             const allPayables = pResult.status === 'fulfilled' ? (pResult.value.data.data || []) : [];

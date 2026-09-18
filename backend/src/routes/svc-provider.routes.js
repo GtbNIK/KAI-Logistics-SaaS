@@ -1,10 +1,14 @@
 import express from 'express';
-import { authorize } from '../middleware/auth.middleware.js';
+import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 import { getSvcProviders, createSvcProvider } from '../controllers/svc-provider.controller.js';
 
 const router = express.Router();
 
-router.get('/', authorize('ADMIN', 'SALES'), getSvcProviders);
-router.post('/', authorize('ADMIN'), createSvcProvider);
+router.use(verifyToken, tenantResolver(), requireMembership);
+
+router.get('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getSvcProviders);
+router.post('/', authorize('OWNER', 'ADMIN'), createSvcProvider);
 
 export default router;

@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../lib/api';
 
 const payableService = {
     /**
@@ -18,7 +16,7 @@ const payableService = {
         if (params.limit) query.append('limit', params.limit);
         if (params.search) query.append('search', params.search);
         if (params.status) query.append('status', params.status);
-        const response = await axios.get(`${API_URL}/payables?${query.toString()}`);
+        const response = await api.get(`/payables?${query.toString()}`);
         return response.data;
     },
 
@@ -28,7 +26,7 @@ const payableService = {
      * @returns {Promise<Object>} Detalle de la cuenta por pagar
      */
     getPayableById: async (id) => {
-        const response = await axios.get(`${API_URL}/payables/${id}`);
+        const response = await api.get(`/payables/${id}`);
         return response.data;
     },
 
@@ -38,7 +36,7 @@ const payableService = {
      * @returns {Promise<Object>} Cuenta por pagar creada
      */
     createPayable: async (data) => {
-        const response = await axios.post(`${API_URL}/payables`, data);
+        const response = await api.post('/payables', data);
         return response.data;
     },
 
@@ -49,7 +47,7 @@ const payableService = {
      * @returns {Promise<Object>} Cuenta por pagar actualizada
      */
     updatePayable: async (id, data) => {
-        const response = await axios.put(`${API_URL}/payables/${id}`, data);
+        const response = await api.put(`/payables/${id}`, data);
         return response.data;
     },
 
@@ -60,7 +58,7 @@ const payableService = {
      * @returns {Promise<Object>} Pago registrado
      */
     registerPayment: async (id, paymentData) => {
-        const response = await axios.post(`${API_URL}/payables/${id}/payments`, paymentData);
+        const response = await api.post(`/payables/${id}/payments`, paymentData);
         return response.data;
     },
 
@@ -71,7 +69,7 @@ const payableService = {
      * @returns {Promise<Object>} Respuesta del servidor
      */
     deletePayment: async (id, paymentId) => {
-        const response = await axios.delete(`${API_URL}/payables/${id}/payments/${paymentId}`);
+        const response = await api.delete(`/payables/${id}/payments/${paymentId}`);
         return response.data;
     },
 
@@ -81,7 +79,7 @@ const payableService = {
      * @returns {Promise<Object>} Respuesta del servidor confirmando la eliminación
      */
     deletePayable: async (id) => {
-        const response = await axios.delete(`${API_URL}/payables/${id}`);
+        const response = await api.delete(`/payables/${id}`);
         return response.data;
     },
 };

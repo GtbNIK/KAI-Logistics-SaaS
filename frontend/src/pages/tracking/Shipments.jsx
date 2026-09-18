@@ -3,6 +3,7 @@ import { Container, Plus, Ship, Package, Activity, BarChart2 } from 'lucide-reac
 import { useToast } from '../../context/ToastContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import EntityTable from '../../components/shared/EntityTable';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import { shipmentConfig, buildShipmentColumns } from '../../config/shipmentConfig';
@@ -153,7 +154,8 @@ const Shipments = () => {
     const { showSuccess } = useToast();
     const { settings } = useSettings();
     const { user } = useAuth();
-    const isAdmin = user?.role === 'ADMIN';
+    const effectiveRole = useEffectiveRole();
+    const isAdmin = effectiveRole === 'ADMIN';
     const {
         items, allItems, loading, search, setSearch,
         typeFilter, setTypeFilter, statusFilter, setStatusFilter,
@@ -252,7 +254,7 @@ const Shipments = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {(user?.role === 'ADMIN' || user?.role === 'SALES') && (
+                    {(effectiveRole === 'ADMIN' || effectiveRole === 'SALES') && (
                         <button
                             onClick={() => setMonthlyCloseOpen(true)}
                             style={{ backgroundColor: settings?.secondaryColor || '#F28729' }}
@@ -330,7 +332,7 @@ const Shipments = () => {
                 onView={setViewingShipment}
                 onEdit={(s) => setFormModal({ open: true, shipment: s })}
                 canEdit={(s) => s.status !== 'DELIVERED'}
-                canDelete={(s) => (user?.role === 'ADMIN') && s.status !== 'DELIVERED'}
+                canDelete={(s) => (effectiveRole === 'ADMIN') && s.status !== 'DELIVERED'}
                 onDelete={(s) => setDeletingShipment(s)}
                 showStatusFilter={false}
                 showToggle={false}

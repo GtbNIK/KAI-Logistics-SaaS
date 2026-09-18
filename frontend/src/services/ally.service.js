@@ -1,65 +1,62 @@
-import axios from 'axios';
-
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const API_URL = `${BASE_URL}/allies`;
+import api from '../lib/api';
 
 const allyService = {
     getAllies: async (params = {}) => {
-        const response = await axios.get(API_URL, { params });
+        const response = await api.get('/allies', { params });
         return response.data;
     },
 
     getAlly: async (id) => {
-        const response = await axios.get(`${API_URL}/${id}`);
+        const response = await api.get(`/allies/${id}`);
         return response.data;
     },
 
     createAlly: async (data) => {
-        const response = await axios.post(API_URL, data);
+        const response = await api.post('/allies', data);
         return response.data;
     },
 
     updateAlly: async (id, data) => {
-        const response = await axios.put(`${API_URL}/${id}`, data);
+        const response = await api.put(`/allies/${id}`, data);
         return response.data;
     },
 
     deleteAlly: async (id) => {
-        const response = await axios.delete(`${API_URL}/${id}`);
+        const response = await api.delete(`/allies/${id}`);
         return response.data;
     },
 
     toggleAllyStatus: async (id) => {
-        const response = await axios.patch(`${API_URL}/${id}/toggle-status`);
+        const response = await api.patch(`/allies/${id}/toggle-status`);
         return response.data;
     },
 
     // ============ TARIFAS ============
     
     getAllyRates: async (allyId) => {
-        const response = await axios.get(`${API_URL}/${allyId}/rates`);
+        const response = await api.get(`/allies/${allyId}/rates`);
         return response.data;
     },
 
     upsertAllyRate: async (allyId, data) => {
-        const response = await axios.post(`${API_URL}/${allyId}/rates`, data);
+        const response = await api.post(`/allies/${allyId}/rates`, data);
         return response.data;
     },
 
     deleteAllyRate: async (allyId, rateId) => {
-        const response = await axios.delete(`${API_URL}/${allyId}/rates/${rateId}`);
+        const response = await api.delete(`/allies/${allyId}/rates/${rateId}`);
         return response.data;
     },
 
     // ============ CATÁLOGOS ============
     
     getZones: async () => {
-        const response = await axios.get(`${API_URL}/catalogs/zones`);
+        const response = await api.get('/allies/catalogs/zones');
         return response.data;
     },
 
     getServices: async () => {
-        const response = await axios.get(`${API_URL}/catalogs/services`);
+        const response = await api.get('/allies/catalogs/services');
         return response.data;
     }
 };

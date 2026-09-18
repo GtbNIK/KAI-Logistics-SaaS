@@ -1,31 +1,28 @@
-import axios from 'axios';
-
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const API_URL = `${BASE_URL}/airlines`;
+import api from '../lib/api';
 
 const airlineService = {
     getAirLines: async (params = {}) => {
-        const response = await axios.get(API_URL, { params, withCredentials: true });
+        const response = await api.get('/airlines', { params });
         return response.data;
     },
 
     createAirLine: async (data) => {
-        const response = await axios.post(API_URL, data, { withCredentials: true });
+        const response = await api.post('/airlines', data);
         return response.data;
     },
 
     updateAirLine: async (id, data) => {
-        const response = await axios.put(`${API_URL}/${id}`, data, { withCredentials: true });
+        const response = await api.put(`/airlines/${id}`, data);
         return response.data;
     },
 
     deleteAirLine: async (id) => {
-        const response = await axios.delete(`${API_URL}/${id}`, { withCredentials: true });
+        const response = await api.delete(`/airlines/${id}`);
         return response.data;
     },
 
     toggleStatus: async (id) => {
-        const response = await axios.patch(`${API_URL}/${id}/toggle-status`, {}, { withCredentials: true });
+        const response = await api.patch(`/airlines/${id}/toggle-status`);
         return response.data;
     }
 };

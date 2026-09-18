@@ -3,7 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { Settings, LogOut, Bell, Clock, X } from 'lucide-react';
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { notificationService } from '../services/notification.service';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import useSessionTimer from '../hooks/useSessionTimer';
+import TenantSelector from './TenantSelector';
 
 // [bundle-dynamic-imports] Cargar de forma diferida el modal para reducir tamaño de bundle del navbar
 const SessionWarningModal = lazy(() => import('./SessionWarningModal'));
@@ -12,7 +14,8 @@ const SessionWarningModal = lazy(() => import('./SessionWarningModal'));
 const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout, forceLogout, sessionExpiresAt } = useAuth();
+    const { user, logout, forceLogout, sessionExpiresAt, refreshSession } = useAuth();
+    const effectiveRole = useEffectiveRole();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
@@ -42,10 +45,19 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     }, [forceLogout, navigate]);
 
     // Hook modularizado importado
-    const { secondsLeft, formattedTime, showWarning, dismissWarning } = useSessionTimer(
+    const { secondsLeft, formattedTime, showWarning, dismissWarning, resetWarning } = useSessionTimer(
         sessionExpiresAt,
         handleSessionExpired
     );
+
+    const handleExtendSession = useCallback(async () => {
+        try {
+            await refreshSession();
+            resetWarning();
+        } catch (error) {
+            console.error('Error extendiendo sesión:', error);
+        }
+    }, [refreshSession, resetWarning]);
 
     // [rerender-dependencies] Logout memorizado
     const handleLogout = useCallback(async () => {
@@ -221,7 +233,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
 
                     {/* Config Button (Solo Admin) */}
                     {/* [rendering-conditional-render] ternario en vez de && */}
-                    {user?.role === 'ADMIN' ? (
+                    {effectiveRole === 'ADMIN' ? (
                         <button 
                             onClick={() => navigate('/dashboard/configuracion')}
                             className={`
@@ -238,6 +250,9 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                         </button>
                     ) : null}
 
+                    {/* Tenant Selector (multi-tenant) */}
+                    <TenantSelector />
+
                     {/* User Profile */}
                     <div className="relative">
                         <button 
@@ -247,7 +262,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                         >
                             <div className="text-right hidden md:block">
                                 <p className="text-sm font-medium text-slate-700 leading-none">{user?.name}</p>
-                                <p className="text-xs text-slate-400 mt-1 capitalize leading-none">{getRoleLabel(user?.role)}</p>
+                                <p className="text-xs text-slate-400 mt-1 capitalize leading-none">{getRoleLabel(effectiveRole)}</p>
                             </div>
                             <div className="h-9 w-9 bg-primary-dark/5 rounded-full flex items-center justify-center text-primary-dark font-bold border border-primary-dark/10">
                                 {user?.name?.charAt(0) || 'U'}
@@ -268,7 +283,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                                 >
                                     <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 md:hidden">
                                         <p className="font-medium text-slate-700">{user?.name}</p>
-                                        <p className="text-xs text-slate-400 capitalize">{getRoleLabel(user?.role)}</p>
+                                            <p className="text-xs text-slate-400 capitalize">{getRoleLabel(effectiveRole)}</p>
                                     </div>
 
                                     <button 
@@ -291,6 +306,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
                     isOpen={showWarning}
                     onClose={dismissWarning}
                     onLogout={handleLogout}
+                    onExtendSession={handleExtendSession}
                     minutesLeft={secondsLeft !== null ? Math.ceil(secondsLeft / 60) : 10}
                 />
             </Suspense>

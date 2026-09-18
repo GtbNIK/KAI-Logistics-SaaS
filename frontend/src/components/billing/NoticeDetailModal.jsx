@@ -1,10 +1,8 @@
 import { createPortal } from 'react-dom';
 import { Receipt, DollarSign, Package, FileText, User, Calendar, X, ScrollText, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { formatCurrency } from '../../utils/currency';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const NoticeDetailModal = ({ notice, onClose, user }) => {
     const [loading, setLoading] = useState(true);
@@ -13,7 +11,7 @@ const NoticeDetailModal = ({ notice, onClose, user }) => {
     useEffect(() => {
         const loadNotice = async () => {
             try {
-                const response = await axios.get(`${API_URL}/payment-notices/${notice.id}`);
+                const response = await api.get(`/payment-notices/${notice.id}`);
                 setFullNotice(response.data);
             } catch (error) {
                 console.error('Error loading notice:', error);

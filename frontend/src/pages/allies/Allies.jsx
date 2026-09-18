@@ -1,5 +1,6 @@
 import { UserPlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { useAutoOpenModal } from '../../hooks/useAutoOpenModal';
 import allyService from '../../services/ally.service';
 import { allyConfig } from '../../config/allyConfig.jsx';
@@ -21,6 +22,7 @@ const adaptedService = {
 
 const Allies = () => {
     const { user } = useAuth();
+    const effectiveRole = useEffectiveRole();
     
     // Hook genérico con toda la lógica CRUD
     const {
@@ -134,7 +136,7 @@ const Allies = () => {
                 onToggleStatus={openToggleConfirm}
                 entityName={allyConfig.entityName}
                 entityNamePlural={allyConfig.entityNamePlural}
-                canDelete={user?.role === 'ADMIN'}
+                canDelete={effectiveRole === 'ADMIN'}
                 codeColor={allyConfig.codeColor}
             />
         </div>

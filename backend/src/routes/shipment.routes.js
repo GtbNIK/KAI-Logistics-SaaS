@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
+import { enforcePlanLimits } from '../middleware/enforcePlanLimits.js';
 import {
     getShipments,
     getShipment,
@@ -11,15 +14,13 @@ import {
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
-router.use(verifyToken);
+router.use(verifyToken, tenantResolver(), requireMembership);
 
-// CRUD
 router.get('/', getShipments);
-router.get('/monthly-close', authorize('ADMIN', 'SALES'), getMonthlyClose);
+router.get('/monthly-close', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getMonthlyClose);
 router.get('/:id', getShipment);
-router.post('/', authorize('ADMIN', 'SALES'), createShipment);
-router.put('/:id', authorize('ADMIN', 'SALES'), updateShipment);
-router.delete('/:id', authorize('ADMIN'), deleteShipment);
+router.post('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), enforcePlanLimits('shipmentsActive'), createShipment);
+router.put('/:id', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), updateShipment);
+router.delete('/:id', authorize('OWNER', 'ADMIN'), deleteShipment);
 
 export default router;

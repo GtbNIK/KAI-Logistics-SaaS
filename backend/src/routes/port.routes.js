@@ -7,15 +7,19 @@ import {
 	deletePort,
 	togglePortStatus
 } from '../controllers/port.controller.js';
-import { authorize } from '../middleware/auth.middleware.js';
+import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 
 const router = express.Router();
 
-router.post('/', authorize('ADMIN'), createPort);
-router.get('/', authorize('ADMIN', 'SALES'), getPorts);
-router.get('/:id', authorize('ADMIN', 'SALES'), getPort);
-router.put('/:id', authorize('ADMIN'), updatePort);
-router.delete('/:id', authorize('ADMIN'), deletePort);
-router.patch('/:id/toggle', authorize('ADMIN'), togglePortStatus);
+router.use(verifyToken, tenantResolver(), requireMembership);
+
+router.post('/', authorize('OWNER', 'ADMIN'), createPort);
+router.get('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getPorts);
+router.get('/:id', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getPort);
+router.put('/:id', authorize('OWNER', 'ADMIN'), updatePort);
+router.delete('/:id', authorize('OWNER', 'ADMIN'), deletePort);
+router.patch('/:id/toggle', authorize('OWNER', 'ADMIN'), togglePortStatus);
 
 export default router;

@@ -5,14 +5,9 @@ import autoTable from 'jspdf-autotable';
 import { useSettings } from '../../context/SettingsContext';
 import { buildPortLookup, formatPortList } from '../../utils/locationFormatters';
 import { dateToStringHelper } from '../../utils/dateHelpers';
-import { resizePngDataUrl } from '../../utils/imageHelpers';
-import axios from 'axios';
-
-const DEFAULT_LOGO = '/1.png';
-const DEFAULT_COMPANY_NAME = 'ERP Logística';
-const DEFAULT_PRIMARY_COLOR = '#003366';
-const DEFAULT_COMPANY_RIF = 'J-00000000-0';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
+import api from '../../lib/api';
+import { DEFAULT_LOGO, DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_RIF, DEFAULT_PRIMARY_COLOR } from '../../config/companyDefaults';
 
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -98,13 +93,17 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
         if (!isOpen) return;
         const fetchPorts = async () => {
             try {
-                const res = await axios.get(`${API_URL}/ports?all=true`, { withCredentials: true });
+                const res = await api.get('/ports?all=true');
                 setPortCatalog(res.data.data || res.data || []);
             } catch (error) {
                 console.error('Error loading ports for Rate PDF:', error);
             }
         };
         fetchPorts();
+
+        const handleTenantChange = () => fetchPorts();
+        window.addEventListener('kai:tenant-changed', handleTenantChange);
+        return () => window.removeEventListener('kai:tenant-changed', handleTenantChange);
     }, [isOpen]);
 
     if (!isOpen) return null;
@@ -135,7 +134,7 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                 }
             }
 
-            // Logo (usar PNG para mantener transparencia) con tamaño dinámico
+            // Logo con dimensiones dinámicas (proporcional)
             try {
                 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
                 const fullLogoUrl = logoUrl.startsWith('http')
@@ -143,18 +142,10 @@ const RatePDFModal = ({ isOpen, onClose, rates, region, observations = '' }) => 
                     : (logoUrl.startsWith('/')
                         ? (typeof window !== 'undefined' ? `${window.location.origin}${logoUrl}` : logoUrl)
                         : `${API_BASE}/${logoUrl.replace(/^\//, '')}`);
-                const img = await new Promise((resolve, reject) => {
-                    const image = new Image();
-                    image.crossOrigin = 'anonymous';
-                    image.onload = () => resolve(image);
-                    image.onerror = reject;
-                    image.src = fullLogoUrl;
-                });
-                const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
-                const logoWidth = 50; // mm
-                const aspect = (img.naturalHeight || img.height) / (img.naturalWidth || img.width) || (13.5/50);
-                const logoHeight = Math.max(10, Math.min(18, logoWidth * aspect));
-                doc.addImage(logoPng, 'PNG', 15, 15, logoWidth, logoHeight);
+                const logo = await loadLogoForPdf(fullLogoUrl, 50, 18);
+                if (logo) {
+                    doc.addImage(logo.dataUrl, 'PNG', 15, 15, logo.widthMm, logo.heightMm);
+                }
             } catch (error) {
                 console.warn('Error loading logo:', error);
             }

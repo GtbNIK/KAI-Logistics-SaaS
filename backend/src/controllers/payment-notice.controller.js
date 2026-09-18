@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 import { calculateItemSubtotal } from '../utils/pricing.js';
 
 const VALID_CURRENCIES = ['USD', 'ARS', 'EUR', 'GBP', 'BRL', 'CNY'];
@@ -29,7 +30,7 @@ export const deletePaymentNotice = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const notice = await prisma.paymentNotice.findUnique({
+        const notice = await prisma.paymentNotice.findFirst({
             where: { id },
             include: {
                 receivable: {
@@ -88,7 +89,7 @@ export const convertFromQuote = async (req, res) => {
         const { id } = req.params;
 
         // 1. Verificar cotización
-        const quote = await prisma.quote.findUnique({
+        const quote = await prisma.quote.findFirst({
             where: { id },
             include: {
                 items: {
@@ -112,7 +113,7 @@ export const convertFromQuote = async (req, res) => {
         }
 
         // Verificar si ya tiene aviso de cobro
-        const existingNotice = await prisma.paymentNotice.findUnique({
+        const existingNotice = await prisma.paymentNotice.findFirst({
             where: { quoteId: id }
         });
 
@@ -121,7 +122,7 @@ export const convertFromQuote = async (req, res) => {
         }
 
         // Obtener saldo a favor del cliente
-        const clientData = await prisma.client.findUnique({
+        const clientData = await prisma.client.findFirst({
             where: { id: quote.clientId },
             select: { creditBalance: true }
         });
@@ -129,11 +130,29 @@ export const convertFromQuote = async (req, res) => {
         const appliedCredit = Math.min(creditAvailable, Number(quote.totalAmount));
         const remainingAmount = Number(quote.totalAmount) - appliedCredit;
 
+        // Generar número secuencial del aviso de cobro por tenant
+        const lastNotice = await prisma.paymentNotice.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastNotice?.number || 0) + 1;
+
+        // Generar número secuencial de la cuenta por cobrar por tenant
+        const lastRec = await prisma.receivable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextRecNumber = (lastRec?.number || 0) + 1;
+
         // 2. Transacción de base de datos para asegurar integridad
         const result = await prisma.$transaction(async (tx) => {
             // A. Crear PaymentNotice y PaymentNoticeItems
             const paymentNotice = await tx.paymentNotice.create({
                 data: {
+                    number: nextNumber,
+                    tenantId: req.tenant.id,
                     quoteId: quote.id,
                     clientId: quote.clientId,
                     totalAmount: quote.totalAmount,
@@ -153,6 +172,7 @@ export const convertFromQuote = async (req, res) => {
                             }
                             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
                             return {
+                                tenantId: req.tenant.id,
                                 serviceId:      item.serviceId,
                                 allyId:         item.allyId || null,
                                 zoneId:         item.zoneId || null,
@@ -172,6 +192,8 @@ export const convertFromQuote = async (req, res) => {
             const receivable = await tx.receivable.create({
                 data: {
                     paymentNoticeId: paymentNotice.id,
+                    number: nextRecNumber,
+                    tenantId: req.tenant.id,
                     clientId: quote.clientId,
                     totalAmount: quote.totalAmount,
                     currency: quote.currency || 'USD',
@@ -227,13 +249,12 @@ export const getPaymentNotices = async (req, res) => {
     try {
         const { search = '', page = 1, limit = 10 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        const isSales = req.user.role === 'SALES';
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
 
         let where = {};
 
-        // Si es SALES, solo ver avisos de sus clientes asignados
-        if (isSales) {
-            where.client = { assignedUsers: { some: { id: req.user.id } } };
+        if (!isPrivileged) {
+            where.client = { clientAssignments: { some: { userId: req.user.id } } };
         }
 
         if (search) {
@@ -243,13 +264,12 @@ export const getPaymentNotices = async (req, res) => {
                     { number: { equals: parseInt(search) || undefined } }
                 ]
             };
-            // Combinar filtro de SALES con búsqueda
-            where = isSales
-                ? { AND: [{ client: { assignedUsers: { some: { id: req.user.id } } } }, searchConditions] }
-                : searchConditions;
+            where = isPrivileged
+                ? searchConditions
+                : { AND: [{ client: { clientAssignments: { some: { userId: req.user.id } } } }, searchConditions] };
         }
 
-        const isAdmin = req.user.role === 'ADMIN';
+        const isAdmin = isPrivileged;
 
         const [notices, total] = await Promise.all([
             prisma.paymentNotice.findMany({
@@ -291,12 +311,15 @@ export const getPaymentNotices = async (req, res) => {
 export const getPaymentNoticeById = async (req, res) => {
     try {
         const { id } = req.params;
-        const isAdmin = req.user.role === 'ADMIN';
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(req.membership.role);
 
-        const notice = await prisma.paymentNotice.findUnique({
-            where: { id },
+        const notice = await prisma.paymentNotice.findFirst({
+            where: {
+                id,
+                ...(isPrivileged ? {} : { client: { clientAssignments: { some: { userId: req.user.id } } } }),
+            },
             include: {
-                client: { include: { assignedUsers: { select: { id: true } } } },
+                client: { select: { name: true, rifOrId: true } },
                 items: {
                     include: {
                         service: { select: { name: true, type: true } },
@@ -308,7 +331,7 @@ export const getPaymentNoticeById = async (req, res) => {
                 quote: {
                     select: { number: true }
                 },
-                ...(isAdmin ? {
+                ...(isPrivileged ? {
                     receivable: {
                         include: {
                             payments: {
@@ -322,11 +345,6 @@ export const getPaymentNoticeById = async (req, res) => {
 
         if (!notice) {
             return res.status(404).json({ message: 'Aviso de Cobro no encontrado' });
-        }
-
-        // Si es rol de ventas, verificar que el aviso pertenezca a un cliente asignado
-        if (req.user.role === 'SALES' && !notice.client.assignedUsers.some(u => u.id === req.user.id)) {
-            return res.status(403).json({ message: 'No tienes permisos para ver el aviso de cobro de este cliente' });
         }
 
         const noticeWithRouteInfo = {
@@ -363,7 +381,7 @@ export const updatePaymentNotice = async (req, res) => {
         if (!items || !Array.isArray(items) || items.length === 0)
             return res.status(400).json({ message: 'Debe incluir al menos un servicio' });
 
-        const notice = await prisma.paymentNotice.findUnique({
+        const notice = await prisma.paymentNotice.findFirst({
             where: { id },
             include: { receivable: { select: { id: true, paidAmount: true } } }
         });
@@ -382,7 +400,7 @@ export const updatePaymentNotice = async (req, res) => {
             const quantity = Number(item.quantity) || 1;
             const unitPrice = Number(item.unitPrice) || 0;
 
-            const service = await prisma.service.findUnique({
+            const service = await prisma.service.findFirst({
                 where: { id: item.serviceId },
                 select: { name: true, type: true }
             });
@@ -391,16 +409,16 @@ export const updatePaymentNotice = async (req, res) => {
             totalAmount += totalPrice;
 
             const ally = item.allyId
-                ? await prisma.ally.findUnique({ where: { id: item.allyId }, select: { internalCode: true } })
+                ? await prisma.ally.findFirst({ where: { id: item.allyId }, select: { internalCode: true } })
                 : null;
             const zone = item.zoneId
-                ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
+                ? await prisma.zone.findFirst({ where: { id: item.zoneId }, select: { name: true } })
                 : null;
             const shippingLine = item.shippingLineId
-                ? await prisma.shippingLine.findUnique({ where: { id: item.shippingLineId }, select: { name: true } })
+                ? await prisma.shippingLine.findFirst({ where: { id: item.shippingLineId }, select: { name: true } })
                 : null;
             const airLine = item.airLineId
-                ? await prisma.airLine.findUnique({ where: { id: item.airLineId }, select: { name: true } })
+                ? await prisma.airLine.findFirst({ where: { id: item.airLineId }, select: { name: true } })
                 : null;
 
             const parts = [];
@@ -415,6 +433,7 @@ export const updatePaymentNotice = async (req, res) => {
             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
 
             processedItems.push({
+                tenantId: req.tenant.id,
                 serviceId: item.serviceId,
                 allyId: item.allyId || null,
                 zoneId: item.zoneId || null,
@@ -492,7 +511,7 @@ export const createPaymentNotice = async (req, res) => {
         }
 
         // Verificar que el cliente existe
-        const client = await prisma.client.findUnique({ where: { id: clientId } });
+        const client = await prisma.client.findFirst({ where: { id: clientId } });
         if (!client) {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
@@ -510,7 +529,7 @@ export const createPaymentNotice = async (req, res) => {
             const unitPrice = Number(item.unitPrice) || 0;
 
             // Buscar nombres para la descripción enriquecida y obtener tipo de servicio
-            const service = await prisma.service.findUnique({
+            const service = await prisma.service.findFirst({
                 where: { id: item.serviceId },
                 select: { name: true, type: true }
             });
@@ -520,19 +539,19 @@ export const createPaymentNotice = async (req, res) => {
             totalAmount += totalPrice;
 
             const ally = item.allyId
-                ? await prisma.ally.findUnique({ where: { id: item.allyId }, select: { internalCode: true } })
+                ? await prisma.ally.findFirst({ where: { id: item.allyId }, select: { internalCode: true } })
                 : null;
 
             const zone = item.zoneId
-                ? await prisma.zone.findUnique({ where: { id: item.zoneId }, select: { name: true } })
+                ? await prisma.zone.findFirst({ where: { id: item.zoneId }, select: { name: true } })
                 : null;
 
             const shippingLine = item.shippingLineId
-                ? await prisma.shippingLine.findUnique({ where: { id: item.shippingLineId }, select: { name: true } })
+                ? await prisma.shippingLine.findFirst({ where: { id: item.shippingLineId }, select: { name: true } })
                 : null;
 
             const airLine = item.airLineId
-                ? await prisma.airLine.findUnique({ where: { id: item.airLineId }, select: { name: true } })
+                ? await prisma.airLine.findFirst({ where: { id: item.airLineId }, select: { name: true } })
                 : null;
 
             // Construir descripción enriquecida: "Servicio · Aliado · Línea · Zona/Ruta"
@@ -548,6 +567,7 @@ export const createPaymentNotice = async (req, res) => {
             const description = item.description || parts.join(' · ') || 'Servicio de Logística';
 
             processedItems.push({
+                tenantId: req.tenant.id,
                 serviceId: item.serviceId,
                 allyId: item.allyId || null,
                 zoneId: item.zoneId || null,
@@ -565,7 +585,7 @@ export const createPaymentNotice = async (req, res) => {
         }
 
         // Obtener saldo a favor del cliente
-        const clientBal = await prisma.client.findUnique({
+        const clientBal = await prisma.client.findFirst({
             where: { id: clientId },
             select: { creditBalance: true }
         });
@@ -573,10 +593,28 @@ export const createPaymentNotice = async (req, res) => {
         const appliedCredit = Math.min(creditAvail, totalAmount);
         const remainingAmount = totalAmount - appliedCredit;
 
+        // Generar número secuencial del aviso de cobro por tenant
+        const lastNotice = await prisma.paymentNotice.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastNotice?.number || 0) + 1;
+
+        // Generar número secuencial de la cuenta por cobrar por tenant
+        const lastRec = await prisma.receivable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextRecNumber = (lastRec?.number || 0) + 1;
+
         // Transacción: crear PaymentNotice + Items + Receivable
         const result = await prisma.$transaction(async (tx) => {
             const paymentNotice = await tx.paymentNotice.create({
                 data: {
+                    number: nextNumber,
+                    tenantId: req.tenant.id,
                     clientId,
                     totalAmount,
                     currency: noticeCurrency,
@@ -595,6 +633,8 @@ export const createPaymentNotice = async (req, res) => {
             const receivable = await tx.receivable.create({
                 data: {
                     paymentNoticeId: paymentNotice.id,
+                    number: nextRecNumber,
+                    tenantId: req.tenant.id,
                     clientId,
                     totalAmount,
                     currency: noticeCurrency,

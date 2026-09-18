@@ -34,7 +34,7 @@ const PayableDetailModal = ({ payable, onClose, onRegisterPayment, onPaymentDele
     if (p.employeeUser) {
         beneficiaryType = p.employeeUser.position
             ? `Empleado · ${p.employeeUser.position}`
-            : `Empleado · ${p.employeeUser.role === 'ADMIN' ? 'Administrador' : 'Ventas'}`;
+            : `Empleado · ${p.employeeUser.memberships?.[0]?.role === 'ADMIN' ? 'Administrador' : 'Ventas'}`;
     }
 
     // Verificar si la fecha límite pasó

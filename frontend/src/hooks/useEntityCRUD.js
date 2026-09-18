@@ -45,8 +45,28 @@ const useEntityCRUD = ({
     // Estado de operaciones
     const [actionLoading, setActionLoading] = useState(false);
 
+    // Contador para forzar refetch al cambiar de tenant
+    const [tenantRefreshKey, setTenantRefreshKey] = useState(0);
+
     // Toast para notificaciones
     const toast = useToast();
+
+    // Escuchar cambio de tenant para refrescar datos
+    useEffect(() => {
+        const handler = () => {
+            setItems([]);
+            setPage(1);
+            setSearch('');
+            setFilterStatus('active');
+            setCustomFilters(initialCustomFilters || {});
+            setTotalPages(1);
+            setTotalItems(0);
+            setError(null);
+            setTenantRefreshKey(k => k + 1);
+        };
+        window.addEventListener('kai:tenant-changed', handler);
+        return () => window.removeEventListener('kai:tenant-changed', handler);
+    }, [initialCustomFilters]);
 
     // Sincronizar filtros iniciales cuando cambian
     useEffect(() => {
@@ -103,7 +123,7 @@ const useEntityCRUD = ({
             fetchItems();
         }, 500);
         return () => clearTimeout(delayDebounceFn);
-    }, [page, search, filterStatus, customFilters, fetchItems, dependenciesKey]);
+    }, [page, search, filterStatus, customFilters, fetchItems, dependenciesKey, tenantRefreshKey]);
 
     // Handlers de modales
     const openCreateForm = useCallback(() => {

@@ -1,34 +1,32 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import api from '../lib/api';
 
 const getClients = async (params) => {
-    const response = await axios.get(`${API_URL}/clients`, { params });
+    const response = await api.get('/clients', { params });
     return response.data;
 };
 
 const getClient = async (id) => {
-    const response = await axios.get(`${API_URL}/clients/${id}`);
+    const response = await api.get(`/clients/${id}`);
     return response.data;
 };
 
 const createClient = async (data) => {
-    const response = await axios.post(`${API_URL}/clients`, data);
+    const response = await api.post('/clients', data);
     return response.data;
 };
 
 const updateClient = async (id, data) => {
-    const response = await axios.put(`${API_URL}/clients/${id}`, data);
+    const response = await api.put(`/clients/${id}`, data);
     return response.data;
 };
 
 const deleteClient = async (id) => {
-    const response = await axios.delete(`${API_URL}/clients/${id}`);
+    const response = await api.delete(`/clients/${id}`);
     return response.data;
 };
 
 const toggleClientStatus = async (id, deactivationNote = null) => {
-    const response = await axios.patch(`${API_URL}/clients/${id}/toggle-status`, { deactivationNote });
+    const response = await api.patch(`/clients/${id}/toggle-status`, { deactivationNote });
     return response.data;
 };
 

@@ -1,53 +1,98 @@
+/**
+ * Client Controller - Multi-Tenant.
+ *
+ * Refactorizado para usar Prisma Client Extension (scoping automatico por tenant)
+ * y Membership-based authorization (roles por tenant, no globales).
+ *
+ * NOTA: Mantiene la misma API que el controller legacy para no romper el frontend.
+ * Los campos `assignedUsers` y `updatedBy` ya no existen en el modelo multi-tenant
+ * (porque todos los miembros del tenant ven los clientes segun su rol en Membership).
+ */
+
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
+import { getScopeFilter, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP } from '../utils/scope.js';
 
-// Normalizar RIF/Cédula: eliminar guiones, espacios y convertir a mayúsculas
 const normalizeRifOrId = (rifOrId) => {
     if (!rifOrId) return '';
     return rifOrId.replace(/[-\s]/g, '').toUpperCase().trim();
 };
 
-// Generar código interno automático (ej. CLI-0001)
-const generateInternalCode = async () => {
-    // Obtener TODOS los códigos existentes
-    const allClients = await prisma.client.findMany({
-        select: { internalCode: true }
+const normalizePhone = (phone) => String(phone || '');
+
+const slugifyInternalCode = (text) => {
+    return text.toString().toUpperCase().replace(/[^A-Z0-9-]/g, '').substring(0, 12);
+};
+
+/**
+ * Genera el siguiente internalCode (CLI-XXXX) dentro del tenant actual.
+ * Usa una transaccion para evitar colisiones en concurrencia.
+ */
+const generateInternalCode = async (tx) => {
+    const lastClient = await tx.client.findFirst({
+        where: { internalCode: { startsWith: 'CLI-' } },
+        orderBy: { internalCode: 'desc' },
+        select: { internalCode: true },
     });
-    
-    if (!allClients || allClients.length === 0) return 'CLI-0001';
-    
-    // Extraer los números de todos los códigos y encontrar el máximo
-    const numbers = allClients
-        .map(client => {
-            const match = client.internalCode.match(/CLI-(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-        })
-        .filter(num => !isNaN(num));
-    
-    const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
-    const nextNumber = maxNumber + 1;
-    
+
+    let nextNumber = 1;
+    if (lastClient) {
+        const match = lastClient.internalCode.match(/CLI-(\d+)/);
+        if (match) {
+            nextNumber = parseInt(match[1], 10) + 1;
+        }
+    }
+
     return `CLI-${nextNumber.toString().padStart(4, '0')}`;
 };
 
+/**
+ * Verifica si el membership actual tiene rol de administrador.
+ */
+const isAdmin = (req) => {
+    return ['OWNER', 'ADMIN'].includes(req.membership?.role);
+};
+
+/**
+ * @route   POST /api/clients
+ * @desc    Crea un cliente en el tenant activo
+ * @access  Private (ADMIN, SALES, OPERATOR)
+ */
 export const createClient = async (req, res) => {
     try {
-        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToIds } = req.body;
-        
-        // Normalizar RIF/Cédula
+        const {
+            name,
+            rifOrId,
+            email,
+            phone,
+            address,
+            deliveryAddress,
+            contactPerson,
+            referencePoint,
+            clientDetails,
+            assignedUserIds,
+        } = req.body;
+
+        const assigneeIds = Array.isArray(assignedUserIds) ? assignedUserIds.filter(Boolean) : [];
+
+        if (!name || !rifOrId || !email || !phone || !address || !contactPerson) {
+            return res.status(400).json({
+                message: 'Faltan campos requeridos: name, rifOrId, email, phone, address, contactPerson.',
+            });
+        }
+
         const normalizedRifOrId = normalizeRifOrId(rifOrId);
-        // Asegurar que phone sea string
-        const normalizedPhone = String(phone || '');
-        
-        // Verificar duplicados
+        const normalizedPhone = normalizePhone(phone);
+
+        // Verificar duplicados dentro del tenant (la Extension ya filtra por tenantId)
         const existingClient = await prisma.client.findFirst({
-            where: { 
+            where: {
                 OR: [
                     { rifOrId: normalizedRifOrId },
                     { email },
-                    { phone: normalizedPhone }
-                ]
-            }
+                    { phone: normalizedPhone },
+                ],
+            },
         });
 
         if (existingClient) {
@@ -55,66 +100,69 @@ export const createClient = async (req, res) => {
             if (existingClient.rifOrId === normalizedRifOrId) field = 'RIF/Cédula';
             else if (existingClient.email === email) field = 'Email';
             else if (existingClient.phone === normalizedPhone) field = 'Teléfono';
-            
-            return res.status(400).json({ 
-                message: `Ya existe un cliente con ese ${field}` 
+
+            return res.status(400).json({
+                message: `Ya existe un cliente con ese ${field}.`,
             });
         }
 
-        const internalCode = await generateInternalCode();
-        
-        // Si no se proporciona assignedToIds o si es SALES, usar el usuario actual
-        let finalAssignedToIds = [];
-        if (req.user.role === 'SALES') {
-            finalAssignedToIds = [req.user.id];
-        } else {
-            finalAssignedToIds = (assignedToIds && Array.isArray(assignedToIds) && assignedToIds.length > 0) 
-                                 ? assignedToIds 
-                                 : [req.user.id];
-        }
+        // Calcular asignatarios antes de la transacción para usarlo dentro y fuera
+        const creatorRole = req.membership?.role;
+        const isPrivileged = ['OWNER', 'ADMIN'].includes(creatorRole);
+        const finalAssigneeIds = isPrivileged
+            ? assigneeIds
+            : [...new Set([req.user.id, ...assigneeIds])];
 
-        const client = await prisma.client.create({
-            data: {
-                internalCode,
-                name,
-                rifOrId: normalizedRifOrId,
-                email,
-                phone: normalizedPhone,
-                address,
-                deliveryAddress,
-                contactPerson,
-                referencePoint,
-                clientDetails,
-                assignedUsers: {
-                    connect: finalAssignedToIds.map(id => ({ id }))
+        const client = await prisma.$transaction(async (tx) => {
+            const internalCode = await generateInternalCode(tx);
+
+            const created = await tx.client.create({
+                data: {
+                    internalCode,
+                    name,
+                    rifOrId: normalizedRifOrId,
+                    email,
+                    phone: normalizedPhone,
+                    address,
+                    deliveryAddress: deliveryAddress || null,
+                    contactPerson,
+                    referencePoint: referencePoint || null,
+                    clientDetails: clientDetails || null,
+                    deletedAt: null,
                 },
-                updatedById: req.user.id
-            },
-            include: {
-                assignedUsers: { select: { id: true, name: true } },
-                updatedBy: { select: { name: true } }
-            }
-        });
+            });
 
-        // Notificar a los vendedores de la asignación del nuevo cliente
-        for (const userId of finalAssignedToIds) {
-            if (userId !== req.user.id) { // Solo notificar si se lo asignamos a otra persona
-                await createNotification({
-                    title: 'Nuevo Cliente Asignado',
-                    message: `Se ha creado y se te ha asignado el cliente ${client.name} (${client.internalCode}).`,
-                    type: 'INFO',
-                    targetUserId: userId,
-                    entityType: 'CLIENT',
-                    entityId: client.id
+            // Asignar usuarios al cliente
+            if (finalAssigneeIds.length > 0) {
+                await tx.clientAssignment.createMany({
+                    data: finalAssigneeIds.map(userId => ({
+                        clientId: created.id,
+                        userId,
+                    })),
                 });
             }
+
+            return created;
+        });
+
+        // Notificar a los usuarios asignados (excepto al creador)
+        for (const userId of finalAssigneeIds) {
+            if (userId === req.user.id) continue;
+            await createNotification({
+                tenantId: req.tenant.id,
+                title: 'Cliente asignado',
+                message: `Se te ha asignado el cliente "${name}"`,
+                type: 'SUCCESS',
+                targetUserId: userId,
+                entityType: 'CLIENT',
+                entityId: client.id,
+            });
         }
 
-        res.status(201).json(client);
+        return res.status(201).json(client);
     } catch (error) {
-        console.error('Error creating client:', error);
-        
-        // Errores específicos de Prisma
+        console.error('[createClient] Error:', error);
+
         if (error.code === 'P2002') {
             const field = error.meta?.target?.[0];
             let fieldName = 'datos';
@@ -122,63 +170,67 @@ export const createClient = async (req, res) => {
             else if (field === 'email') fieldName = 'Email';
             else if (field === 'phone') fieldName = 'Teléfono';
             else if (field === 'internalCode') fieldName = 'código interno';
-            
-            return res.status(400).json({ 
-                message: `Ya existe un cliente con ese ${fieldName}` 
+
+            return res.status(400).json({
+                message: `Ya existe un cliente con ese ${fieldName}.`,
             });
         }
-        
-        res.status(500).json({ 
-            message: 'Error al crear cliente',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+
+        return res.status(500).json({
+            message: 'Error al crear cliente.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         });
     }
 };
 
+/**
+ * @route   GET /api/clients
+ * @desc    Lista clientes del tenant activo con paginacion y busqueda
+ * @access  Private (todos los miembros del tenant)
+ */
 export const getClients = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search = '', all = 'false', includeInactive = 'false', assignedToId } = req.query;
+        const {
+            page = 1,
+            limit = 10,
+            search = '',
+            all = 'false',
+            includeInactive = 'false',
+        } = req.query;
+
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const take = parseInt(limit);
-        const isSales = req.user.role === 'SALES';
 
-        // Filtro de búsqueda
-        const where = {
-            deletedAt: null, // Excluir eliminados (soft delete)
-            OR: [
+const where = {
+        deletedAt: null,
+        ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Client'),
+    };
+
+        if (search) {
+            where.OR = [
                 { name: { contains: search, mode: 'insensitive' } },
                 { rifOrId: { contains: search, mode: 'insensitive' } },
                 { internalCode: { contains: search, mode: 'insensitive' } },
-                { contactPerson: { contains: search, mode: 'insensitive' } }
-            ]
-        };
+                { contactPerson: { contains: search, mode: 'insensitive' } },
+            ];
+        }
 
-        // Filtrar por activos/inactivos
         if (includeInactive !== 'true') {
             where.isActive = true;
         }
 
-        // SALES siempre ve solo sus clientes. ADMIN puede filtrar por vendedor
-        if (isSales) {
-            where.assignedUsers = { some: { id: req.user.id } };
-        } else if (assignedToId) {
-            where.assignedUsers = { some: { id: assignedToId } };
-        }
-
-        // Si all=true, devolver sin paginación (para selects)
         if (all === 'true') {
-             const clients = await prisma.client.findMany({
+            const clients = await prisma.client.findMany({
                 where,
                 orderBy: { name: 'asc' },
                 include: {
-                    assignedUsers: { select: { id: true, name: true } },
-                    updatedBy: { select: { name: true } }
-                }
+                    clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
+                updatedBy: { select: { id: true, name: true } },
+                },
             });
             return res.json({ data: clients });
         }
 
-        // Conteo total para paginación
         const total = await prisma.client.count({ where });
 
         const clients = await prisma.client.findMany({
@@ -187,79 +239,87 @@ export const getClients = async (req, res) => {
             take,
             orderBy: { createdAt: 'desc' },
             include: {
-                assignedUsers: {
-                    select: { id: true, name: true, email: true }
-                },
-                updatedBy: { select: { name: true } }
-            }
+                clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
+                updatedBy: { select: { id: true, name: true } },
+            },
         });
 
-        res.json({
+        return res.json({
             data: clients,
             meta: {
                 total,
                 page: parseInt(page),
-                last_page: Math.ceil(total / take)
-            }
+                last_page: Math.ceil(total / take),
+            },
         });
     } catch (error) {
-        console.error('Error getting clients:', error);
-        res.status(500).json({ message: 'Error al obtener clientes' });
+        console.error('[getClients] Error:', error);
+        return res.status(500).json({ message: 'Error al obtener clientes.' });
     }
 };
 
+/**
+ * @route   GET /api/clients/:id
+ * @desc    Obtiene un cliente por ID (del tenant activo)
+ * @access  Private
+ */
 export const getClient = async (req, res) => {
     try {
         const { id } = req.params;
-        const client = await prisma.client.findUnique({
-            where: { id },
+
+        const client = await prisma.client.findFirst({
+            where: {
+                id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, SCOPE_RELATION_MAP, 'Client'),
+            },
             include: {
-                assignedUsers: { select: { id: true, name: true } },
-                updatedBy: { select: { name: true } }
-            }
+                clientAssignments: { select: { userId: true, user: { select: { id: true, name: true, position: true } } } },
+                updatedBy: { select: { id: true, name: true } },
+            },
         });
 
         if (!client) {
-            return res.status(404).json({ message: 'Cliente no encontrado' });
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
         }
 
-        // Seguridad: Si es ventas, verificar que sea suyo
-        if (req.user.role === 'SALES' && !client.assignedUsers.some(u => u.id === req.user.id)) {
-            return res.status(403).json({ message: 'No tienes permiso para ver este cliente' });
-        }
-
-        res.json(client);
+        return res.json(client);
     } catch (error) {
-        res.status(500).json({ message: 'Error al obtener cliente' });
+        console.error('[getClient] Error:', error);
+        return res.status(500).json({ message: 'Error al obtener cliente.' });
     }
 };
 
+/**
+ * @route   PUT /api/clients/:id
+ * @desc    Actualiza un cliente del tenant activo
+ * @access  Private (ADMIN, SALES, OPERATOR)
+ */
 export const updateClient = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, rifOrId, email, phone, address, deliveryAddress, contactPerson, referencePoint, clientDetails, assignedToIds } = req.body;
+        const {
+            name,
+            rifOrId,
+            email,
+            phone,
+            address,
+            deliveryAddress,
+            contactPerson,
+            referencePoint,
+            clientDetails,
+            assignedUserIds,
+        } = req.body;
 
-        // Normalizar RIF/Cédula
-        const normalizedRifOrId = normalizeRifOrId(rifOrId);
-        // Asegurar que phone sea string
-        const normalizedPhone = String(phone || '');
-
-        const existingClient = await prisma.client.findUnique({ 
-            where: { id },
-            include: { assignedUsers: { select: { id: true } } }
-        });
+        const existingClient = await prisma.client.findFirst({ where: { id } });
         if (!existingClient) {
-            return res.status(404).json({ message: 'Cliente no encontrado' });
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
         }
 
-        // Seguridad: SALES puede editar clientes
-        if (req.user.role === 'SALES' && !existingClient.assignedUsers.some(u => u.id === req.user.id)) {
-            return res.status(403).json({ message: 'No tienes permiso para editar este cliente' });
-        }
+        const normalizedRifOrId = rifOrId !== undefined ? normalizeRifOrId(rifOrId) : existingClient.rifOrId;
+        const normalizedPhone = phone !== undefined ? normalizePhone(phone) : existingClient.phone;
 
-        // Verificar duplicados SOLO si los valores cambiaron
         const rifChanged = normalizedRifOrId !== existingClient.rifOrId;
-        const emailChanged = email !== existingClient.email;
+        const emailChanged = email !== undefined && email !== existingClient.email;
         const phoneChanged = normalizedPhone !== existingClient.phone;
 
         if (rifChanged || emailChanged || phoneChanged) {
@@ -272,9 +332,9 @@ export const updateClient = async (req, res) => {
                 where: {
                     AND: [
                         { id: { not: id } },
-                        { OR: orConditions }
-                    ]
-                }
+                        { OR: orConditions },
+                    ],
+                },
             });
 
             if (duplicate) {
@@ -282,178 +342,187 @@ export const updateClient = async (req, res) => {
                 if (rifChanged && duplicate.rifOrId === normalizedRifOrId) field = 'RIF/Cédula';
                 else if (emailChanged && duplicate.email === email) field = 'Email';
                 else if (phoneChanged && duplicate.phone === normalizedPhone) field = 'Teléfono';
-                
-                return res.status(400).json({ 
-                    message: `Ya existe otro cliente con ese ${field}` 
+
+                return res.status(400).json({
+                    message: `Ya existe otro cliente con ese ${field}.`,
                 });
             }
         }
 
-        let assignedUsersData = undefined;
-        if (req.user.role === 'ADMIN' && assignedToIds !== undefined) {
-             // Si pasaron un array (incluso vacío), actualizamos
-             if (Array.isArray(assignedToIds)) {
-                 assignedUsersData = {
-                     set: assignedToIds.map(id => ({ id }))
-                 };
-             }
+        // Obtener asignaciones actuales antes de actualizar
+        const oldAssignments = await prisma.clientAssignment.findMany({
+            where: { clientId: id },
+            select: { userId: true },
+        });
+        const oldIds = oldAssignments.map(a => a.userId);
+
+        const updatedClient = await prisma.$transaction(async (tx) => {
+            const updated = await tx.client.update({
+                where: { id },
+                data: {
+                    ...(name !== undefined && { name }),
+                    ...(rifOrId !== undefined && { rifOrId: normalizedRifOrId }),
+                    ...(email !== undefined && { email }),
+                    ...(phone !== undefined && { phone: normalizedPhone }),
+                    ...(address !== undefined && { address }),
+                    ...(deliveryAddress !== undefined && { deliveryAddress }),
+                    ...(contactPerson !== undefined && { contactPerson }),
+                    ...(referencePoint !== undefined && { referencePoint }),
+                    ...(clientDetails !== undefined && { clientDetails }),
+                    updatedById: req.user.id,
+                },
+            });
+
+            // Reemplazar asignaciones si vienen en el payload
+            if (assignedUserIds !== undefined) {
+                const newIds = Array.isArray(assignedUserIds) ? assignedUserIds.filter(Boolean) : [];
+                await tx.clientAssignment.deleteMany({ where: { clientId: id } });
+                if (newIds.length > 0) {
+                    await tx.clientAssignment.createMany({
+                        data: newIds.map(userId => ({ clientId: id, userId })),
+                    });
+                }
+            }
+
+            return updated;
+        });
+
+        // Notificar solo a los NUEVOS asignados
+        if (assignedUserIds !== undefined) {
+            const newIds = Array.isArray(assignedUserIds) ? assignedUserIds.filter(Boolean) : [];
+            const addedIds = newIds.filter(id => !oldIds.includes(id));
+            for (const userId of addedIds) {
+                await createNotification({
+                    tenantId: req.tenant.id,
+                    title: 'Cliente asignado',
+                    message: `Se te ha asignado el cliente "${updatedClient.name}"`,
+                    type: 'SUCCESS',
+                    targetUserId: userId,
+                    entityType: 'CLIENT',
+                    entityId: updatedClient.id,
+                });
+            }
         }
+
+        return res.json(updatedClient);
+    } catch (error) {
+        console.error('[updateClient] Error:', error);
+        return res.status(500).json({ message: 'Error al actualizar cliente.' });
+    }
+};
+
+/**
+ * @route   DELETE /api/clients/:id
+ * @desc    Soft delete de un cliente
+ * @access  Private (solo OWNER/ADMIN)
+ */
+export const deleteClient = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!isAdmin(req)) {
+            return res.status(403).json({
+                message: 'Solo administradores pueden eliminar clientes.',
+            });
+        }
+
+        const client = await prisma.client.findFirst({ where: { id } });
+        if (!client) {
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
+        }
+
+        await prisma.client.update({
+            where: { id },
+            data: { deletedAt: new Date() },
+        });
+
+        return res.json({ message: 'Cliente eliminado correctamente.' });
+    } catch (error) {
+        console.error('[deleteClient] Error:', error);
+        return res.status(500).json({ message: 'Error al eliminar cliente.' });
+    }
+};
+
+/**
+ * @route   PATCH /api/clients/:id/toggle-status
+ * @desc    Activa/desactiva un cliente
+ * @access  Private (OWNER, ADMIN, SALES, OPERATOR)
+ */
+export const toggleClientStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { deactivationNote } = req.body || {};
+
+        const existingClient = await prisma.client.findFirst({
+            where: { id },
+            select: { isActive: true },
+        });
+
+        if (!existingClient) {
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
+        }
+
+        const willBeActive = !existingClient.isActive;
 
         const updatedClient = await prisma.client.update({
             where: { id },
             data: {
-                name,
-                rifOrId: normalizedRifOrId,
-                email,
-                phone: normalizedPhone,
-                address,
-                deliveryAddress,
-                contactPerson,
-                referencePoint,
-                clientDetails,
-                ...(assignedUsersData ? { assignedUsers: assignedUsersData } : {}),
-                updatedById: req.user.id
+                isActive: willBeActive,
+                deactivationNote: willBeActive ? null : deactivationNote || null,
             },
-            include: {
-                assignedUsers: { select: { id: true, name: true } },
-                updatedBy: { select: { name: true } }
-            }
         });
 
-        // Notificar a nuevos vendedores si hubo cambio en la asignación
-        if (req.user.role === 'ADMIN' && assignedToIds !== undefined && Array.isArray(assignedToIds)) {
-            const oldUserIds = existingClient.assignedUsers.map(u => u.id);
-            const newAssignedIds = assignedToIds.filter(id => !oldUserIds.includes(id));
-            
-            for (const userId of newAssignedIds) {
-                if (userId !== req.user.id) {
-                    await createNotification({
-                        title: 'Nuevo Cliente Asignado',
-                        message: `Se te ha asignado el cliente ${updatedClient.name} (${updatedClient.internalCode}).`,
-                        type: 'INFO',
-                        targetUserId: userId,
-                        entityType: 'CLIENT',
-                        entityId: updatedClient.id
-                    });
-                }
-            }
-        }
-
-        res.json(updatedClient);
-    } catch (error) {
-        console.error('Error updating client:', error);
-        res.status(500).json({ message: 'Error al actualizar cliente' });
-    }
-};
-
-export const deleteClient = async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        if (req.user.role !== 'ADMIN') {
-            return res.status(403).json({ message: 'Solo administradores pueden eliminar clientes' });
-        }
-
-        // Soft delete: marcar como eliminado
-        await prisma.client.update({
-            where: { id },
-            data: { deletedAt: new Date() }
-        });
-
-        res.json({ message: 'Cliente eliminado correctamente' });
-    } catch (error) {
-        console.error('Error deleting client:', error);
-        res.status(500).json({ message: 'Error al eliminar cliente' });
-    }
-};
-
-export const toggleClientStatus = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { deactivationNote } = req.body; // Nota opcional al desactivar
-        
-        const existingClient = await prisma.client.findUnique({ 
-            where: { id },
-            select: { isActive: true, assignedUsers: { select: { id: true } } }
-        });
-
-        if (!existingClient) {
-            return res.status(404).json({ message: 'Cliente no encontrado' });
-        }
-
-        // Seguridad: Ventas solo puede cambiar estado de sus clientes
-        if (req.user.role === 'SALES' && !existingClient.assignedUsers.some(u => u.id === req.user.id)) {
-            return res.status(403).json({ message: 'No tienes permiso para modificar este cliente' });
-        }
-
-        const updatedClient = await prisma.client.update({
-            where: { id },
-            data: { 
-                isActive: !existingClient.isActive,
-                // Solo guardar deactivationNote si se está desactivando
-                deactivationNote: !existingClient.isActive ? null : deactivationNote || null
-            }
-        });
-
-        res.json({ 
-            message: `Cliente ${updatedClient.isActive ? 'activado' : 'inactivado'} correctamente`,
-            client: updatedClient
+        return res.json({
+            message: `Cliente ${updatedClient.isActive ? 'activado' : 'inactivado'} correctamente.`,
+            client: updatedClient,
         });
     } catch (error) {
-        console.error('Error toggling client status:', error);
-        res.status(500).json({ message: 'Error al cambiar estado del cliente' });
+        console.error('[toggleClientStatus] Error:', error);
+        return res.status(500).json({ message: 'Error al cambiar estado del cliente.' });
     }
 };
 
 /**
  * @route   GET /api/clients/:id/receivables-summary
- * @desc    Obtener resumen de cuentas por cobrar activas de un cliente
- * @access  Private (ADMIN, SALES)
+ * @desc    Resumen de cuentas por cobrar del cliente
+ * @access  Private
  */
 export const getClientReceivablesSummary = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Verificar acceso SALES: solo puede ver sus clientes
-        if (req.user.role === 'SALES') {
-            const client = await prisma.client.findUnique({ 
-                where: { id }, 
-                select: { assignedUsers: { select: { id: true } } } 
-            });
-            if (!client || !client.assignedUsers.some(u => u.id === req.user.id)) {
-                return res.status(403).json({ message: 'No tienes acceso a este cliente' });
-            }
+        const client = await prisma.client.findFirst({
+            where: { id },
+            select: { id: true, creditBalance: true },
+        });
+
+        if (!client) {
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
         }
 
-        // Contar receivables activas (no pagadas completamente)
-        const [activeCount, totalBalance, clientInfo] = await Promise.all([
+        const [activeCount, totalBalance] = await Promise.all([
             prisma.receivable.count({
                 where: {
                     clientId: id,
-                    status: { in: ['PENDING', 'PARTIALLY_PAID'] }
-                }
+                    status: { in: ['PENDING', 'PARTIALLY_PAID'] },
+                },
             }),
             prisma.receivable.aggregate({
                 where: {
                     clientId: id,
-                    status: { in: ['PENDING', 'PARTIALLY_PAID'] }
+                    status: { in: ['PENDING', 'PARTIALLY_PAID'] },
                 },
-                _sum: { balance: true }
+                _sum: { balance: true },
             }),
-            prisma.client.findUnique({
-                where: { id },
-                select: { creditBalance: true }
-            })
         ]);
 
-        res.json({
+        return res.json({
             activeCount,
             totalPendingBalance: totalBalance._sum.balance || 0,
-            creditBalance: clientInfo ? Number(clientInfo.creditBalance) : 0
+            creditBalance: client.creditBalance ? Number(client.creditBalance) : 0,
         });
     } catch (error) {
-        console.error('Error in getClientReceivablesSummary:', error);
-        res.status(500).json({ message: 'Error al obtener resumen de cuentas por cobrar' });
+        console.error('[getClientReceivablesSummary] Error:', error);
+        return res.status(500).json({ message: 'Error al obtener resumen de cuentas por cobrar.' });
     }
 };
-

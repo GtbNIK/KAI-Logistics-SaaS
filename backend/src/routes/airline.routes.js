@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, authorize } from '../middleware/auth.middleware.js';
+import { tenantResolver } from '../middleware/tenantResolver.js';
+import { requireMembership } from '../middleware/requireMembership.js';
 import {
     getAirLines,
     createAirLine,
@@ -10,12 +12,12 @@ import {
 
 const router = Router();
 
-router.use(verifyToken);
+router.use(verifyToken, tenantResolver(), requireMembership);
 
-router.get('/', authorize('ADMIN', 'SALES'), getAirLines);
-router.post('/', authorize('ADMIN', 'SALES'), createAirLine);
-router.put('/:id', authorize('ADMIN'), updateAirLine);
-router.patch('/:id/toggle-status', authorize('ADMIN'), toggleAirLineStatus);
-router.delete('/:id', authorize('ADMIN'), deleteAirLine);
+router.get('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), getAirLines);
+router.post('/', authorize('OWNER', 'ADMIN', 'SALES', 'OPERATOR'), createAirLine);
+router.put('/:id', authorize('OWNER', 'ADMIN'), updateAirLine);
+router.patch('/:id/toggle-status', authorize('OWNER', 'ADMIN'), toggleAirLineStatus);
+router.delete('/:id', authorize('OWNER', 'ADMIN'), deleteAirLine);
 
 export default router;

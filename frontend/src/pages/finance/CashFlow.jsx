@@ -107,7 +107,7 @@ const DateSelector = ({ label, day, month, year, onDay, onMonth, onYear }) => {
 };
 
 // ─── Sub-componente: KPI Card ────────────────────────────────────────────────
-const KpiCard = ({ title, value, icon, colorClass, bgClass }) => {
+const KpiCard = ({ title, value, icon, colorClass, bgClass, subtitle }) => {
     const Icon = icon;
     return (
         <div className={`bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center gap-4`}>
@@ -117,6 +117,9 @@ const KpiCard = ({ title, value, icon, colorClass, bgClass }) => {
             <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</p>
                 <p className={`text-2xl font-bold mt-0.5 ${colorClass}`}>{value}</p>
+                {subtitle && (
+                    <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+                )}
             </div>
         </div>
     );
@@ -155,7 +158,7 @@ const CashFlow = () => {
     });
 
     // Estado de datos
-    const [summary,  setSummary]  = useState({ totalIngresos: 0, totalEgresos: 0, balance: 0 });
+    const [summary,  setSummary]  = useState({ totalIngresos: 0, totalEgresos: 0, balance: 0, estimatedIngresos: 0, estimatedEgresos: 0 });
     const [ingresos, setIngresos] = useState([]);
     const [egresos,  setEgresos]  = useState([]);
     const [loading,  setLoading]  = useState(true);
@@ -287,6 +290,7 @@ const CashFlow = () => {
                     icon={TrendingUp}
                     colorClass="text-emerald-600"
                     bgClass="bg-emerald-50"
+                    subtitle={`Estimado en el rango de fechas: ${formatCurrency(summary.estimatedIngresos, 'USD')}`}
                 />
                 <KpiCard
                     title="Total Egresos"
@@ -294,6 +298,7 @@ const CashFlow = () => {
                     icon={TrendingDown}
                     colorClass="text-rose-600"
                     bgClass="bg-rose-50"
+                    subtitle={`Estimado en el rango de fechas: ${formatCurrency(summary.estimatedEgresos, 'USD')}`}
                 />
                 <KpiCard
                     title="Balance Neto"

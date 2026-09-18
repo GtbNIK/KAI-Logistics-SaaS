@@ -1,9 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save } from 'lucide-react';
+import { X, Save, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { PhoneInput } from 'react-international-phone';
+import { PhoneNumberUtil } from 'google-libphonenumber';
 import 'react-international-phone/style.css';
+
+const phoneUtil = PhoneNumberUtil.getInstance();
+
+/**
+ * Valida si un número de teléfono es válido según estándares internacionales
+ * @param {string} phone - Número de teléfono a validar
+ * @returns {boolean} True si es válido, false en caso contrario
+ */
+const isPhoneValid = (phone) => {
+    try {
+        return phoneUtil.isValidNumber(phoneUtil.parseAndKeepRawInput(phone));
+    } catch {
+        return false;
+    }
+};
 
 /**
  * Modal de formulario genérico para crear/editar cualquier entidad
@@ -31,22 +47,33 @@ const EntityFormModal = ({
 }) => {
     const toast = useToast();
     const [formData, setFormData] = useState({});
+    const [showPasswords, setShowPasswords] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
+    const phoneInputRef = useRef(null);
 
-    // Inicializar formData cuando abre el modal
+    // Mantener la referencia más reciente de sections sin re-disparar el efecto de inicialización
+    const sectionsRef = useRef(sections);
+    sectionsRef.current = sections;
+
+    // Inicializar formData solo cuando se abre el modal o cambia la entidad.
+    // No depende de `sections` porque los padres pueden recrear el array en cada
+    // render (ej. .filter()), lo que borraba los datos escritos al mostrar un toast.
     useEffect(() => {
         if (isOpen) {
+            const sections = sectionsRef.current;
             if (editMode && entityData) {
                 // Poblar con datos existentes
                 const initialData = {};
                 sections.forEach(section => {
                     section.fields.forEach(field => {
                         if (field.type === 'multiselect') {
-                            // Extraer IDs del array de objetos (ej. assignedUsers -> assignedToIds)
-                            const arrayData = entityData.assignedUsers;
+                            // Extraer IDs del array de objetos. Usa relationKey o fallback a field.name
+                            const sourceKey = field.relationKey || field.name;
+                            const arrayData = entityData[sourceKey];
                             initialData[field.name] = Array.isArray(arrayData)
-                                ? arrayData.map(u => u.id)
+                                ? arrayData.map(u => u.id || u.userId)
                                 : [];
                         } else {
                             initialData[field.name] = entityData[field.name] || '';
@@ -65,8 +92,9 @@ const EntityFormModal = ({
                 setFormData(initialData);
             }
             setError('');
+            setFieldErrors({});
         }
-    }, [isOpen, editMode, entityData, sections]);
+    }, [isOpen, editMode, entityData]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -80,12 +108,53 @@ const EntityFormModal = ({
             ...prev,
             [name]: newValue
         }));
+        // Limpiar error del campo si el usuario empieza a escribir
+        if (fieldErrors[name]) {
+            setFieldErrors(prev => {
+                const next = { ...prev };
+                delete next[name];
+                return next;
+            });
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
         setError('');
+
+        // Validar campos phone requeridos
+        const phoneFields = sections.flatMap(s => s.fields).filter(f => f.type === 'phone' && f.required);
+        const newFieldErrors = {};
+        let hasErrors = false;
+        let firstErrorField = null;
+        phoneFields.forEach(field => {
+            const value = (formData[field.name] || '').trim();
+            // Contar dígitos: si solo quedó el código de país (ej. "+58") no hay número real
+            const digitCount = (value.match(/\d/g) || []).length;
+            // Validar con google-libphonenumber
+            if (!value || digitCount < 7 || !isPhoneValid(value)) {
+                newFieldErrors[field.name] = !value || digitCount < 7
+                    ? 'Este campo es obligatorio'
+                    : 'Número de teléfono inválido';
+                hasErrors = true;
+                if (!firstErrorField) firstErrorField = field;
+            }
+        });
+        if (hasErrors) {
+            setFieldErrors(newFieldErrors);
+            toast.showError('Campo requerido', 'Por favor complete el campo de teléfono');
+            // Hacer focus al campo teléfono con error
+            setTimeout(() => {
+                if (phoneInputRef.current) {
+                    const input = phoneInputRef.current.querySelector('input[type="tel"]');
+                    if (input) input.focus();
+                }
+            }, 100);
+            return;
+        }
+        setFieldErrors({});
+
+        setLoading(true);
 
         try {
             const capitalizedName = entityName.charAt(0).toUpperCase() + entityName.slice(1);
@@ -157,19 +226,21 @@ const EntityFormModal = ({
                                             <textarea
                                                 name={field.name}
                                                 required={field.required}
+                                                disabled={field.disabled}
                                                 value={formData[field.name] || ''}
                                                 onChange={handleChange}
                                                 rows={field.rows || 2}
-                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all resize-none"
+                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                                                 placeholder={field.placeholder}
                                             />
                                         ) : field.type === 'select' ? (
                                             <select
                                                 name={field.name}
                                                 required={field.required}
+                                                disabled={field.disabled}
                                                 value={formData[field.name] || ''}
                                                 onChange={handleChange}
-                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all"
+                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                                             >
                                                 <option value="">{field.placeholder || 'Seleccionar...'}</option>
                                                 {field.options?.map((opt, i) => (
@@ -183,6 +254,7 @@ const EntityFormModal = ({
                                                         <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer hover:bg-white p-1.5 rounded-lg transition-colors">
                                                             <input
                                                                 type="checkbox"
+                                                                disabled={field.disabled}
                                                                 checked={(formData[field.name] || []).includes(opt.value)}
                                                                 onChange={() => {
                                                                     const current = formData[field.name] || [];
@@ -201,16 +273,19 @@ const EntityFormModal = ({
                                                 )}
                                             </div>
                                         ) : field.type === 'phone' ? (
-                                            <div className="phone-input-container w-full">
-                                                {/* No renderizar PhoneInput hasta que formData tenga valor en modo edición */}
-                                                {(!editMode || formData[field.name]) ? (
+                                            <div className="phone-input-container w-full" ref={phoneInputRef}>
+                                                {/* Mostrar skeleton solo mientras formData no se ha inicializado.
+                                                    No depende del valor del campo: si el usuario borra el número,
+                                                    el PhoneInput (y su selector de país) debe seguir montado. */}
+                                                {(Object.keys(formData).length > 0) ? (
                                                     <PhoneInput
                                                         defaultCountry="ve"
+                                                        disabled={field.disabled}
                                                         value={formData[field.name] || ''}
                                                         onChange={phone => handleChange({ target: { name: field.name, value: phone, type: 'text' } })}
-                                                        inputClassName="!w-full !py-2 !h-auto !bg-slate-50 border border-slate-200 !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all"
+                                                        inputClassName={`!w-full !py-2 !h-auto !bg-slate-50 border !rounded-r-xl focus:!outline-none focus:!ring-2 focus:!ring-primary-light/20 focus:!border-primary-light transition-all ${fieldErrors[field.name] ? '!border-red-500' : 'border-slate-200'}`}
                                                         countrySelectorStyleProps={{
-                                                            buttonClassName: "!bg-slate-50 border border-slate-200 !rounded-l-xl !px-3 !h-10"
+                                                            buttonClassName: `!bg-slate-50 border !rounded-l-xl !px-3 !h-10 ${fieldErrors[field.name] ? '!border-red-500' : 'border-slate-200'}`
                                                         }}
                                                     />
                                                 ) : (
@@ -218,25 +293,51 @@ const EntityFormModal = ({
                                                     <div className="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl animate-pulse" />
                                                 )}
                                             </div>
+                                        ) : field.type === 'password' ? (
+                                            <div className="relative">
+                                                <input
+                                                    type={showPasswords[field.name] ? 'text' : 'password'}
+                                                    name={field.name}
+                                                    required={field.required}
+                                                    disabled={field.disabled}
+                                                    value={formData[field.name] || ''}
+                                                    onChange={handleChange}
+                                                    maxLength={field.maxLength}
+                                                    className="w-full py-2 pr-12 pl-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    placeholder={field.placeholder || '••••••••'}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPasswords(prev => ({ ...prev, [field.name]: !prev[field.name] }))}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showPasswords[field.name] ? <EyeOff size={20} /> : <Eye size={20} />}
+                                                </button>
+                                            </div>
                                         ) : (
                                             <div className="relative">
                                                 {field.icon && (
-                                                    <field.icon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                                    <field.icon className={`absolute left-3 top-1/2 -translate-y-1/2 ${field.disabled ? 'text-slate-300' : 'text-slate-400'}`} size={18} />
                                                 )}
                                                 <input
                                                     type={field.type || 'text'}
                                                     name={field.name}
                                                     required={field.required}
+                                                    disabled={field.disabled}
                                                     value={formData[field.name] || ''}
                                                     onChange={handleChange}
                                                     maxLength={field.maxLength}
-                                                    className={`w-full py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all ${field.icon ? 'pl-10 pr-4' : 'px-4'}`}
+                                                    className={`w-full py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-light/20 focus:border-primary-light transition-all ${field.icon ? 'pl-10 pr-4' : 'px-4'} disabled:opacity-60 disabled:cursor-not-allowed`}
                                                     placeholder={field.placeholder}
                                                 />
                                             </div>
                                         )}
                                         {field.hint && (
                                             <p className="text-xs text-slate-400 mt-1">{field.hint}</p>
+                                        )}
+                                        {fieldErrors[field.name] && (
+                                            <p className="text-xs text-red-500 mt-1">{fieldErrors[field.name]}</p>
                                         )}
                                     </div>
                                 ))}

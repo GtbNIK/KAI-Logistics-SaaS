@@ -42,7 +42,7 @@ export const payableConfig = {
                 else if (item.employeeUser) {
                     subLabel = item.employeeUser.position
                         ? `Empleado · ${item.employeeUser.position}`
-                        : `Empleado · ${item.employeeUser.role === 'ADMIN' ? 'Administrador' : 'Ventas'}`;
+                        : `Empleado · ${item.employeeUser.memberships?.[0]?.role === 'ADMIN' ? 'Administrador' : 'Ventas'}`;
                 }
                 return (
                     <div className="flex flex-col">

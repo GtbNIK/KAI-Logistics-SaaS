@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CreditCard, X, Plus } from 'lucide-react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import { getTodayLocal, toLocalISOString } from '../../utils/dateHelpers';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import OverpaymentConfirmModal from './OverpaymentConfirmModal';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const paymentMethods = [
     { value: 'TRANSFER', label: 'Transferencia Bancaria' },
@@ -51,7 +49,7 @@ const RegisterPaymentModal = ({ receivable, onClose, onSuccess }) => {
     const doSubmit = async (normalizedAmount) => {
         setLoading(true);
         try {
-            await axios.post(`${API_URL}/receivables/${receivable.id}/payments`, {
+            await api.post(`/receivables/${receivable.id}/payments`, {
                 amount: normalizedAmount, method, currency: recCurrency, reference: reference || undefined, date: toLocalISOString(date), notes: notes || undefined,
             });
             showSuccess('¡Pago Registrado!', `Se abonaron ${formatCurrency(normalizedAmount, recCurrency)}`);

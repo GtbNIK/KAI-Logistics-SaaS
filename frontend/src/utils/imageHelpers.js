@@ -96,3 +96,26 @@ export const compressImageFile = (file, maxWidth = 800, maxHeight = 800, quality
 export const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
     return resizeImage(img, { maxWidth, maxHeight, format: 'png', quality: 1 });
 };
+
+/**
+ * Carga un logo desde URL y calcula dimensiones proporcionales para PDF
+ * @param {string} logoUrl - URL del logo
+ * @param {number} maxWidthMm - Ancho máximo en mm
+ * @param {number} maxHeightMm - Alto máximo en mm
+ * @returns {Promise<{dataUrl: string, widthMm: number, heightMm: number} | null>}
+ */
+export const loadLogoForPdf = async (logoUrl, maxWidthMm = 50, maxHeightMm = 18) => {
+    if (!logoUrl) return null;
+    const img = await loadImage(logoUrl);
+    const imgW = img.naturalWidth || img.width;
+    const imgH = img.naturalHeight || img.height;
+    if (!imgW || !imgH) return null;
+    const scale = Math.min(maxWidthMm / imgW, maxHeightMm / imgH, 1);
+    const canvasPxW = Math.round(maxWidthMm * 11);
+    const dataUrl = await resizePngDataUrl(img, { maxWidth: canvasPxW });
+    return {
+        dataUrl,
+        widthMm: imgW * scale,
+        heightMm: imgH * scale,
+    };
+};

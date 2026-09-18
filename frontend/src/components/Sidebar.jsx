@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext.jsx';
+import { useEffectiveRole, useIsReadOnly } from '../hooks/useEffectiveRole';
 import { 
     LayoutDashboard, 
     Users, 
@@ -24,13 +26,14 @@ import {
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, logout } = useAuth();
-    // Estado para controlar qué grupos están expandidos
+    const { currentTenant } = useTenant();
+    const role = useEffectiveRole();
+    const isReadOnly = useIsReadOnly();
     const [expandedGroups, setExpandedGroups] = useState({
         entidades: true,
         operaciones: true,
         finanzas: false
     });
-    // Estado para controlar qué submenús están expandidos
     const [expandedSubMenus, setExpandedSubMenus] = useState({});
 
     const toggleSubMenu = (itemId) => {
@@ -64,7 +67,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     label: 'Cotizaciones', 
                     roles: ['ADMIN', 'SALES'],
                     subItems: [
-                        { to: '/dashboard/cotizaciones/nuevo', label: 'Crear Cotización' },
+                        { to: '/dashboard/cotizaciones/nuevo', label: 'Crear Cotización', disableIfReadOnly: true },
                         { to: '/dashboard/cotizaciones', label: 'Ver Cotizaciones' }
                     ]
                 },
@@ -84,18 +87,18 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         },
     ];
 
-    // Función para verificar si el usuario tiene permiso
     const hasPermission = (roles) => {
-        if (!roles) return true; // Si no define roles, es público
-        return roles.includes(user?.role);
+        if (role === 'GUEST') return false;
+        if (!roles) return true;
+        return roles.includes(role);
     };
 
-    // Filtrar grupos y items
     const filteredGroups = menuGroups.map(group => {
         const filteredItems = group.items.filter(item => hasPermission(item.roles));
         return { ...group, items: filteredItems };
-    }).filter(group => group.items.length > 0); 
-    // Si un grupo se queda sin items (ej. Finanzas para Sales), no lo mostramos
+    }).filter(group => group.items.length > 0);
+
+    const showBanner = isReadOnly && currentTenant?.status === 'TRIAL';
 
     return (
         <aside
@@ -107,7 +110,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             {/* Header / Logo */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 bg-black/10">
                 <div className={`flex items-center gap-3 overflow-hidden transition-all duration-300 ${isOpen ? 'w-auto' : 'w-0'}`}>
-                    <img src="/2.png" alt="Logo" className="h-12 w-auto min-w-[32px] object-contain" />
+                    <div className="flex items-center gap-2">
+                        <div className="h-10 w-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                            <span className="text-xs font-bold text-slate-300">KAI</span>
+                        </div>
+                        <span className="font-bold text-sm whitespace-nowrap">KAI Logistics</span>
+                    </div>
                 </div>
                 <button 
                     onClick={toggleSidebar}
@@ -117,10 +125,33 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 </button>
             </div>
 
+            {/* Trial banner */}
+            {isOpen && showBanner && (
+                <div className="mx-3 mt-3 p-2 bg-amber-500/20 border border-amber-500/30 rounded-md">
+                    <p className="text-amber-200 text-xs text-center">
+                        🔒 Modo demo — prueba gratuita activa
+                    </p>
+                    {currentTenant?.trialEndsAt && (
+                        <p className="text-amber-300/70 text-[10px] text-center mt-1">
+                            Vence el {new Date(currentTenant.trialEndsAt).toLocaleDateString('es-VE')}
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {/* Expired banner */}
+            {isOpen && currentTenant?.status === 'EXPIRED' && (
+                <div className="mx-3 mt-3 p-2 bg-red-500/20 border border-red-500/30 rounded-md">
+                    <p className="text-red-200 text-xs text-center">
+                        🔒 Plan vencido — sin acceso
+                    </p>
+                </div>
+            )}
+
             {/* Navigation Groups */}
             <div className="flex-1 py-6 px-3 space-y-6 sidebar-scrollbar">
                 
-                {/* Dashboard Home - Item suelto */}
+                {/* Dashboard Home */}
                 <NavLink
                     to="/dashboard"
                     end
@@ -162,7 +193,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
                         <div className={`space-y-1 transition-all duration-300 ${!expandedGroups[group.id] && isOpen ? 'hidden' : ''}`}>
                             {group.items.map((item) => {
-                                // Caso Submenú
                                 if (item.subItems) {
                                     return (
                                         <div key={item.id} className="space-y-1">
@@ -188,32 +218,37 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                                 )}
                                             </button>
                                             
-                                            {/* SubItems List */}
                                             {isOpen && expandedSubMenus[item.id] && (
                                                 <div className="pl-9 space-y-1">
-                                                    {item.subItems.map(subItem => (
-                                                        <NavLink
-                                                            key={subItem.to}
-                                                            to={subItem.to}
-                                                            end
-                                                            className={({ isActive }) => `
-                                                                block px-3 py-2 rounded-lg text-sm transition-all duration-200
-                                                                ${isActive 
-                                                                    ? 'bg-secondary text-white font-medium shadow-lg shadow-secondary/20' 
-                                                                    : 'text-white/50 hover:bg-white/5 hover:text-white'
-                                                                }
-                                                            `}
-                                                        >
-                                                            {subItem.label}
-                                                        </NavLink>
-                                                    ))}
+                                                    {item.subItems.map(subItem => {
+                                                        const isDisabled = subItem.disableIfReadOnly && isReadOnly;
+                                                        return (
+                                                            <NavLink
+                                                                key={subItem.to}
+                                                                to={subItem.to}
+                                                                end
+                                                                title={isDisabled ? 'Actualiza tu plan para crear' : undefined}
+                                                                onClick={(e) => { if (isDisabled) e.preventDefault(); }}
+                                                                className={({ isActive }) => `
+                                                                    block px-3 py-2 rounded-lg text-sm transition-all duration-200
+                                                                    ${isDisabled
+                                                                        ? 'text-white/20 cursor-not-allowed'
+                                                                        : isActive 
+                                                                            ? 'bg-secondary text-white font-medium shadow-lg shadow-secondary/20' 
+                                                                            : 'text-white/50 hover:bg-white/5 hover:text-white'
+                                                                    }
+                                                                `}
+                                                            >
+                                                                {subItem.label}
+                                                            </NavLink>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
                                     );
                                 }
 
-                                // Caso Normal
                                 return (
                                     <NavLink
                                         key={item.to}
@@ -245,7 +280,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 ))}
             </div>
             
-            {/* Version Info (Optional) */}
+            {/* Version Info */}
             {isOpen && (
                 <div className="p-4 text-center">
                     <p className="text-[10px] text-white/20">v1.1.0 Estable</p>

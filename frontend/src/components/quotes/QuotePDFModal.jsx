@@ -8,9 +8,10 @@ import { calculateItemSubtotal } from '../../utils/pricing';
 import { toVenezuelanFormat } from '../../utils/dateHelpers';
 import { buildPortLookup, formatRouteDisplay, formatZoneLabel } from '../../utils/locationFormatters';
 import { getCurrencySymbol, DEFAULT_CURRENCY } from '../../utils/currency';
+import { loadLogoForPdf } from '../../utils/imageHelpers';
 
 // Valores por defecto si no hay configuración
-const DEFAULT_LOGO = '/1.png';
+const DEFAULT_LOGO = '';
 const DEFAULT_COMPANY_NAME = 'ERP Logística';
 const DEFAULT_COMPANY_SLOGAN = 'Soluciones logísticas integrales';
 const DEFAULT_PRIMARY_COLOR = '#003366';
@@ -62,28 +63,6 @@ const imageToJpegDataUrl = async (img, { maxWidth, maxHeight, quality = 0.7 } = 
     return canvas.toDataURL('image/jpeg', quality);
 };
 
-const resizePngDataUrl = async (img, { maxWidth, maxHeight } = {}) => {
-    const srcW = img.naturalWidth || img.width;
-    const srcH = img.naturalHeight || img.height;
-
-    const scaleW = maxWidth ? (maxWidth / srcW) : 1;
-    const scaleH = maxHeight ? (maxHeight / srcH) : 1;
-    const scale = Math.min(scaleW, scaleH, 1);
-
-    const outW = Math.max(1, Math.floor(srcW * scale));
-    const outH = Math.max(1, Math.floor(srcH * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = outW;
-    canvas.height = outH;
-
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, outW, outH);
-
-    return canvas.toDataURL('image/png');
-};
 
 /**
  * Modal para vista previa y generación de PDF de cotización
@@ -193,23 +172,15 @@ const QuotePDFModal = ({
                 }
             }
 
-            // Cargar logo
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = logoUrl;
-            });
-
-            // Logo (arriba a la izquierda)
-            // Logo (arriba a la izquierda) - Ajustado tamaño
-            // Mantener proporción si es posible, pero aquí forzamos un tamaño razonable
-            const logoWidth = 50; 
-            const logoHeight = 13.5;
-            const logoPng = await resizePngDataUrl(img, { maxWidth: 650, maxHeight: 300 });
-            doc.addImage(logoPng, 'PNG', margin, yPos, logoWidth, logoHeight);
+            // Logo con dimensiones dinámicas
+            try {
+                const logo = await loadLogoForPdf(logoUrl, 50, 18);
+                if (logo) {
+                    doc.addImage(logo.dataUrl, 'PNG', margin, yPos, logo.widthMm, logo.heightMm);
+                }
+            } catch (e) {
+                console.warn('Error loading logo:', e);
+            }
 
 
             // Título de la cotización (arriba a la derecha)

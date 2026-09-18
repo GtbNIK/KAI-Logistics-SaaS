@@ -157,7 +157,7 @@ export const getAllies = async (req, res) => {
 export const getAlly = async (req, res) => {
     try {
         const { id } = req.params;
-        const ally = await prisma.ally.findUnique({
+        const ally = await prisma.ally.findFirst({
             where: { id }
         });
 
@@ -179,7 +179,7 @@ export const updateAlly = async (req, res) => {
         // Normalizar RIF/Cédula (si se proporciona)
         const normalizedRifOrId = rifOrId ? normalizeRifOrId(rifOrId) : null;
 
-        const existingAlly = await prisma.ally.findUnique({ where: { id } });
+        const existingAlly = await prisma.ally.findFirst({ where: { id } });
         if (!existingAlly) {
             return res.status(404).json({ message: 'Aliado no encontrado' });
         }
@@ -236,10 +236,6 @@ export const deleteAlly = async (req, res) => {
     try {
         const { id } = req.params;
         
-        if (req.user.role !== 'ADMIN') {
-            return res.status(403).json({ message: 'Solo administradores pueden eliminar aliados' });
-        }
-
         // Soft delete: marcar como eliminado
         await prisma.ally.update({
             where: { id },
@@ -257,7 +253,7 @@ export const toggleAllyStatus = async (req, res) => {
     try {
         const { id } = req.params;
         
-        const existingAlly = await prisma.ally.findUnique({ 
+        const existingAlly = await prisma.ally.findFirst({ 
             where: { id },
             select: { isActive: true }
         });
@@ -314,7 +310,7 @@ export const upsertAllyRate = async (req, res) => {
         const { serviceId, zoneId, costPrice, salePrice, currency = 'USD', validUntil, originPort, destinationPort, shippingLine } = req.body;
 
         // Verificar que el aliado existe
-        const ally = await prisma.ally.findUnique({ where: { id } });
+        const ally = await prisma.ally.findFirst({ where: { id } });
         if (!ally) {
             return res.status(404).json({ message: 'Aliado no encontrado' });
         }

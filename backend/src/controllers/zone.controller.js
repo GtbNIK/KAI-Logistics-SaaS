@@ -1,9 +1,10 @@
 import prisma from '../config/database.js';
+import { getCurrentTenantId } from '../lib/tenantContext.js';
 
 // Cache en memoria para catálogo de zonas (TTL 5 minutos)
 const ZONES_CACHE_TTL = 5 * 60 * 1000;
 const zonesCache = new Map(); // key -> { data, expiresAt }
-const makeZonesKey = (params) => JSON.stringify(params);
+const makeZonesKey = (params) => JSON.stringify({ tenantId: getCurrentTenantId(), ...params });
 const getZonesCached = (key) => {
     const e = zonesCache.get(key);
     if (!e) return null;
@@ -13,7 +14,15 @@ const getZonesCached = (key) => {
 const setZonesCached = (key, data) => {
     zonesCache.set(key, { data, expiresAt: Date.now() + ZONES_CACHE_TTL });
 };
-const clearZonesCache = () => zonesCache.clear();
+const clearZonesCache = () => {
+    const tenantId = getCurrentTenantId();
+    for (const key of zonesCache.keys()) {
+        try {
+            const parsed = JSON.parse(key);
+            if (parsed.tenantId === tenantId) zonesCache.delete(key);
+        } catch { /* key invalida, ignorar */ }
+    }
+};
 
 // Generar código interno automático
 const generateInternalCode = async () => {
@@ -42,7 +51,7 @@ export const createZone = async (req, res) => {
             finalCode = await generateInternalCode();
         } else {
             // Verificar que el código no esté duplicado
-            const existing = await prisma.zone.findUnique({
+            const existing = await prisma.zone.findFirst({
                 where: { internalCode: finalCode.toUpperCase() }
             });
             if (existing) {
@@ -146,7 +155,7 @@ export const getZones = async (req, res) => {
 export const getZone = async (req, res) => {
     try {
         const { id } = req.params;
-        const zone = await prisma.zone.findUnique({
+        const zone = await prisma.zone.findFirst({
             where: { id },
             include: {
                 rates: {
@@ -175,7 +184,7 @@ export const updateZone = async (req, res) => {
         const { id } = req.params;
         const { name, description } = req.body;
 
-        const existingZone = await prisma.zone.findUnique({ where: { id } });
+        const existingZone = await prisma.zone.findFirst({ where: { id } });
         if (!existingZone) {
             return res.status(404).json({ message: 'Zona no encontrada' });
         }
@@ -198,7 +207,7 @@ export const deleteZone = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const zone = await prisma.zone.findUnique({ where: { id } });
+        const zone = await prisma.zone.findFirst({ where: { id } });
         if (!zone) {
             return res.status(404).json({ message: 'Zona no encontrada' });
         }
@@ -222,7 +231,7 @@ export const toggleZoneStatus = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const zone = await prisma.zone.findUnique({ where: { id } });
+        const zone = await prisma.zone.findFirst({ where: { id } });
         if (!zone) {
             return res.status(404).json({ message: 'Zona no encontrada' });
         }

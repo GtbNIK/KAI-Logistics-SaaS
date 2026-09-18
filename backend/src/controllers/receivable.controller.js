@@ -19,7 +19,7 @@ export const createReceivable = async (req, res) => {
         }
 
         // Aplicar saldo a favor del cliente automáticamente
-        const client = await prisma.client.findUnique({
+        const client = await prisma.client.findFirst({
             where: { id: clientId },
             select: { creditBalance: true }
         });
@@ -28,9 +28,19 @@ export const createReceivable = async (req, res) => {
         const appliedCredit = Math.min(creditAvailable, amount);
         const remainingAmount = amount - appliedCredit;
 
+        // Generar número secuencial de cuenta por cobrar por tenant
+        const lastRec = await prisma.receivable.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextRecNumber = (lastRec?.number || 0) + 1;
+
         const receivable = await prisma.receivable.create({
             data: {
                 paymentNoticeId: null,
+                number: nextRecNumber,
+                tenantId: req.tenant.id,
                 clientId,
                 totalAmount: amount,
                 currency: recCurrency,
@@ -60,7 +70,7 @@ export const createReceivable = async (req, res) => {
             });
         }
 
-        const created = await prisma.receivable.findUnique({
+        const created = await prisma.receivable.findFirst({
             where: { id: receivable.id },
             include: {
                 client: { select: { name: true, rifOrId: true, creditBalance: true } },
@@ -94,7 +104,7 @@ export const createReceivable = async (req, res) => {
 export const updateReceivable = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma.receivable.findUnique({ where: { id } });
+        const existing = await prisma.receivable.findFirst({ where: { id } });
 
         if (!existing) {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
@@ -173,7 +183,7 @@ export const updateReceivable = async (req, res) => {
 export const deleteReceivable = async (req, res) => {
     try {
         const { id } = req.params;
-        const receivable = await prisma.receivable.findUnique({ where: { id }, include: { payments: { include: { receipt: true } } } });
+        const receivable = await prisma.receivable.findFirst({ where: { id }, include: { payments: { include: { receipt: true } } } });
         if (!receivable) {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
         }
@@ -191,12 +201,12 @@ export const deleteReceivablePayment = async (req, res) => {
     try {
         const { id, paymentId } = req.params;
 
-        const receivable = await prisma.receivable.findUnique({ where: { id } });
+        const receivable = await prisma.receivable.findFirst({ where: { id } });
         if (!receivable) {
             return res.status(404).json({ message: 'Cuenta por cobrar no encontrada' });
         }
 
-        const payment = await prisma.paymentTransaction.findUnique({
+        const payment = await prisma.paymentTransaction.findFirst({
             where: { id: paymentId },
             include: { receipt: true }
         });
@@ -332,7 +342,7 @@ export const getReceivableById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const receivable = await prisma.receivable.findUnique({
+        const receivable = await prisma.receivable.findFirst({
             where: { id },
             include: {
                 client: { select: { name: true, email: true, rifOrId: true } },
@@ -380,7 +390,7 @@ export const registerPayment = async (req, res) => {
         }
         
 
-        const receivable = await prisma.receivable.findUnique({
+        const receivable = await prisma.receivable.findFirst({
             where: { id },
             include: { client: true }
         });
@@ -438,8 +448,16 @@ export const registerPayment = async (req, res) => {
             });
 
             // 2. Crear recibo asociado (opcional pero recomendado en el schema actual)
+            const lastReceipt = await tx.paymentReceipt.findFirst({
+                where: { tenantId: req.tenant.id },
+                orderBy: { receiptNumber: 'desc' },
+                select: { receiptNumber: true }
+            });
+            const nextReceiptNumber = (lastReceipt?.receiptNumber || 0) + 1;
+
             const receipt = await tx.paymentReceipt.create({
                 data: {
+                    receiptNumber: nextReceiptNumber,
                     paymentTransactionId: payment.id,
                     clientId: receivable.clientId,
                     amount: paymentAmount,
@@ -476,7 +494,7 @@ export const registerPayment = async (req, res) => {
         if (newStatus === 'PAID') {
             let notificationMessage;
             if (overpaymentAmount > 0) {
-                const clientData = await prisma.client.findUnique({
+                const clientData = await prisma.client.findFirst({
                     where: { id: receivable.clientId },
                     select: { creditBalance: true }
                 });

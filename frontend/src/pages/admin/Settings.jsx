@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useToast } from '../../context/ToastContext';
+import { useTenant } from '../../context/TenantContext';
+import { useAuth } from '../../context/AuthContext';
 import EntityTable from '../../components/shared/EntityTable';
 import EntityFormModal from '../../components/shared/EntityFormModal';
 import ConfirmDeleteModal from '../../components/modals/ConfirmDeleteModal';
 import UserViewModal from '../../components/modals/UserViewModal';
+import LogoDropzone from '../../components/shared/LogoDropzone';
 import authService from '../../services/auth.service';
 import {
     Save, Briefcase, Users, Key, Palette,
@@ -22,70 +25,89 @@ const userService = {
 };
 
 // Secciones del formulario para Crear / Editar usuario
-const getUserFormSections = (isNew) => [
-    {
-        title: 'Información del usuario',
-        columns: 2,
-        fields: [
-            {
-                name: 'name',
-                label: 'Nombre completo',
-                type: 'text',
-                required: true,
-                icon: User,
-                placeholder: 'Ej: Juan Pérez',
-            },
-            {
-                name: 'email',
-                label: 'Correo electrónico',
-                type: 'email',
-                required: true,
-                icon: Mail,
-                placeholder: 'usuario@empresa.com',
-            },
-            {
-                name: 'phoneNumber',
-                label: 'Teléfono',
-                type: 'text',
-                required: false,
-                icon: Phone,
-                placeholder: '+58 412 123 4567',
-                stripPattern: /\D/g,
-            },
-            {
-                name: 'position',
-                label: 'Cargo',
-                type: 'text',
-                required: false,
-                icon: Briefcase,
-                placeholder: 'Ej: Gerente de Operaciones',
-                stripPattern: /[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g,
-            },
-            {
-                name: 'role',
-                label: 'Rol',
-                type: 'select',
-                required: true,
-                defaultValue: 'SALES',
-                options: [
-                    { value: 'ADMIN', label: 'Administrador' },
-                    { value: 'SALES', label: 'Ventas' },
-                ],
-            },
-            ...(isNew
-                ? [{
-                    name: 'password',
-                    label: 'Contraseña',
-                    type: 'password',
+const getUserFormSections = (isNew, editingUser, currentUserId) => {
+    // El campo de rol se deshabilita cuando:
+    // - Se está editando a si mismo (no se puede cambiar el propio rol)
+    // - Se está editando a otro OWNER (los OWNERs no pueden ser degradados por la UI)
+    const isEditingSelf = !isNew && editingUser && currentUserId && editingUser.id === currentUserId;
+    const isEditingOwner = !isNew && editingUser && editingUser.role === 'OWNER';
+    const disableRole = isEditingSelf || isEditingOwner;
+    const roleHint = isEditingSelf
+        ? 'No puedes cambiar tu propio rol.'
+        : isEditingOwner
+            ? 'El rol de un OWNER no puede ser cambiado desde aqui. Contacta a soporte.'
+            : null;
+
+    return [
+        {
+            title: 'Información del usuario',
+            columns: 2,
+            fields: [
+                {
+                    name: 'name',
+                    label: 'Nombre completo',
+                    type: 'text',
                     required: true,
-                    icon: Lock,
-                    placeholder: 'Mínimo 6 caracteres',
-                    hint: 'El usuario NO podrá cambiarla después.',
-                }]
-                : []),
-        ],
-    },
-];
+                    icon: User,
+                    placeholder: 'Ej: Juan Pérez',
+                },
+                {
+                    name: 'email',
+                    label: 'Correo electrónico',
+                    type: 'email',
+                    required: true,
+                    icon: Mail,
+                    placeholder: 'usuario@empresa.com',
+                },
+                {
+                    name: 'phoneNumber',
+                    label: 'Teléfono',
+                    type: 'text',
+                    required: false,
+                    icon: Phone,
+                    placeholder: '+58 412 123 4567',
+                    stripPattern: /\D/g,
+                },
+                {
+                    name: 'position',
+                    label: 'Cargo',
+                    type: 'text',
+                    required: false,
+                    icon: Briefcase,
+                    placeholder: 'Ej: Gerente de Operaciones',
+                    stripPattern: /[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g,
+                },
+                {
+                    name: 'role',
+                    label: 'Rol',
+                    type: 'select',
+                    required: true,
+                    defaultValue: 'SALES',
+                    disabled: disableRole,
+                    hint: roleHint,
+                    options: [
+                        { value: 'OWNER', label: 'Dueño' },
+                        { value: 'ADMIN', label: 'Administrador' },
+                        { value: 'SALES', label: 'Ventas' },
+                        { value: 'OPERATOR', label: 'Operador' },
+                        { value: 'VIEWER', label: 'Espectador' },
+                    ],
+                },
+                ...(isNew
+                    ? [{
+                        name: 'password',
+                        label: 'Contraseña',
+                        type: 'password',
+                        required: true,
+                        icon: Lock,
+                        placeholder: 'Mínimo 6 caracteres',
+                        hint: 'El usuario NO podrá cambiarla después.',
+                    }]
+                    : []),
+            ],
+        },
+    ];
+};
 
 // ─────────────────────────────────────────────────
 // Modal de cambio de contraseña
@@ -263,19 +285,22 @@ const PdfBackgroundUploader = ({ label, description, currentUrl, file, onFileCha
 const Settings = () => {
     const { settings, updateSettings, loading } = useSettings();
     const { showSuccess, showError } = useToast();
+    const { currentTenant } = useTenant();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('general');
 
     const [formData, setFormData] = useState({});
     const [saving, setSaving] = useState(false);
 
     // Archivos de fondo pendientes de subir
-    const [pendingFiles, setPendingFiles] = useState({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
+    const [pendingFiles, setPendingFiles] = useState({ logo: null, quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
     // Flags de eliminación de fondos
-    const [pendingRemovals, setPendingRemovals] = useState({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
+    const [pendingRemovals, setPendingRemovals] = useState({ removeLogo: false, removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
 
     // Estados usuarios
     const [users, setUsers] = useState([]);
     const [usersLoading, setUsersLoading] = useState(false);
+    const [userSearch, setUserSearch] = useState('');
 
     // Modales
     const [viewModal, setViewModal] = useState({ open: false, user: null });
@@ -314,8 +339,8 @@ const Settings = () => {
         try {
             await updateSettings(formData, pendingFiles, pendingRemovals);
             // Resetear estados pendientes
-            setPendingFiles({ quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
-            setPendingRemovals({ removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
+            setPendingFiles({ logo: null, quoteBg: null, noticeBg: null, deliveryNoteBg: null, receiptBg: null, rateBg: null });
+            setPendingRemovals({ removeLogo: false, removeQuoteBg: false, removeNoticeBg: false, removeDeliveryNoteBg: false, removeReceiptBg: false, removeRateBg: false });
         } finally {
             setSaving(false);
         }
@@ -334,6 +359,13 @@ const Settings = () => {
             setDeletingUser(false);
         }
     };
+
+    const filteredUsers = userSearch
+        ? users.filter(u =>
+            [u.name, u.email, u.position, u.role]
+                .some(val => val?.toLowerCase().includes(userSearch.toLowerCase()))
+        )
+        : users;
 
     if (loading && !settings) {
         return (
@@ -415,25 +447,43 @@ const Settings = () => {
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                    <Image size={14} /> URL del Logo
-                                </label>
-                                <input
-                                    type="text"
-                                    name="logoUrl"
-                                    value={formData.logoUrl || ''}
-                                    onChange={handleInputChange}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                                    placeholder="https://ejemplo.com/logo.png"
-                                />
-                                {formData.logoUrl && (
-                                    <div className="mt-3 p-3 border border-slate-200 rounded-lg bg-slate-50 inline-flex items-center gap-3">
-                                        <img src={formData.logoUrl} alt="Logo Preview" className="h-10 object-contain" />
-                                        <span className="text-xs text-slate-400">Vista previa</span>
-                                    </div>
-                                )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Dirección de la Empresa <span className="text-slate-400 text-xs font-normal">(aparecerá en PDFs)</span></label>
+                                    <input
+                                        type="text"
+                                        name="companyAddress"
+                                        value={formData.companyAddress || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                        placeholder="Ej: NAGUANAGUA, Edo. Carabobo."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono de contacto de la empresa <span className="text-slate-400 text-xs font-normal">(aparecerá en PDFs)</span></label>
+                                    <input
+                                        type="text"
+                                        name="companyPhone"
+                                        value={formData.companyPhone || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                        placeholder="Ej: +58 412 123 4567"
+                                    />
+                                </div>
                             </div>
+                            <LogoDropzone
+                                currentUrl={pendingRemovals.removeLogo ? null : formData.logoUrl}
+                                file={pendingFiles.logo}
+                                onFileChange={(f) => {
+                                    setPendingFiles(prev => ({ ...prev, logo: f }));
+                                    setPendingRemovals(prev => ({ ...prev, removeLogo: false }));
+                                }}
+                                onRemove={() => {
+                                    setPendingFiles(prev => ({ ...prev, logo: null }));
+                                    setPendingRemovals(prev => ({ ...prev, removeLogo: true }));
+                                }}
+                                disabled={saving}
+                            />
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
                                     <FileText size={14} /> Texto Encabezado PDF
@@ -661,19 +711,22 @@ const Settings = () => {
             {/* ────── USUARIOS ────── */}
             {activeTab === 'users' && (
                 <div className="space-y-4">
-                    {/* Botón agregar encima de la tabla */}
-                    <div className="flex justify-end">
-                        <button
-                            onClick={() => setFormModal({ open: true, editMode: false, user: null })}
-                            className="inline-flex items-center gap-2 bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all shadow-lg shadow-orange-500/20 active:scale-95"
-                        >
-                            <UserPlus size={16} />
-                            Agregar Usuario
-                        </button>
-                    </div>
+                    {currentTenant?.role === 'OWNER' && (
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => setFormModal({ open: true, editMode: false, user: null })}
+                                className="inline-flex items-center gap-2 bg-secondary hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                            >
+                                <UserPlus size={16} />
+                                Agregar Usuario
+                            </button>
+                        </div>
+                    )}
 
                     <EntityTable
-                        items={users}
+                        items={filteredUsers}
+                        search={userSearch}
+                        onSearchChange={setUserSearch}
                         columns={[
                             { header: 'Nombre', accessor: 'name' },
                             { header: 'Email', accessor: 'email' },
@@ -681,15 +734,21 @@ const Settings = () => {
                             {
                                 header: 'Rol',
                                 accessor: 'role',
-                                render: (u) => (
-                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                        u.role === 'ADMIN'
-                                            ? 'bg-purple-100 text-purple-700'
-                                            : 'bg-blue-100 text-blue-700'
-                                    }`}>
-                                        {u.role === 'ADMIN' ? 'Administrador' : 'Ventas'}
-                                    </span>
-                                ),
+                                render: (u) => {
+                                    const roleLabels = {
+                                        OWNER: ['Dueño', 'bg-amber-100 text-amber-700'],
+                                        ADMIN: ['Administrador', 'bg-purple-100 text-purple-700'],
+                                        SALES: ['Ventas', 'bg-blue-100 text-blue-700'],
+                                        OPERATOR: ['Operador', 'bg-green-100 text-green-700'],
+                                        VIEWER: ['Espectador', 'bg-slate-100 text-slate-600'],
+                                    };
+                                    const [label, cls] = roleLabels[u.role] || [u.role, 'bg-slate-100 text-slate-600'];
+                                    return (
+                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
+                                            {label}
+                                        </span>
+                                    );
+                                },
                             },
                         ]}
                         loading={usersLoading}
@@ -698,8 +757,8 @@ const Settings = () => {
                         page={1}
                         entityName="usuario"
                         entityNamePlural="usuarios"
-                        canEdit
-                        canDelete
+                        canEdit={currentTenant?.role === 'OWNER'}
+                        canDelete={currentTenant?.role === 'OWNER'}
                         showToggle={false}
                         showStatusFilter={false}
                         onView={(u) => setViewModal({ open: true, user: u })}
@@ -728,7 +787,7 @@ const Settings = () => {
                 service={userService}
                 entityName="usuario"
                 title={formModal.editMode ? 'Editar Usuario' : 'Agregar Nuevo Usuario'}
-                sections={getUserFormSections(!formModal.editMode)}
+                sections={getUserFormSections(!formModal.editMode, formModal.user, user?.id)}
             />
 
             {/* Cambiar contraseña */}

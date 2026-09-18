@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { createNotification } from './notification.controller.js';
+import { getScopeFilter, SCOPE_FIELD_MAP } from '../utils/scope.js';
 
 /**
  * @route   GET /api/shipments
@@ -9,11 +10,13 @@ export const getShipments = async (req, res) => {
     try {
         const { search, type, status, vendedorId } = req.query;
 
-        const where = {};
+        const where = {
+            ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Shipment'),
+        };
 
         if (type) where.type = type;
         if (status) where.status = status;
-        if (vendedorId) where.vendedorId = vendedorId;
+        if (vendedorId && ['OWNER', 'ADMIN'].includes(req.membership.role)) where.vendedorId = vendedorId;
 
         if (search) {
             const or = [
@@ -75,8 +78,11 @@ export const getShipments = async (req, res) => {
  */
 export const getShipment = async (req, res) => {
     try {
-        const shipment = await prisma.shipment.findUnique({
-            where: { id: req.params.id },
+        const shipment = await prisma.shipment.findFirst({
+            where: {
+                id: req.params.id,
+                ...getScopeFilter(req.membership.role, req.user.id, SCOPE_FIELD_MAP, 'Shipment'),
+            },
             include: {
                 paymentNotice: {
                     select: {
@@ -147,7 +153,7 @@ vendedorId, currentLocation, arrivalDate,
         // Si se pasa un aviso de cobro, verificar que exista y no tenga tracking ya
         let notice = null;
         if (noticeId) {
-            notice = await prisma.paymentNotice.findUnique({
+            notice = await prisma.paymentNotice.findFirst({
                 where: { id: noticeId },
                 include: { tracking: true, client: { select: { name: true } } }
             });
@@ -222,6 +228,15 @@ vendedorId, currentLocation, arrivalDate,
             data.consolidadoTransitTime = consolidadoTransitTime ? parseInt(consolidadoTransitTime) : null;
         }
 
+        const lastShipment = await prisma.shipment.findFirst({
+            where: { tenantId: req.tenant.id },
+            orderBy: { number: 'desc' },
+            select: { number: true }
+        });
+        const nextNumber = (lastShipment?.number || 0) + 1;
+
+        data.number = nextNumber;
+
         const shipment = await prisma.shipment.create({
             data,
             include: {
@@ -286,7 +301,7 @@ export const updateShipment = async (req, res) => {
             consolidadoNumber, arrivalPort, consolidadoTransitTime
         } = req.body;
 
-        const existing = await prisma.shipment.findUnique({ where: { id } });
+        const existing = await prisma.shipment.findFirst({ where: { id } });
         if (!existing) {
             return res.status(404).json({ message: 'Embarque no encontrado' });
         }
@@ -434,12 +449,22 @@ export const getMonthlyClose = async (req, res) => {
         const start = new Date(year, mon - 1, 1);
         const end = new Date(year, mon, 1);
 
-        // Obtener todos los usuarios ADMIN + SALES activos
-        const users = await prisma.user.findMany({
-            where: { isActive: true, role: { in: ['ADMIN', 'SALES'] } },
-            select: { id: true, name: true, role: true },
-            orderBy: { name: 'asc' }
+        // Obtener usuarios del tenant activo con sus roles (via Membership)
+        const memberships = await prisma.membership.findMany({
+            where: {
+                tenantId: req.tenant.id,
+                role: { in: ['OWNER', 'ADMIN', 'SALES', 'OPERATOR'] },
+                status: 'ACTIVE',
+                user: { isActive: true },
+            },
+            include: { user: { select: { id: true, name: true } } },
+            orderBy: { user: { name: 'asc' } },
         });
+        const users = memberships.map(m => ({
+            id: m.user.id,
+            name: m.user.name,
+            role: m.role,
+        }));
 
         // --- D2D: embarques D2D del mes con cbm ---
         const d2dShipments = await prisma.shipment.findMany({
